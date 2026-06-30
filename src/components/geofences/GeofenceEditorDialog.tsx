@@ -107,7 +107,7 @@ function countCoords(wkt: string): number {
 }
 
 export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehicles = [], onSave }: GeofenceEditorDialogProps) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { showError } = useFlash();
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -291,19 +291,19 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
     if (!osmQuery.trim()) return;
     setSearching(true);
     try {
-      const results = await searchOsm(osmQuery);
+      const results = await searchOsm(osmQuery, locale);
       setOsmResults(results as Array<{ display_name: string; osm_type: string; osm_id: number }>);
     } catch (err) {
       console.error('OSM search failed:', err);
     } finally {
       setSearching(false);
     }
-  }, [osmQuery]);
+  }, [osmQuery, locale]);
 
   const handleOsmSelect = useCallback(async (item: { display_name: string; osm_type: string; osm_id: number }) => {
     setImporting(true);
     try {
-      const geojson = await fetchOsmGeometry(item.osm_type, item.osm_id);
+      const geojson = await fetchOsmGeometry(item.osm_type, item.osm_id, locale);
       if (!geojson) {
         showError('No boundary data available for this location');
         return;
@@ -375,7 +375,7 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
     } finally {
       setImporting(false);
     }
-  }, [updateDrawLayer, showError]);
+  }, [updateDrawLayer, showError, locale]);
 
   // ── Drawing ──
   const startDraw = useCallback((mode: string) => {

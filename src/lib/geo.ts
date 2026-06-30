@@ -15,7 +15,7 @@ export interface OsmResult {
   geojson?: GeoJSON.GeoJsonObject;
 }
 
-export async function searchOsm(query: string): Promise<OsmResult[]> {
+export async function searchOsm(query: string, language = 'en'): Promise<OsmResult[]> {
   if (!query || !query.trim()) return [];
   const params = new URLSearchParams({
     q: query.trim(),
@@ -23,20 +23,17 @@ export async function searchOsm(query: string): Promise<OsmResult[]> {
     limit: '10',
     polygon_geojson: '0',
     addressdetails: '1',
+    'accept-language': language,
   });
-  const res = await fetch(`${NOMINATIM_URL}/search?${params}`, {
-    headers: { 'Accept-Language': 'zh,en' },
-  });
+  const res = await fetch(`${NOMINATIM_URL}/search?${params}`);
   if (!res.ok) throw new Error(`Nominatim search failed: ${res.status}`);
   return res.json();
 }
 
-export async function fetchOsmGeometry(osmType: string, osmId: string | number): Promise<GeoJSON.GeoJsonObject | null> {
+export async function fetchOsmGeometry(osmType: string, osmId: string | number, language = 'en'): Promise<GeoJSON.GeoJsonObject | null> {
   const firstChar = osmType.charAt(0).toUpperCase();
-  const url = `${NOMINATIM_URL}/lookup?osm_ids=${firstChar}${osmId}&format=json&polygon_geojson=1`;
-  const res = await fetch(url, {
-    headers: { 'Accept-Language': 'zh,en' },
-  });
+  const url = `${NOMINATIM_URL}/lookup?osm_ids=${firstChar}${osmId}&format=json&polygon_geojson=1&accept-language=${language}`;
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`OSM lookup failed: ${res.status}`);
   const data = await res.json();
   const item = Array.isArray(data) ? data[0] : data;
