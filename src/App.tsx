@@ -1,0 +1,147 @@
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import AppShell from './components/layout/AppShell';
+import LoadingScreen from './components/common/LoadingScreen';
+import { useSession } from './context/SessionContext';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import SessionExpiredListener from './components/common/SessionExpiredListener';
+import FlashToast from './components/common/FlashToast';
+import NavigationBootstrap from './components/common/NavigationBootstrap';
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const LiveTrackingPage = lazy(() => import('./pages/LiveTrackingPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AlertsPage = lazy(() => import('./pages/AlertsPage'));
+const VehicleProfilePage = lazy(() => import('./pages/VehicleProfilePage'));
+const ReplayPage = lazy(() => import('./pages/ReplayPage'));
+const ReportsShell = lazy(() => import('./pages/reports/ReportsShell'));
+const ReportsIndexPage = lazy(() => import('./pages/reports/ReportsIndexPage'));
+const ReportPage = lazy(() => import('./pages/reports/ReportPage'));
+const DevicesPage = lazy(() => import('./pages/DevicesPage'));
+const GeofencesPage = lazy(() => import('./pages/GeofencesPage'));
+const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const EventsPage = lazy(() => import('./pages/EventsPage'));
+
+const SettingsLayout = lazy(() => import('./pages/settings/SettingsLayout'));
+const SettingsOverviewPage = lazy(() => import('./pages/settings/SettingsOverviewPage'));
+const ServerSettingsPage = lazy(() => import('./pages/settings/ServerSettingsPage'));
+const UsersSettingsPage = lazy(() => import('./pages/settings/UsersSettingsPage'));
+const DevicesSettingsPage = lazy(() => import('./pages/settings/DevicesSettingsPage'));
+const GroupsSettingsPage = lazy(() => import('./pages/settings/GroupsSettingsPage'));
+const GeofencesSettingsPage = lazy(() => import('./pages/settings/GeofencesSettingsPage'));
+const NotificationsSettingsPage = lazy(() => import('./pages/settings/NotificationsSettingsPage'));
+const PreferencesSettingsPage = lazy(() => import('./pages/settings/PreferencesSettingsPage'));
+const CommandsSettingsPage = lazy(() => import('./pages/settings/CommandsSettingsPage'));
+const CalendarsSettingsPage = lazy(() => import('./pages/settings/CalendarsSettingsPage'));
+const DriversSettingsPage = lazy(() => import('./pages/settings/DriversSettingsPage'));
+const MaintenanceSettingsPage = lazy(() => import('./pages/settings/MaintenanceSettingsPage'));
+const ComputedAttributesSettingsPage = lazy(() => import('./pages/settings/ComputedAttributesSettingsPage'));
+const PermissionsSettingsPage = lazy(() => import('./pages/settings/PermissionsSettingsPage'));
+const AnnouncementSettingsPage = lazy(() => import('./pages/settings/AnnouncementSettingsPage'));
+const ConnectionsHubPage = lazy(() => import('./pages/settings/ConnectionsHubPage'));
+const SettingsJsonEntityPage = lazy(() => import('./pages/settings/SettingsJsonEntityPage'));
+
+const TripsPage = lazy(() => import('./pages/TripsPage'));
+const FuelPage = lazy(() => import('./pages/FuelPage'));
+const DriversPage = lazy(() => import('./pages/DriversPage'));
+const MaintenancePage = lazy(() => import('./pages/MaintenancePage'));
+const LogisticsPage = lazy(() => import('./pages/LogisticsPage'));
+const RoutePlanningPage = lazy(() => import('./pages/RoutePlanningPage'));
+const SharedViewPage = lazy(() => import('./pages/SharedViewPage'));
+
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user } = useSession();
+  const location = useLocation();
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return children;
+}
+
+function AppRoutes() {
+  const { user, ready } = useSession();
+
+  if (!ready) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <Routes>
+        <Route path="/shared" element={<SharedViewPage />} />
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+        />
+        <Route
+          element={
+            <RequireAuth>
+              <AppShell />
+            </RequireAuth>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/tracking" element={<LiveTrackingPage />} />
+          <Route path="/alerts" element={<AlertsPage />} />
+          <Route path="/trips" element={<TripsPage />} />
+          <Route path="/fuel" element={<FuelPage />} />
+          <Route path="/vehicles" element={<Navigate to="/devices" replace />} />
+          <Route path="/devices" element={<DevicesPage />} />
+          <Route path="/devices/:id" element={<VehicleProfilePage />} />
+          <Route path="/drivers" element={<DriversPage />} />
+          <Route path="/maintenance" element={<MaintenancePage />} />
+          <Route path="/logistics" element={<LogisticsPage />} />
+          <Route path="/route-planning" element={<RoutePlanningPage />} />
+          <Route path="/replay" element={<ReplayPage />} />
+
+          <Route element={<ReportsShell />}>
+            <Route path="reports">
+              <Route index element={<ReportsIndexPage />} />
+              <Route path=":type" element={<ReportPage />} />
+            </Route>
+          </Route>
+          <Route path="/geofences" element={<GeofencesPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/events" element={<EventsPage />} />
+
+          <Route path="/settings" element={<SettingsLayout />}>
+            <Route index element={<SettingsOverviewPage />} />
+            <Route path="server" element={<ServerSettingsPage />} />
+            <Route path="users" element={<UsersSettingsPage />} />
+            <Route path="devices" element={<DevicesSettingsPage />} />
+            <Route path="groups" element={<GroupsSettingsPage />} />
+            <Route path="geofences" element={<GeofencesSettingsPage />} />
+            <Route path="notifications" element={<NotificationsSettingsPage />} />
+            <Route path="preferences" element={<PreferencesSettingsPage />} />
+            <Route path="commands" element={<CommandsSettingsPage />} />
+            <Route path="calendars" element={<CalendarsSettingsPage />} />
+            <Route path="drivers" element={<DriversSettingsPage />} />
+            <Route path="maintenance" element={<MaintenanceSettingsPage />} />
+            <Route path="maintenances" element={<MaintenanceSettingsPage />} />
+            <Route path="attributes" element={<ComputedAttributesSettingsPage />} />
+            <Route path="permissions" element={<PermissionsSettingsPage />} />
+            <Route path="announcement" element={<AnnouncementSettingsPage />} />
+            <Route path="connections" element={<ConnectionsHubPage />} />
+            <Route path="entity/:kind/:id" element={<SettingsJsonEntityPage />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Route>
+      </Routes>
+    </Suspense>
+  );
+}
+
+export default function App() {
+  return (
+    <>
+      <NavigationBootstrap />
+      <SessionExpiredListener />
+      <FlashToast />
+      <ErrorBoundary>
+        <AppRoutes />
+      </ErrorBoundary>
+    </>
+  );
+}

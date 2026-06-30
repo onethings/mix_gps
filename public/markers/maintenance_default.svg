@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="96mm"
+   height="96mm"
+   viewBox="0 0 96 96"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
+   sodipodi:docname="default.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="0.80444024"
+     inkscape:cx="397.17059"
+     inkscape:cy="362.36377"
+     inkscape:window-width="1920"
+     inkscape:window-height="1052"
+     inkscape:window-x="0"
+     inkscape:window-y="28"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g19"
+       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+       transform="matrix(0.30887507,0,0,0.30887507,-10.682011,-5.0667179)">
+      <path
+         style="opacity:1"
+         fill="#bab8b9"
+         d="m 306.5,159.5 c 1.157,8.156 1.323,16.49 0.5,25 -0.278,0.916 -0.778,1.582 -1.5,2 0.883,-8.967 1.216,-17.967 1,-27 z"
+         id="path19" />
+    </g>
+    <g
+       id="g65"
+       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+       transform="matrix(0.30887507,0,0,0.30887507,-10.682011,-5.0667179)">
+      <path
+         style="opacity:1"
+         fill="#242423"
+         d="m 306.5,159.5 c 0.216,9.033 -0.117,18.033 -1,27 -12.432,57.598 -47.766,91.098 -106,100.5 C 141.55,289.347 100.717,264.181 77,211.5 58.3631,153.934 72.8631,106.767 120.5,70 c 43.214,-26.6188 86.881,-27.2854 131,-2 32.772,21.6937 51.105,52.194 55,91.5 z"
+         id="path65" />
+    </g>
+    <g
+       id="g66"
+       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+       transform="matrix(0.30887507,0,0,0.30887507,-10.682011,-5.0667179)">
+      <path
+         style="opacity:1"
+         fill="#9b9b98"
+         d="m 81.5,149.5 c -0.7026,8.649 -1.036,17.315 -1,26 -0.6649,-2.982 -0.9982,-6.148 -1,-9.5 -0.0851,-5.734 0.5816,-11.234 2,-16.5 z"
+         id="path66" />
+    </g>
+    <g
+       id="g67"
+       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+       transform="matrix(0.30887507,0,0,0.30887507,-10.682011,-5.0667179)">
+      <path
+         style="opacity:1"
+         fill="#f8f8f8"
+         d="m 80.5,175.5 c -0.036,-8.685 0.2974,-17.351 1,-26 11.2854,-48.451 41.285,-77.9515 90,-88.5 55.319,-4.2584 94.485,18.5749 117.5,68.5 16.878,55.702 1.378,99.869 -46.5,132.5 -44.063,22.625 -85.73,18.959 -125,-11 -22.6104,-20.055 -34.9437,-45.222 -37,-75.5 z"
+         id="path67" />
+    </g>
+    <g
+       id="g68"
+       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
+       transform="matrix(0.30887507,0,0,0.30887507,-10.682011,-5.0667179)">
+      <path
+         style="opacity:1"
+         fill="#202020"
+         d="m 185.5,110.5 c 4.183,-0.654 7.016,1.012 8.5,5 16.333,28.667 32.667,57.333 49,86 1.72,5.944 -0.447,8.444 -6.5,7.5 -16.134,-6.735 -32.467,-12.902 -49,-18.5 -15.837,5.335 -31.504,11.168 -47,17.5 -3.169,0.978 -6.003,0.478 -8.5,-1.5 -0.667,-1.333 -0.667,-2.667 0,-4 17.262,-31.072 35.096,-61.739 53.5,-92 z"
+         id="path68" />
+    </g>
+  </g>
+</svg>
