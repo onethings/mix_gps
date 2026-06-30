@@ -85,7 +85,7 @@
 | Map | MapLibre GL JS 5 |
 | Icons | Lucide React |
 | Routing | React Router 7 |
-| Languages | 106 languages (Traccar translations) |
+| Languages | 106 languages (Gemini web translations) |
 
 ---
 
