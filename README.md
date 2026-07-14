@@ -170,6 +170,14 @@ When using the **demo3.traccar.org** public test server, log in with an account 
 > **Important:** `VITE_TRACCAR_URL` only controls where API requests are forwarded to — it does **not** change the URL you visit in the browser.  
 > You should **always access the dev server at `http://localhost:3001`** (or your production URL), **not** the Traccar server URL directly.
 
+> **CORS note for production:** In production (or preview), the browser sends API requests **directly** to your Traccar server, which may be blocked by CORS.  
+> Add the following to your `traccar.xml` on the Traccar server to allow requests from your frontend domain:
+> ```xml
+> <entry key='web.origin'>https://your-frontend-domain.com</entry>
+> ```
+> **Do not use `*`** — it allows any website to read your Traccar data (vehicle locations, routes, etc.).  
+> For development, you can add `http://localhost:3001` as well.
+
 ### Env File Reference
 
 | File | Usage |

@@ -11,6 +11,14 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const target = env.VITE_TRACCAR_URL || DEFAULT_TRACCAR_URL;
   const wsTarget = target.replace(/^http/, 'ws');
+
+  // ⚠️ Production CORS note:
+  // In dev mode, /api requests go through Vite's proxy, so no CORS issues.
+  // In production/preview, the browser calls VITE_TRACCAR_URL directly.
+  // If your frontend domain differs from the Traccar server domain,
+  // add this to traccar.xml on the Traccar server:
+  //   <entry key='web.origin'>https://your-frontend-domain.com</entry>
+  // Do NOT use '*' — it exposes all vehicle/gps data to any website.
   const baseRaw = env.VITE_BASE_PATH && String(env.VITE_BASE_PATH).trim();
   const base = baseRaw ? `${baseRaw.replace(/\/$/, '')}/` : '/';
 
