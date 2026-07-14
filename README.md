@@ -92,6 +92,7 @@
 
 ## Quick Start
 
+
 ### Prerequisites
 
 - Node.js 18+
@@ -112,7 +113,35 @@ npm install
 npm run dev
 ```
 
+> **⚠️ Important:** The dev server runs on **port 3001**, **not** the Vite default port 3000.  
+> Always open **http://localhost:3001** in your browser.
+
 Open `http://localhost:3001` in your browser. The Vite dev server automatically proxies `/api/*` requests to `VITE_TRACCAR_URL` (defaults to `https://demo3.traccar.org`).
+
+**How the proxy works** — the actual configuration in `vite.config.ts`:
+
+```ts
+server: {
+  port: 3001,
+  proxy: {
+    '/api/socket': {
+      target: 'ws://demo3.traccar.org',  // WebSocket for real-time data
+      ws: true,
+    },
+    '/api': {
+      target: 'https://demo3.traccar.org', // REST API proxy
+      changeOrigin: true,
+    },
+  },
+}
+```
+
+This means:
+- All `/api/*` requests from the frontend (e.g. `/api/devices`, `/api/positions`) are forwarded to the Traccar server behind the scenes
+- **You never access the Traccar server URL directly** — always use `http://localhost:3001` to see the enhanced React UI
+- If you set `VITE_TRACCAR_URL` to your own server, the proxy target changes accordingly, but you **still visit `http://localhost:3001`** in your browser
+
+> **Common mistake:** Users sometimes open the Traccar server's own web UI (e.g. `http://localhost:8082` or their own server's URL) and expect to see the enhanced interface. That URL serves the **original Traccar UI**, not this project. You must access this project's **own dev server** at `http://localhost:3001` to see the React-enhanced interface.
 
 ### Live Demo
 
@@ -135,8 +164,11 @@ When using the **demo3.traccar.org** public test server, log in with an account 
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_TRACCAR_URL` | Traccar server URL | `https://demo3.traccar.org` |
+| `VITE_TRACCAR_URL` | Traccar server URL (used as the dev proxy target and production API endpoint) | `https://demo3.traccar.org` |
 | `VITE_BASE_PATH` | Base path for subdirectory deployment | `/` |
+
+> **Important:** `VITE_TRACCAR_URL` only controls where API requests are forwarded to — it does **not** change the URL you visit in the browser.  
+> You should **always access the dev server at `http://localhost:3001`** (or your production URL), **not** the Traccar server URL directly.
 
 ### Env File Reference
 
@@ -353,6 +385,9 @@ The Vite dev server is configured to proxy `/api/*` requests to `demo3.traccar.o
 - **Production mode**: Set `VITE_TRACCAR_URL` to point to your own Traccar server
 - **Login**: Use credentials registered on the demo server
 
+> **⚠️ Common pitfall:** You must access the **frontend dev server** at `http://localhost:3001` to see the enhanced React interface.  
+> Visiting the Traccar server directly (e.g. `http://localhost:8082` or `https://demo3.traccar.org`) serves the **original Traccar web UI**, not this project.
+
 ### Important Notes
 
 | Item | Description |
@@ -367,15 +402,65 @@ The Vite dev server is configured to proxy `/api/*` requests to `demo3.traccar.o
 ### Switch to Your Own Server
 
 ```bash
-# Method 1: Using environment variables
-echo "VITE_TRACCAR_URL=https://your-traccar-url" > .env.local
+# Method 1: Using environment variables (development)
+echo "VITE_TRACCAR_URL=http://localhost:8082" > .env.local
 
-# Method 2: Modify .env.production (production environment)
+# Method 2: Modify .env.production (production build)
 # Edit .env.production and change VITE_TRACCAR_URL to your server URL
 
 # Method 3: Set environment variable in your hosting platform
 # Add VITE_TRACCAR_URL in Cloudflare Pages / Firebase / Vercel settings
 ```
+
+> **🐛 CORS issue when using a production build (no Vite proxy)**
+>
+> In development mode (`npm run dev`), the Vite dev server proxies all `/api/*` requests, so there are no cross-origin issues.  
+> However, when you deploy the production build (the static files in `dist/`) to a separate domain — e.g. `https://myfleet.pages.dev` — the frontend JavaScript runs on that domain and makes direct `fetch()` calls to your Traccar server. The browser blocks these requests unless the Traccar server explicitly allows cross-origin access via CORS headers. ([MDN: Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin))
+>
+> **Solution — configure `web.origin` on your Traccar server:**
+>
+> Edit your Traccar configuration file (`traccar.xml`, typically at `/opt/traccar/conf/traccar.xml` on Linux, or `C:\Program Files\Traccar\conf\traccar.xml` on Windows) and add or uncomment the `web.origin` entry ([Traccar Configuration File Reference](https://www.traccar.org/configuration-file/)):
+>
+> ```xml
+> <!-- Allow a specific frontend domain (recommended for production) -->
+> <entry key='web.origin'>https://myfleet.pages.dev</entry>
+>
+> <!-- Or allow any origin (only for development/testing) -->
+> <!-- <entry key='web.origin'>*</entry> -->
+> ```
+>
+> This tells Traccar to include the `Access-Control-Allow-Origin` header in its API responses, which authorizes the browser to accept the cross-origin response.
+>
+> **How it works:**
+>
+> ```
+> ┌─────────────────────┐         fetch('/api/devices')         ┌──────────────────┐
+> │  Frontend (React)   │ ──── with Origin: https://myfleet... ──▶│ Traccar Server   │
+> │  https://myfleet...  │ ◀──── Access-Control-Allow-Origin ─────│  http://localhost │
+> │  (Cloudflare Pages)  │         : https://myfleet...           │  :8082            │
+> └─────────────────────┘                                        └──────────────────┘
+> ```
+>
+> The `web.origin` value in Traccar's config is used as the `Access-Control-Allow-Origin` response header value. Set it to your frontend's exact domain (or `*` during development).
+>
+> **⚠️ Limitation: Traccar's `web.origin` only accepts a single origin or `*`.**  
+> The HTTP `Access-Control-Allow-Origin` header itself only supports one specific origin or the wildcard `*` ([MDN: Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin)). If you need **multiple frontend domains** to access the same Traccar server, you have two options:
+>
+> **Option A — Use a reverse proxy (nginx, Apache, Caddy)**  
+> Configure your proxy to read the incoming `Origin` header and dynamically set `Access-Control-Allow-Origin` to match it:
+> ```nginx
+> # nginx example — dynamically echoes back the request origin
+> location /api/ {
+>     proxy_pass http://localhost:8082;
+>     proxy_set_header Host $host;
+>     add_header Access-Control-Allow-Origin $http_origin always;
+>     add_header Access-Control-Allow-Credentials true;
+>     add_header Vary Origin;
+> }
+> ```
+>
+> **Option B — Use a Cloudflare Worker (recommended if already on Cloudflare)**  
+> The [Cloudflare Worker proxy](#deploy-cloudflare-worker-proxy) documented above can handle multiple origins by inspecting the request's `Origin` header and responding with the matching value — no Traccar config changes needed.
 
 ---
 
@@ -588,7 +673,35 @@ npm install
 npm run dev
 ```
 
+> **⚠️ 重要：** 開發伺服器執行在 **port 3001**，**不是** Vite 預設的 port 3000。  
+> 請務必在瀏覽器開啟 **http://localhost:3001**。
+
 啟動後開啟瀏覽器至 `http://localhost:3001`，Vite 開發伺服器會自動將 `/api/*` 請求代理至 `VITE_TRACCAR_URL`（預設 `https://demo3.traccar.org`）。
+
+**代理運作方式** — `vite.config.ts` 中的實際設定：
+
+```ts
+server: {
+  port: 3001,
+  proxy: {
+    '/api/socket': {
+      target: 'ws://demo3.traccar.org',  // WebSocket 即時資料
+      ws: true,
+    },
+    '/api': {
+      target: 'https://demo3.traccar.org', // REST API 代理
+      changeOrigin: true,
+    },
+  },
+}
+```
+
+這代表：
+- 前端所有的 `/api/*` 請求（例如 `/api/devices`、`/api/positions`）都會在背後轉發到 Traccar 伺服器
+- **請勿直接存取 Traccar 伺服器的網址** — 永遠使用 `http://localhost:3001` 才能看到增強的 React 介面
+- 如果你設定了 `VITE_TRACCAR_URL` 指向自己的伺服器，代理目標會隨之改變，但你**仍然在瀏覽器存取 `http://localhost:3001`**
+
+> **常見錯誤：** 使用者有時會直接打開 Traccar 伺服器本身的 Web 介面（例如 `http://localhost:8082` 或自己伺服器的網址），以為會看到增強的介面。但那個網址提供的是**原始的 Traccar UI**，不是本專案。你**必須存取本專案的開發伺服器** `http://localhost:3001` 才能看到 React 增強的介面。
 
 ### 線上示範
 
@@ -611,8 +724,11 @@ npm run dev
 
 | 變數 | 說明 | 預設值 |
 |------|------|--------|
-| `VITE_TRACCAR_URL` | Traccar 伺服器 URL | `https://demo3.traccar.org` |
+| `VITE_TRACCAR_URL` | Traccar 伺服器 URL（開發模式作為代理目標，生產模式作為 API 端點） | `https://demo3.traccar.org` |
 | `VITE_BASE_PATH` | 部署路徑前綴（子目錄部署用） | `/` |
+
+> **重要：** `VITE_TRACCAR_URL` 只控制 API 請求要轉發到哪個伺服器，**不會改變**你在瀏覽器存取的網址。  
+> 你**永遠應該存取開發伺服器 `http://localhost:3001`**（或你的正式部署網址），**而不是**直接存取 Traccar 伺服器的網址。
 
 ### 環境檔案說明
 
@@ -829,6 +945,9 @@ async function handleWebSocket(request, target) {
 - **生產模式**：需設定 `VITE_TRACCAR_URL` 環境變數指向自己的 Traccar 伺服器
 - **登入**：使用 demo3 伺服器上的帳號密碼
 
+> **⚠️ 常見錯誤：** 你必須存取**前端開發伺服器** `http://localhost:3001` 才能看到增強的 React 介面。  
+> 直接存取 Traccar 伺服器（例如 `http://localhost:8082` 或 `https://demo3.traccar.org`）會看到的是**原始的 Traccar Web UI**，不是本專案。
+
 ### 注意事項
 
 | 項目 | 說明 |
@@ -843,15 +962,65 @@ async function handleWebSocket(request, target) {
 ### 替換為自己的伺服器
 
 ```bash
-# 方法 1：使用環境變數
-echo "VITE_TRACCAR_URL=https://你的-traccar-網址" > .env.local
+# 方法 1：使用環境變數（開發模式）
+echo "VITE_TRACCAR_URL=http://localhost:8082" > .env.local
 
-# 方法 2：修改 .env.production（正式環境）
+# 方法 2：修改 .env.production（正式建置）
 # 編輯 .env.production 將 VITE_TRACCAR_URL 改為你的伺服器網址
 
 # 方法 3：部署時在托管平台設定環境變數
 # 在 Cloudflare Pages / Firebase / Vercel 的環境變數設定中新增 VITE_TRACCAR_URL
 ```
+
+> **🐛 CORS 跨域問題（正式部署時）**
+>
+> 在開發模式（`npm run dev`）下，Vite 開發伺服器會代理所有 `/api/*` 請求，因此不會有跨域問題。  
+> 但當你將正式建置的靜態檔案（`dist/` 目錄）部署到另一個網域（例如 `https://myfleet.pages.dev`），前端 JavaScript 會在該網域上直接呼叫你的 Traccar 伺服器。瀏覽器會阻擋這些請求，除非 Traccar 伺服器明確允許跨域存取（透過 CORS 標頭）。（[MDN: Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin)）
+>
+> **解決方法 — 在 Traccar 伺服器設定 `web.origin`：**
+>
+> 編輯 Traccar 設定檔（`traccar.xml`，Linux 通常在 `/opt/traccar/conf/traccar.xml`，Windows 在 `C:\Program Files\Traccar\conf\traccar.xml`），加入或取消註解 `web.origin` 項目（[Traccar 設定檔說明](https://www.traccar.org/configuration-file/)）：
+>
+> ```xml
+> <!-- 指定允許的前端網域（正式環境建議使用） -->
+> <entry key='web.origin'>https://myfleet.pages.dev</entry>
+>
+> <!-- 或允許所有來源（僅開發/測試用） -->
+> <!-- <entry key='web.origin'>*</entry> -->
+> ```
+>
+> 這會讓 Traccar 在 API 回應中加入 `Access-Control-Allow-Origin` 標頭，授權瀏覽器接受跨域回應。
+>
+> **運作原理：**
+>
+> ```
+> ┌─────────────────────┐         fetch('/api/devices')         ┌──────────────────┐
+> │  前端 (React)        │ ──── 帶 Origin: https://myfleet... ──▶│ Traccar 伺服器   │
+> │  https://myfleet...  │ ◀──── Access-Control-Allow-Origin ─────│  http://localhost │
+> │  (Cloudflare Pages)  │         : https://myfleet...           │  :8082            │
+> └─────────────────────┘                                        └──────────────────┘
+> ```
+>
+> `web.origin` 的值會作為 `Access-Control-Allow-Origin` 回應標頭的值。請將其設為你前端的確切網域（開發期間可設為 `*`）。
+>
+> **⚠️ 限制：Traccar 的 `web.origin` 只接受單一網域或 `*`。**  
+> HTTP 的 `Access-Control-Allow-Origin` 標頭本身只能指定一個特定來源或萬用字元 `*`（[MDN: Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin)）。如果你需要**多個前端網域**存取同一個 Traccar 伺服器，有兩種做法：
+>
+> **方案 A — 使用反向代理（nginx、Apache、Caddy）**  
+> 設定代理伺服器讀取請求的 `Origin` 標頭，並動態設定 `Access-Control-Allow-Origin`：
+> ```nginx
+> # nginx 範例 — 動態回應請求的來源網域
+> location /api/ {
+>     proxy_pass http://localhost:8082;
+>     proxy_set_header Host $host;
+>     add_header Access-Control-Allow-Origin $http_origin always;
+>     add_header Access-Control-Allow-Credentials true;
+>     add_header Vary Origin;
+> }
+> ```
+>
+> **方案 B — 使用 Cloudflare Worker（如果已在 Cloudflare 上，建議採用）**  
+> 前面介紹的 [Cloudflare Worker 代理](#部署-cloudflare-worker-代理-1) 可以處理多個網域，它會檢查請求的 `Origin` 標頭並回傳對應的值 — 不需要修改 Traccar 設定。
 
 ---
 
