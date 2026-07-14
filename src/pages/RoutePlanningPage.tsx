@@ -9,10 +9,11 @@ import { useSession } from '@/context/SessionContext';
 import { useFlash } from '@/context/FlashContext';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useT } from '@/lib/i18n';
+import { cacheGet, cacheSet } from '@/lib/db';
 
 const STORAGE_KEY = 'mixok-route-plans';
-function loadPlans() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
-function savePlans(p) { localStorage.setItem(STORAGE_KEY, JSON.stringify(p)); }
+async function loadPlans() { try { return (await cacheGet<any[]>('general', STORAGE_KEY)) || []; } catch { return []; } }
+function savePlans(p) { cacheSet('general', STORAGE_KEY, p); }
 
 const STATUS_CONFIG = {
   draft: { label: 'Draft', icon: FileText, color: 'text-muted-foreground' },
@@ -29,15 +30,15 @@ export default function RoutePlanningPage() {
   const [deleteId, setDeleteId] = useState(null); const [deleting, setDeleting] = useState(false);
   const vehicleMap = useMemo(() => { const m = {}; vehicles.forEach(v => { m[String(v.id)] = v.name; }); return m; }, [vehicles]);
 
-  const reload = () => { setRoutes(loadPlans()); setLoading(false); };
+  const reload = async () => { setRoutes(await loadPlans()); setLoading(false); };
   useEffect(() => { if (!user) { setLoading(false); return; } reload(); }, [user]);
 
   const [formOpen, setFormOpen] = useState(false); const [editing, setEditing] = useState(null);
   const [formName, setFormName] = useState(''); const [formDesc, setFormDesc] = useState(''); const [formStatus, setFormStatus] = useState('draft');
 
-  const submitRoute = () => {
+  const submitRoute = async () => {
     const n = formName.trim(); if (!n) { showError(t('nameRequired')); return; }
-    const list = loadPlans();
+    const list = await loadPlans();
     if (editing) { const idx = list.findIndex(r => r.id === editing.id); if (idx >= 0) { list[idx] = { ...list[idx], name: n, description: formDesc, status: formStatus }; } }
     else { list.push({ id: Date.now(), name: n, description: formDesc, status: formStatus, createdAt: new Date().toISOString() }); }
     savePlans(list); setRoutes(list); setFormOpen(false); setEditing(null); showSuccess(editing ? 'Updated' : 'Created');
@@ -45,7 +46,7 @@ export default function RoutePlanningPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return; setDeleting(true);
-    const list = loadPlans().filter(r => r.id !== deleteId); savePlans(list); setRoutes(list);
+    const list = (await loadPlans()).filter(r => r.id !== deleteId); savePlans(list); setRoutes(list);
     setDeleteId(null); showSuccess('Deleted'); setDeleting(false);
   };
 

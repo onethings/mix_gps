@@ -96,10 +96,11 @@ export async function cacheGet<T = unknown>(storeName: string, key: string): Pro
   const db = await openDB();
   const now = Date.now();
 
+  // Try IndexedDB first
   if (db) {
     try {
       const tx = db.transaction(storeName, 'readonly');
-      return new Promise((resolve) => {
+      const val = await new Promise<T | null>((resolve) => {
         const req = tx.objectStore(storeName).get(key);
         req.onsuccess = () => {
           const record = req.result as CacheRecord | undefined;
@@ -108,10 +109,11 @@ export async function cacheGet<T = unknown>(storeName: string, key: string): Pro
           } else {
             resolve(record.value as T);
           }
-          db.close();
         };
-        req.onerror = () => { db.close(); resolve(null); };
+        req.onerror = () => resolve(null);
       });
+      if (val !== null) return val;
+      // Not found in IndexedDB — fall through to localStorage
     } catch { /* fall through */ }
   }
 

@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import FleetMapLibre from '@/components/tracking/FleetMapLibre';
 import type { Vehicle, TraccarGeofence } from '@/types';
 
@@ -25,6 +26,7 @@ interface MapViewProps {
 }
 
 export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps) {
+  const { t } = useT();
   const [basemap, setBasemap] = useState('road');
   const [showGeofences, setShowGeofences] = useState(false);
   const [geofences, setGeofences] = useState<TraccarGeofence[]>([]);
@@ -93,31 +95,31 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
           <button type="button" onClick={() => setBasemap('road')}
             className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
               basemap === 'road' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
-            <MapIcon className="h-3.5 w-3.5" /> Map
+            <MapIcon className="h-3.5 w-3.5" /> {t('mapLayer')}
           </button>
           <button type="button" onClick={() => setBasemap('satellite')}
             className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
               basemap === 'satellite' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
-            <Satellite className="h-3.5 w-3.5" /> Satellite
+            <Satellite className="h-3.5 w-3.5" /> {t('satellite')}
           </button>
           <div className="mx-0.5 h-5 w-px bg-border" />
           <button type="button" onClick={() => mapRef.current?.fitAllVehicles()}
             className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent"
-            title="Fit all vehicles">
-            <Crosshair className="h-3.5 w-3.5" /> All
+            title={t('fitAllVehicles')}>
+            <Crosshair className="h-3.5 w-3.5" /> {t('all')}
           </button>
           <button type="button" onClick={handleToggleGeofences}
             className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
               showGeofences ? 'bg-primary/15 text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-accent')}
-            title={showGeofences ? 'Hide geofences' : 'Show geofences'}>
-            {showGeofences ? <Shield className="h-3.5 w-3.5" /> : <ShieldOff className="h-3.5 w-3.5" />} Zones
+            title={showGeofences ? t('hideGeofences') : t('showGeofences')}>
+            {showGeofences ? <Shield className="h-3.5 w-3.5" /> : <ShieldOff className="h-3.5 w-3.5" />} {t('zones')}
           </button>
           <div className="mx-0.5 h-5 w-px bg-border" />
           <button type="button" onClick={() => { if (!measuring) setMeasureKm(0); setMeasuring((p) => !p); }}
             className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
               measuring ? 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30' : 'text-muted-foreground hover:bg-accent')}
-            title={measuring ? 'Stop measuring' : 'Measure distance'}>
-            <Ruler className="h-3.5 w-3.5" /> Ruler
+            title={measuring ? t('stopMeasuring') : t('measureDistance')}>
+            <Ruler className="h-3.5 w-3.5" /> {t('ruler')}
           </button>
         </div>
 
@@ -126,51 +128,39 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
           <div className="mt-1 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/95 px-3 py-1.5 text-xs shadow-sm backdrop-blur dark:border-amber-800 dark:bg-amber-950/80">
             <Ruler className="h-3.5 w-3.5 text-amber-600" />
             <span className="font-medium text-amber-700 dark:text-amber-300">
-              {measureKm > 0 ? `${measureKm.toFixed(2)} km` : 'Click on the map to measure'}
+              {measureKm > 0 ? `${measureKm.toFixed(2)} ${t('unitKm')}` : t('clickToMeasure')}
             </span>
             <button type="button" onClick={() => { mapRef.current?.clearMeasurement?.(); setMeasureKm(0); }}
-              className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-amber-600 hover:bg-amber-200/50 dark:text-amber-400 dark:hover:bg-amber-800/50">Clear</button>
+              className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-amber-600 hover:bg-amber-200/50 dark:text-amber-400 dark:hover:bg-amber-800/50">{t('clear')}</button>
           </div>
         )}
       </div>
 
-      {/* GPS status messages */}
-      {!anyPosition && vehicles.length > 0 && (
-        <div className="pointer-events-none absolute left-1/2 top-16 z-10 max-w-[90%] -translate-x-1/2 rounded-md border border-border bg-card/95 px-3 py-2 text-center text-xs text-muted-foreground shadow-sm backdrop-blur">
-          No GPS positions yet — markers appear when the server reports coordinates.
-        </div>
-      )}
-
-      {noPositionCount > 0 && anyPosition && (
-        <div className="pointer-events-none absolute left-1/2 top-16 z-10 max-w-[90%] -translate-x-1/2 rounded-md border border-border bg-card/95 px-3 py-1.5 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
-          {noPositionCount} of {vehicles.length} device{vehicles.length === 1 ? '' : 's'} have no coordinates
-        </div>
-      )}
-
-      {/* Fleet Stats + Legend Bar (bottom-left) */}
-      <div className="pointer-events-none absolute bottom-4 left-4 z-10 flex flex-col gap-2">
-        <div className="flex items-center gap-3 rounded-md border border-border bg-card/90 px-3 py-2 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
+      {/* Fleet Stats + Legend Bar + GPS warnings (bottom-left) */}
+      <div className="pointer-events-none absolute bottom-4 left-4 z-10 flex flex-col gap-1.5">
+        {/* Merged legend bar */}
+        <div className="flex items-center gap-2 rounded-md border border-border bg-card/90 px-3 py-2 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
           <span className="font-semibold text-foreground">{fleetStats.total}</span>
-          <span>vehicles</span>
-          <span className="text-border">|</span>
+          <span>{t('vehicles')}</span>
+          <span className="text-muted-foreground/30">|</span>
           {(['moving', 'idle', 'stopped', 'offline', 'alert'] as const).map((status) => {
             const count = fleetStats[status];
             if (count === 0) return null;
             return (
               <span key={status} className="flex items-center gap-1">
                 <span className={cn('h-2 w-2 rounded-full', STATUS_COLORS[status])} />
-                <span className="capitalize">{count}</span>
+                <span>{count} {t(status)}</span>
               </span>
             );
           })}
         </div>
-        <div className="flex max-w-[calc(100vw-4rem)] flex-wrap items-center gap-2 rounded-md border border-border bg-card/90 px-3 py-2 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-blue-600" /> Moving</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-600" /> Idle</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-slate-500" /> Stopped</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-slate-600" /> Offline</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-600" /> Alert</span>
-        </div>
+
+        {/* No-coordinates warning — moved here instead of blocking top controls */}
+        {noPositionCount > 0 && (
+          <div className="rounded-md border border-amber-200 bg-amber-50/90 px-3 py-1.5 text-[11px] text-amber-700 shadow-sm backdrop-blur dark:border-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+            {t('deviceNoCoords').replace('{count}', String(noPositionCount)).replace('{total}', String(vehicles.length))}
+          </div>
+        )}
       </div>
     </div>
   );

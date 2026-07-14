@@ -10,11 +10,12 @@ import { useFlash } from '@/context/FlashContext';
 import { useLiveData } from '@/context/LiveDataContext';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
+import { cacheGet, cacheSet } from '@/lib/db';
 
 const STORAGE_KEY = 'mixok-logistics-orders';
 
-function loadOrders() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
-function saveOrders(o) { localStorage.setItem(STORAGE_KEY, JSON.stringify(o)); }
+async function loadOrders() { try { return (await cacheGet<any[]>('general', STORAGE_KEY)) || []; } catch { return []; } }
+function saveOrders(o) { cacheSet('general', STORAGE_KEY, o); }
 
 const STATUS_COLUMNS = [
   { id: 'pending', title: 'Pending', icon: Clock, color: 'text-amber-600' },
@@ -32,16 +33,16 @@ export default function LogisticsPage() {
   const [deleteId, setDeleteId] = useState(null); const [deleting, setDeleting] = useState(false);
   const fleetSnapshot = useMemo(() => ({ total: vehicles.length, online: vehicles.filter(v => v.status !== 'offline').length, offline: vehicles.length - vehicles.filter(v => v.status !== 'offline').length, alertCount: alerts.length }), [vehicles, alerts]);
 
-  const reload = () => { setOrders(loadOrders()); setLoading(false); };
+  const reload = async () => { setOrders(await loadOrders()); setLoading(false); };
 
   useEffect(() => { if (!user) { setLoading(false); return; } reload(); }, [user]);
 
   const [formName, setFormName] = useState(''); const [formCustomer, setFormCustomer] = useState(''); const [formAddress, setFormAddress] = useState(''); const [formStatus, setFormStatus] = useState('pending');
 
-  const submitOrder = () => {
+  const submitOrder = async () => {
     const n = formName.trim(); const c = formCustomer.trim(); const a = formAddress.trim();
     if (!n || !c || !a) { showError(t('allFieldsRequired')); return; }
-    const list = loadOrders();
+    const list = await loadOrders();
     if (editing) { const idx = list.findIndex(o => o.id === editing.id); if (idx >= 0) { list[idx] = { ...list[idx], name: n, customerName: c, deliveryAddress: a, status: formStatus }; } }
     else { list.push({ id: Date.now(), name: n, customerName: c, deliveryAddress: a, status: formStatus, createdAt: new Date().toISOString(), orderNumber: `ORD-${Date.now().toString(36).toUpperCase()}` }); }
     saveOrders(list); setOrders(list); setFormOpen(false); setEditing(null); showSuccess(editing ? 'Updated' : 'Created');
@@ -49,7 +50,7 @@ export default function LogisticsPage() {
 
   const handleDelete = async () => {
     if (!deleteId) return; setDeleting(true);
-    const list = loadOrders().filter(o => o.id !== deleteId); saveOrders(list); setOrders(list);
+    const list = (await loadOrders()).filter(o => o.id !== deleteId); saveOrders(list); setOrders(list);
     setDeleteId(null); showSuccess('Deleted'); setDeleting(false);
   };
 

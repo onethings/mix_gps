@@ -43,7 +43,7 @@ function guessDefaultCenter(vehicles: VehicleShort[]) {
     const avgLat = withCoords.reduce((s, v) => s + v.lat, 0) / withCoords.length;
     return { center: [avgLng, avgLat] as [number, number], zoom: Math.max(2, 14 - Math.log2(withCoords.length)) };
   }
-  return { center: [121.5, 25.05] as [number, number], zoom: 10 };
+  return { center: [139.6917, 35.6895] as [number, number], zoom: 10 };
 }
 
 /* ── WKT → GeoJSON for map display ── */
@@ -120,6 +120,7 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
   const [circleRadius, setCircleRadius] = useState<number | null>(null);
   const circleCenterRef = useRef<{ lng: number; lat: number } | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [circleEditing, setCircleEditing] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [osmQuery, setOsmQuery] = useState('');
   const [osmResults, setOsmResults] = useState<Array<{ display_name: string; osm_type: string; osm_id: number }>>([]);
@@ -131,6 +132,17 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
   const [saving, setSaving] = useState(false);
   const [vehicleSearch, setVehicleSearch] = useState('');
   const isEdit = Boolean(initial);
+  const [showWkt, setShowWkt] = useState(false);
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<Set<number>>(new Set());
+
+  const toggleVehicle = useCallback((id: number) => {
+    setSelectedVehicleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const vehiclesWithCoords = useMemo(
     () => (vehicles || []).filter((v) => Number.isFinite(v.lat) && Number.isFinite(v.lng) && !(v.lat === 0 && v.lng === 0) && v.lat != null && v.lng != null),
@@ -145,7 +157,7 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
     );
   }, [vehiclesWithCoords, vehicleSearch]);
 
-  // Initialize map
+  // Initialize map (only on open/close, NOT on vehicles change)
   useEffect(() => {
     if (!open) return;
 
@@ -184,29 +196,14 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
           drawLayerRef.current = 'draw-source';
         }
         setMapReady(true);
-        // Place vehicle markers
-        vehicleMarkersRef.current.forEach((m) => m.remove());
-        vehicleMarkersRef.current = [];
-        vehiclesWithCoords.forEach((v) => {
-          const el = document.createElement('div');
-          el.className = 'flex items-center justify-center h-6 w-6 rounded-full bg-blue-600/80 border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform';
-          el.innerHTML = `<span style="font-size:9px;font-weight:700;color:#fff;">${(v.name || '?')[0].toUpperCase()}</span>`;
-          el.title = `${v.name} (${v.plate || ''})`;
-          el.addEventListener('click', () => {
-            map.flyTo({ center: [v.lng, v.lat], zoom: 15 });
-          });
-          const marker = new maplibregl.Marker({ element: el })
-            .setLngLat([v.lng, v.lat])
-            .addTo(map);
-          vehicleMarkersRef.current.push(marker);
-        });
+        placeVehicleMarkers(map);
       });
 
       (map as unknown as Record<string, unknown>)._resizeObserver = resizeObserver;
     }, 200);
 
-    // Try browser geolocation
-    if ('geolocation' in navigator) {
+    // Try browser geolocation only when creating (not editing)
+    if (!isEdit && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           if (mapRef.current) {
@@ -232,7 +229,34 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
       vehicleMarkersRef.current.forEach((m) => m.remove());
       vehicleMarkersRef.current = [];
     };
-  }, [open, vehiclesWithCoords]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Update vehicle markers when vehicles change (without destroying map)
+  const placeVehicleMarkers = useCallback((map?: maplibregl.Map | null) => {
+    const m = map || mapRef.current;
+    if (!m || !m.loaded()) return;
+    vehicleMarkersRef.current.forEach((mk) => mk.remove());
+    vehicleMarkersRef.current = [];
+    vehiclesWithCoords.forEach((v) => {
+      const el = document.createElement('div');
+      el.className = 'flex items-center justify-center h-6 w-6 rounded-full bg-blue-600/80 border-2 border-white shadow-md cursor-pointer hover:scale-110 transition-transform';
+      el.innerHTML = `<span style="font-size:9px;font-weight:700;color:#fff;">${(v.name || '?')[0].toUpperCase()}</span>`;
+      el.title = `${v.name} (${v.plate || ''})`;
+      el.addEventListener('click', () => {
+        m.flyTo({ center: [v.lng, v.lat], zoom: 15 });
+      });
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([v.lng, v.lat])
+        .addTo(m);
+      vehicleMarkersRef.current.push(marker);
+    });
+  }, [vehiclesWithCoords]);
+
+  useEffect(() => {
+    if (!open || !mapRef.current || !mapReady) return;
+    placeVehicleMarkers();
+  }, [open, mapReady, placeVehicleMarkers]);
 
   // If editing, load initial geofence data
   useEffect(() => {
@@ -399,6 +423,7 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
 
   const stopDrawing = useCallback(() => {
     setDrawMode(null);
+    setCircleEditing(false);
     setIsDrawing(false);
     setVertices([]);
     setCircleRadius(null);
@@ -407,6 +432,52 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
       mapRef.current.doubleClickZoom.enable();
     }
   }, []);
+
+  const drawCircleAtVehicle = useCallback((v: VehicleShort) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Clear any existing drawing state
+    clearMarkers();
+    setDrawMode(null);
+    setCircleEditing(true);
+    setIsDrawing(true);
+    setVertices([]);
+    verticesRef.current = [];
+    if (map.doubleClickZoom) map.doubleClickZoom.enable();
+
+    const center = { lng: v.lng, lat: v.lat };
+    verticesRef.current = [center];
+    circleCenterRef.current = center;
+    setVertices([center]);
+    setCircleRadius(500);
+
+    // Generate circle WKT and update draw layer
+    const wkt = circleToWkt([v.lng, v.lat], 500);
+    setResultWkt(wkt);
+    setDescription((prev) => prev || `Around ${v.name}`);
+
+    const geojson = wktToGeoJsonForDisplay(wkt);
+    if (geojson) {
+      const src = map.getSource('draw-source') as maplibregl.GeoJSONSource | undefined;
+      if (src) {
+        src.setData({
+          type: 'FeatureCollection',
+          features: [{ type: 'Feature', geometry: geojson as GeoJSON.Geometry, properties: {} }],
+        });
+      }
+    }
+
+    // Place center marker
+    const el = document.createElement('div');
+    el.className = 'h-3 w-3 rounded-full bg-blue-600 border-2 border-white shadow-md';
+    const marker = new maplibregl.Marker({ element: el })
+      .setLngLat([v.lng, v.lat])
+      .addTo(map);
+    markersRef.current.push(marker);
+
+    map.flyTo({ center: [v.lng, v.lat], zoom: 14 });
+  }, [clearMarkers]);
 
   const handleConfirmDrawing = useCallback(() => {
     const map = mapRef.current;
@@ -557,7 +628,9 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
 
   // Circle radius change → redraw
   useEffect(() => {
-    if (drawMode !== 'circle' || vertices.length !== 1 || !circleRadius || circleRadius <= 0) return;
+    if (!circleRadius || circleRadius <= 0) return;
+    if (drawMode !== 'circle' && !circleEditing) return;
+    if (vertices.length !== 1) return;
     const map = mapRef.current;
     if (!map) return;
     const center = vertices[0]!;
@@ -573,7 +646,7 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
         });
       }
     }
-  }, [circleRadius, drawMode, vertices]);
+  }, [circleRadius, drawMode, circleEditing, vertices]);
 
   // Keep result on map after drawing done
   useEffect(() => {
@@ -616,6 +689,7 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
     setCircleRadius(null);
     circleCenterRef.current = null;
     setDrawMode(null);
+    setCircleEditing(false);
     setIsDrawing(false);
     setOsmQuery('');
     setOsmResults([]);
@@ -632,258 +706,276 @@ export default function GeofenceEditorDialog({ open, onOpenChange, initial, vehi
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleCancel(); else onOpenChange(v); }}>
-      <DialogContent className="max-w-4xl !w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? t('editGeofence') : t('addGeofence')}</DialogTitle>
-          <DialogDescription>{t('clickZoneOnMap')}</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          {/* Name & Description */}
-          <div className="grid grid-cols-2 gap-3">
-            <label className="space-y-1 text-sm">
-              <span className="font-medium">{t('csvName')}</span>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Geofence name" />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium">{t('description')}</span>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('optional')} />
-            </label>
+      <DialogContent className="max-w-6xl !w-[95vw] !p-0 max-h-[90vh] overflow-hidden">
+        <div className="flex h-[85vh] flex-col">
+          {/* Top header bar */}
+          <div className="flex items-center justify-between border-b border-border px-5 py-3">
+            <DialogHeader className="!p-0">
+              <DialogTitle>{isEdit ? t('editGeofence') : t('addGeofence')}</DialogTitle>
+              <DialogDescription>{t('clickZoneOnMap')}</DialogDescription>
+            </DialogHeader>
           </div>
 
-          {/* OSM Search */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Search className="h-4 w-4" /> {t('search')} OpenStreetMap
-            </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  value={osmQuery}
-                  onChange={(e) => setOsmQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleOsmSearch()}
-                  placeholder="Search ward, town, city, country…"
-                  className="pr-8"
-                />
-                {searching && <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
-              </div>
-              <Button variant="outline" size="sm" onClick={handleOsmSearch} disabled={searching || !osmQuery.trim()}>
-                <Search className="h-4 w-4" />
-              </Button>
-            </div>
-            {osmResults.length > 0 && (
-              <div className="max-h-40 overflow-y-auto rounded-lg border bg-background">
-                {osmResults.map((item, i) => (
-                  <button
-                    key={`${item.osm_type}-${item.osm_id}-${i}`}
-                    type="button"
-                    className="flex w-full items-start gap-2 px-3 py-2 text-left text-xs hover:bg-accent transition-colors border-b last:border-0"
-                    onClick={() => handleOsmSelect(item)}
-                    disabled={importing}
-                  >
-                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0">
-                      <div className="font-medium truncate">{item.display_name?.split(',')[0]}</div>
-                      <div className="text-muted-foreground truncate">{item.display_name}</div>
+          <div className="flex flex-1 overflow-hidden">
+            {/* ── Left Panel: Form fields ── */}
+            <div className="flex w-[36%] flex-col border-r border-border">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Name & Description */}
+                <div className="space-y-3">
+                  <label className="space-y-1 text-sm block">
+                    <span className="font-medium">{t('csvName')}</span>
+                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Geofence name" />
+                  </label>
+                  <label className="space-y-1 text-sm block">
+                    <span className="font-medium">{t('description')}</span>
+                    <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('optional')} />
+                  </label>
+                </div>
+
+                {/* OSM Search */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Search className="h-4 w-4" /> OpenStreetMap
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        value={osmQuery}
+                        onChange={(e) => setOsmQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleOsmSearch()}
+                        placeholder="Search ward, town, city, country…"
+                        className="pr-8"
+                      />
+                      {searching && <Loader2 className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
                     </div>
-                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">
-                      {item.osm_type}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-            {importing && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Importing boundary…
-              </div>
-            )}
-          </div>
+                    <Button variant="outline" size="sm" onClick={handleOsmSearch} disabled={searching || !osmQuery.trim()}>
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {osmResults.length > 0 && (
+                    <div className="max-h-36 overflow-y-auto rounded-lg border bg-background">
+                      {osmResults.map((item, i) => (
+                        <button
+                          key={`${item.osm_type}-${item.osm_id}-${i}`}
+                          type="button"
+                          className="flex w-full items-start gap-2 px-3 py-2 text-left text-xs hover:bg-accent transition-colors border-b last:border-0"
+                          onClick={() => handleOsmSelect(item)}
+                          disabled={importing}
+                        >
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{item.display_name?.split(',')[0]}</div>
+                            <div className="text-muted-foreground truncate">{item.display_name}</div>
+                          </div>
+                          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase text-muted-foreground">
+                            {item.osm_type}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {importing && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Importing boundary…
+                    </div>
+                  )}
+                </div>
 
-          {/* Vehicle Jump-to */}
-          {vehiclesWithCoords.length > 0 && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Navigation className="h-4 w-4" /> {t('vehicles')}
-              </label>
-              <div className="relative">
-                <Input
-                  value={vehicleSearch}
-                  onChange={(e) => setVehicleSearch(e.target.value)}
-                  placeholder={`Search ${vehiclesWithCoords.length} vehicles…`}
-                  className="pr-8"
-                />
-                <Navigation className="absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              </div>
-              {vehicleSearch && filteredVehicles.length > 0 && (
-                <div className="max-h-32 overflow-y-auto rounded-lg border bg-background">
-                  {filteredVehicles.slice(0, 10).map((v) => (
-                    <button
-                      key={v.id}
-                      type="button"
-                      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs hover:bg-accent transition-colors border-b last:border-0"
-                      onClick={() => {
-                        if (mapRef.current) {
-                          mapRef.current.flyTo({ center: [v.lng, v.lat], zoom: 15 });
-                        }
-                        setVehicleSearch('');
-                      }}
-                    >
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
-                        {(v.name || '?')[0].toUpperCase()}
+                {/* Vehicle Checkbox List */}
+                {vehiclesWithCoords.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Navigation className="h-4 w-4" /> {t('vehicles')}
+                      <span className="text-xs text-muted-foreground font-normal">({selectedVehicleIds.size} selected)</span>
+                    </label>
+                    <div className="relative">
+                      <Input
+                        value={vehicleSearch}
+                        onChange={(e) => setVehicleSearch(e.target.value)}
+                        placeholder={`Search ${vehiclesWithCoords.length} vehicles…`}
+                        className="pl-8 h-8"
+                      />
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    </div>
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+                      {(vehicleSearch ? filteredVehicles : vehiclesWithCoords).map((v) => (
+                        <label
+                          key={v.id}
+                          className="flex items-center gap-2.5 px-3 py-2 text-xs hover:bg-accent/50 transition-colors cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedVehicleIds.has(v.id)}
+                            onChange={() => toggleVehicle(v.id)}
+                            className="h-3.5 w-3.5 rounded border-gray-300 text-primary focus:ring-primary/40"
+                          />
+                          <button
+                            type="button"
+                            className="flex flex-1 items-center gap-2 text-left min-w-0"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (mapRef.current) {
+                                mapRef.current.flyTo({ center: [v.lng, v.lat], zoom: 15 });
+                              }
+                            }}
+                            title="Jump to vehicle on map"
+                          >
+                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
+                              {(v.name || '?')[0].toUpperCase()}
+                            </span>
+                            <span className="font-medium truncate">{v.name}</span>
+                            {v.plate && <span className="text-muted-foreground shrink-0">· {v.plate}</span>}
+                          </button>
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+                            onClick={(e) => { e.preventDefault(); drawCircleAtVehicle(v); }}
+                            title="Draw 500m circle around this vehicle"
+                          >
+                            <Circle className="h-3 w-3 inline" />
+                          </button>
+                        </label>
+                      ))}
+                      {vehicleSearch && filteredVehicles.length === 0 && (
+                        <p className="px-3 py-4 text-center text-[11px] text-muted-foreground">No vehicles match</p>
+                      )}
+                    </div>
+                    {selectedVehicleIds.size > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {vehiclesWithCoords.filter((v) => selectedVehicleIds.has(v.id)).map((v) => (
+                          <span key={v.id} className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                            {v.name}
+                            <button type="button" onClick={() => toggleVehicle(v.id)} className="hover:text-destructive">&times;</button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Drawing Tools (compact) */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{t('chooseArea')}</span>
+                    <div className="flex gap-0.5">
+                      {DRAW_MODES.map(({ key, icon: Icon, labelKey }) => (
+                        <Button
+                          key={key}
+                          variant={drawMode === key ? 'default' : 'outline'}
+                          size="sm"
+                          type="button"
+                          onClick={() => startDraw(key)}
+                          disabled={drawMode === key || isDrawing}
+                          title={key === 'polygon' ? 'Draw polygon — click points on map' : key === 'circle' ? 'Draw circle — click center on map' : 'Freehand draw — click & drag on map'}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </Button>
+                      ))}
+                      {drawMode === 'polygon' && vertices.length >= 3 && (
+                        <Button variant="default" size="sm" type="button" onClick={handleConfirmDrawing}>OK</Button>
+                      )}
+                      {(drawMode === 'circle' || circleEditing) && circleRadius != null && circleRadius > 0 && (
+                        <Button variant="default" size="sm" type="button" onClick={() => {
+                          setDrawMode(null); setCircleEditing(false); setIsDrawing(false);
+                          setVertices([]); verticesRef.current = []; circleCenterRef.current = null;
+                          clearMarkers();
+                          if (mapRef.current?.doubleClickZoom) mapRef.current.doubleClickZoom.enable();
+                        }}>OK</Button>
+                      )}
+                      {(drawMode || resultWkt) && (
+                        <Button variant="ghost" size="sm" type="button" onClick={stopDrawing} title={t('cancel')}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {(drawMode || circleEditing) && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {(drawMode === 'circle' || circleEditing) && (vertices.length === 0 ? 'Click map to set center' : `${(circleRadius || 500).toLocaleString()}m radius`)}
+                      {drawMode === 'polygon' && `Click map to add points · OK to finish (${vertices.length} pts)`}
+                      {drawMode === 'freehand' && 'Click & drag on map to draw'}
+                    </p>
+                  )}
+                  {!drawMode && !circleEditing && resultWkt && (
+                    <p className="text-[11px] text-muted-foreground">
+                      {coordsCountVal} pts · <button type="button" className="text-primary underline" onClick={() => startDraw('polygon')}>{t('edit')}</button>
+                    </p>
+                  )}
+
+                  {/* Circle radius fine-tune */}
+                  {(drawMode === 'circle' || circleEditing) && vertices.length === 1 && (
+                    <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Radius:</span>
+                        <input type="range" min={10} max={10000} step={10}
+                          value={circleRadius ?? 500}
+                          onChange={(e) => setCircleRadius(parseInt(e.target.value, 10))}
+                          className="flex-1 h-1.5 cursor-pointer accent-primary" />
+                        <input type="number" min={1} max={1000000}
+                          value={circleRadius ?? ''}
+                          onChange={(e) => { const v = parseInt(e.target.value, 10); if (v > 0) setCircleRadius(v); }}
+                          className="w-20 rounded-md border bg-background px-2 py-1 text-sm text-right font-mono outline-none focus:ring-2 focus:ring-primary" />
+                        <span className="text-xs text-muted-foreground">m</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {[50, 100, 200, 500, 1000, 2000, 5000, 10000].map((preset) => (
+                          <button key={preset} type="button"
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${circleRadius === preset ? 'bg-primary text-primary-foreground' : 'bg-background border hover:bg-accent'}`}
+                            onClick={() => setCircleRadius(preset)}>
+                            {preset >= 1000 ? `${preset / 1000}km` : `${preset}m`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Collapsible WKT */}
+                {resultWkt && (
+                  <div className="rounded-lg border bg-muted/30">
+                    <button type="button" onClick={() => setShowWkt((v) => !v)}
+                      className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors">
+                      <span className="flex items-center gap-2">
+                        <code className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">WKT</code>
+                        {coordsCountVal} pts · {resultWkt.length} chars
                       </span>
-                      <span className="font-medium">{v.name}</span>
-                      {v.plate && <span className="text-muted-foreground">· {v.plate}</span>}
-                      <span className="ml-auto text-muted-foreground">{v.status}</span>
+                      <svg className={`h-3 w-3 transition-transform ${showWkt ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9" /></svg>
                     </button>
-                  ))}
+                    {showWkt && (
+                      <div className="border-t border-border px-3 py-2">
+                        <code className="block max-h-32 overflow-y-auto text-[11px] font-mono text-muted-foreground break-all leading-relaxed">
+                          {resultWkt}
+                        </code>
+                        {resultWkt.length > 3500 && <p className="mt-1 text-[10px] text-destructive font-medium">⚠ Too many characters — may exceed database limit</p>}
+                        {coordsCountVal > 100 && resultWkt.length < 3500 && <p className="mt-1 text-[10px] text-amber-600 font-medium">⚠ {coordsCountVal} points — consider simplifying</p>}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer buttons */}
+              <div className="flex items-center justify-end gap-2 border-t border-border px-4 py-3">
+                <Button variant="outline" size="sm" onClick={handleCancel} disabled={saving}>{t('cancel')}</Button>
+                <Button size="sm" onClick={handleSave} disabled={saving || !name.trim() || !resultWkt}>
+                  {saving ? t('saving') : isEdit ? t('save') : t('addGeofence')}
+                </Button>
+              </div>
+            </div>
+
+            {/* ── Right Panel: Map ── */}
+            <div className="relative flex w-[64%] flex-col">
+              <div ref={mapContainer} className="flex-1 min-h-0" />
+              {/* Drawing mode hint overlay */}
+              {drawMode && (
+                <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-md bg-card/90 px-2.5 py-1.5 text-[11px] font-medium text-foreground shadow-sm backdrop-blur">
+                  {drawMode === 'polygon' && '✏️ Click to add polygon points'}
+                  {drawMode === 'circle' && '📍 Click map to set circle center'}
+                  {drawMode === 'freehand' && '✏️ Click & drag to freehand draw'}
                 </div>
               )}
-              <div className="flex flex-wrap gap-1.5">
-                {vehiclesWithCoords.slice(0, 20).map((v) => (
-                  <button
-                    key={v.id}
-                    type="button"
-                    className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-                    onClick={() => {
-                      if (mapRef.current) mapRef.current.flyTo({ center: [v.lng, v.lat], zoom: 15 });
-                    }}
-                    title={`${v.name} · ${v.lat?.toFixed(4)}, ${v.lng?.toFixed(4)}`}
-                  >
-                    {(v.name || '?').slice(0, 8)}
-                  </button>
-                ))}
-              </div>
             </div>
-          )}
-
-          {/* Drawing Tools */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{t('chooseArea')}</span>
-              <div className="flex gap-1">
-                {DRAW_MODES.map(({ key, icon: Icon, labelKey }) => (
-                  <Button
-                    key={key}
-                    variant={drawMode === key ? 'default' : 'outline'}
-                    size="sm"
-                    type="button"
-                    onClick={() => startDraw(key)}
-                    disabled={drawMode === key || isDrawing}
-                    title={t(labelKey)}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </Button>
-                ))}
-                {drawMode === 'polygon' && vertices.length >= 3 && (
-                  <Button variant="default" size="sm" type="button" onClick={handleConfirmDrawing}>
-                    OK
-                  </Button>
-                )}
-                {drawMode === 'circle' && circleRadius != null && circleRadius > 0 && (
-                  <Button variant="default" size="sm" type="button" onClick={() => {
-                    setDrawMode(null);
-                    setIsDrawing(false);
-                    setVertices([]);
-                    verticesRef.current = [];
-                    circleCenterRef.current = null;
-                    clearMarkers();
-                    if (mapRef.current?.doubleClickZoom) mapRef.current.doubleClickZoom.enable();
-                  }}>
-                    OK
-                  </Button>
-                )}
-                {(drawMode || resultWkt) && (
-                  <Button variant="ghost" size="sm" type="button" onClick={stopDrawing} title={t('cancel')}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                )}
-              </div>
-              {drawMode && (
-                <span className="text-xs text-muted-foreground">
-                  {drawMode === 'circle' && (vertices.length === 0 ? 'Click map to set center' : `${(circleRadius || 500).toLocaleString()}m radius — adjust below or click map to re-center`)}
-                  {drawMode === 'polygon' && `Click to add points · OK to finish (${vertices.length} pts)`}
-                  {drawMode === 'freehand' && 'Click & drag to draw'}
-                </span>
-              )}
-              {!drawMode && resultWkt && (
-                <span className="text-xs text-muted-foreground">
-                  {coordsCountVal} pts · <button type="button" className="text-primary underline" onClick={() => startDraw('polygon')}>{t('edit')}</button>
-                </span>
-              )}
-            </div>
-
-            {/* Circle radius fine-tune input */}
-            {drawMode === 'circle' && vertices.length === 1 && (
-              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2">
-                <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Radius (meters):</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={1000000}
-                  step={1}
-                  value={circleRadius ?? ''}
-                  onChange={(e) => {
-                    const v = parseInt(e.target.value, 10);
-                    if (v > 0) setCircleRadius(v);
-                  }}
-                  placeholder="e.g. 500"
-                  className="w-28 rounded-md border bg-background px-2 py-1 text-sm text-right font-mono outline-none focus:ring-2 focus:ring-primary"
-                />
-                <span className="text-xs text-muted-foreground">m</span>
-                <div className="flex-1" />
-                {[100, 500, 1000, 5000].map((preset) => (
-                  <button
-                    key={preset}
-                    type="button"
-                    className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                      circleRadius === preset
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-background border hover:bg-accent'
-                    }`}
-                    onClick={() => setCircleRadius(preset)}
-                  >
-                    {preset >= 1000 ? `${preset / 1000}km` : `${preset}m`}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-
-          {/* Map */}
-          <div ref={mapContainer} className="h-[400px] w-full rounded-lg border overflow-hidden" />
-
-          {/* Result */}
-          {resultWkt && (
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  WKT · {coordsCountVal} coordinate{coordsCountVal !== 1 ? 's' : ''} · {resultWkt.length} chars
-                </span>
-                {resultWkt.length > 3500 && (
-                  <span className="text-xs text-destructive font-medium">
-                    ⚠ Too many characters — may exceed database limit
-                  </span>
-                )}
-                {coordsCountVal > 100 && resultWkt.length < 3500 && (
-                  <span className="text-xs text-amber-600 font-medium">
-                    ⚠ {coordsCountVal} points — consider simplifying
-                  </span>
-                )}
-              </div>
-              <code className="block max-h-20 overflow-y-auto text-[11px] font-mono text-muted-foreground break-all">
-                {resultWkt}
-              </code>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="outline" onClick={handleCancel} disabled={saving}>{t('cancel')}</Button>
-          <Button onClick={handleSave} disabled={saving || !name.trim() || !resultWkt}>
-            {saving ? t('saving') : isEdit ? t('save') : t('addGeofence')}
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

@@ -139,7 +139,7 @@ function SharedMap({ vehicles }: { vehicles: ShareVehicle[] }) {
               <div style="font-size:12px;color:#666;">
                 <div>Plate: ${escapeHtml(v.plate || '—')}</div>
                 <div>Device: ${escapeHtml(v.deviceId || '—')}</div>
-                <div>Speed: ${v.speed ?? 0} mph</div>
+                <div>Speed: ${v.speed ?? 0} km/h</div>
                 <div>${formatDate(v.lastUpdate)}</div>
               </div>
             </div>
@@ -426,7 +426,7 @@ export default function SharedViewPage() {
                       </div>
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Gauge className="h-3.5 w-3.5" />
-                        <span>{v.speed ?? 0} {t('unitMph')}</span>
+                        <span>{v.speed ?? 0} {t('unitKmh')}</span>
                       </div>
                     </>
                   )}

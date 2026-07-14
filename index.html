@@ -4,18 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#2563eb" />
-    <meta name="description" content="GPS Fleet Tracking Platform based on Traccar - Open Source" />
+    <meta name="description" content="Kevin GPS  - GPS Fleet Tracking Platform" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Mix GPS" />
+    <meta name="apple-mobile-web-app-title" content="Kevin GPS " />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://server.arcgisonline.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com; connect-src 'self' https://*.traccar.org https://demo3.polarisfleet.com https://nominatim.openstreetmap.org https://tiles.openfreemap.org https://server.arcgisonline.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com wss://*.traccar.org wss://traccar3-proxy.ship9i.workers.dev; worker-src 'self' blob:; manifest-src 'self'" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <title>Mix GPS - Open Source Fleet Tracking</title>
+    <link rel="preconnect" href="https://tiles.openfreemap.org" />
+    <link rel="preconnect" href="https://nominatim.openstreetmap.org" />
+    <link rel="dns-prefetch" href="https://tiles.openfreemap.org" />
+    <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+    <link rel="dns-prefetch" href="https://nominatim.openstreetmap.org" />
+    <title>Kevin GPS </title>
   </head>
   <body>
     <div id="root"></div>
@@ -23,7 +29,22 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+          navigator.serviceWorker.register('/sw.js').then((reg) => {
+            // Check for updates on every page load
+            reg.addEventListener('updatefound', () => {
+              const installing = reg.installing;
+              if (installing) {
+                installing.addEventListener('statechange', () => {
+                  if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                    // New version available — reload to activate
+                    if (confirm('新版本可用，是否重新載入？')) {
+                      window.location.reload();
+                    }
+                  }
+                });
+              }
+            });
+          }).catch(() => {});
         });
       }
     </script>

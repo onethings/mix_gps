@@ -51,13 +51,18 @@ function getMarkerIconSrc(vehicle: Vehicle): string {
   return `/markers/${prefix}_${type}.svg`;
 }
 
+function plateText(vehicle: Vehicle): string {
+  return vehicle?.name?.trim() || vehicle?.plate || '';
+}
+
 function carInnerHtml(vehicle: Vehicle): string {
+  const plate = plateText(vehicle);
   return `
     <div class="fleet-car-icon-wrap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;pointer-events:none;">
       <div class="fleet-car-img-shell" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;">
         <img src="${getMarkerIconSrc(vehicle)}" width="44" height="44" alt="" draggable="false" style="width:44px;height:44px;object-fit:contain;display:block;user-select:none;-webkit-user-drag:none;" />
       </div>
-      <span style="font-size:9px;font-weight:800;color:#0f172a;text-shadow:0 1px 0 #fff,0 0 6px rgba(255,255,255,0.9);letter-spacing:0.02em;font-family:system-ui,sans-serif;line-height:1;">${labelInitial(vehicle?.name)}</span>
+      ${plate ? `<span style="font-size:8px;font-weight:700;color:#000;background:#fff;padding:1px 3px;border-radius:3px;letter-spacing:0.02em;font-family:system-ui,sans-serif;line-height:1.3;white-space:nowrap;">${plate}</span>` : ''}
     </div>`;
 }
 
@@ -66,15 +71,20 @@ export function createCarMarkerElement(vehicle: Vehicle, isSelected: boolean): H
   const c = STATUS_COLORS[status] || STATUS_COLORS.stopped;
   const rot = Number.isFinite(Number(vehicle?.course)) ? Number(vehicle.course) : 0;
   const root = document.createElement('div');
-  root.style.cssText = 'cursor:pointer;z-index:1;position:relative;width:58px;height:58px;';
-  const ring = document.createElement('div');
-  ring.className = 'fleet-marker-ring';
-  ring.style.cssText = `position:absolute;width:58px;height:58px;left:50%;top:50%;margin:-29px 0 0 -29px;border-radius:50%;pointer-events:none;transition:opacity 0.2s;background:radial-gradient(circle, ${c.glow} 0%, transparent 70%);opacity:${status === 'moving' ? 0.88 : 0.5};`;
+  // will-change: transform prevents marker offset/jitter during map zoom animations
+  root.style.cssText = 'cursor:pointer;z-index:1;will-change:transform;';
+  root.setAttribute('data-vehicle-id', String(vehicle.id));
+  root.setAttribute('data-course', String(rot));
+  root.setAttribute('data-status', status);
+  root.setAttribute('data-selected', String(isSelected));
   const inner = document.createElement('div');
   inner.className = 'fleet-car-marker';
   inner.style.cssText = `width:52px;min-height:56px;display:flex;align-items:center;justify-content:center;position:relative;transform:rotate(${rot}deg);filter:drop-shadow(${ringShadow(isSelected)});`;
   inner.innerHTML = carInnerHtml(vehicle);
-  root.appendChild(ring);
+  const ring = document.createElement('div');
+  ring.className = 'fleet-marker-ring';
+  ring.style.cssText = `position:absolute;width:58px;height:58px;left:50%;top:50%;margin:-29px 0 0 -29px;border-radius:50%;pointer-events:none;transition:opacity 0.2s;background:radial-gradient(circle, ${c.glow} 0%, transparent 70%);opacity:${status === 'moving' ? 0.88 : 0.5};`;
+  inner.appendChild(ring);
   root.appendChild(inner);
   root.addEventListener('click', (e) => e.stopPropagation());
   return root;
@@ -82,18 +92,46 @@ export function createCarMarkerElement(vehicle: Vehicle, isSelected: boolean): H
 
 export function updateCarMarkerElement(el: HTMLDivElement, vehicle: Vehicle, isSelected: boolean): void {
   const inner = el.querySelector('.fleet-car-marker') as HTMLElement | null;
-  const ring = el.querySelector('.fleet-marker-ring') as HTMLElement | null;
+  if (!inner) return;
+
+  const prevCourse = el.getAttribute('data-course');
+  const prevStatus = el.getAttribute('data-status');
+  const prevSelected = el.getAttribute('data-selected');
   const status = resolveStatus(vehicle);
   const c = STATUS_COLORS[status] || STATUS_COLORS.stopped;
   const rot = Number.isFinite(Number(vehicle?.course)) ? Number(vehicle.course) : 0;
-  el.style.zIndex = isSelected ? '10' : '1';
-  if (inner) {
-    inner.style.transform = `rotate(${rot}deg)`;
-    inner.style.filter = `drop-shadow(${ringShadow(isSelected)})`;
-    inner.innerHTML = carInnerHtml(vehicle);
-  }
-  if (ring) {
-    ring.style.background = `radial-gradient(circle, ${c.glow} 0%, transparent 70%)`;
-    ring.style.opacity = status === 'moving' ? '0.88' : '0.5';
+  const selStr = String(isSelected);
+  const courseChanged = prevCourse !== String(rot);
+  const statusChanged = prevStatus !== status;
+  const selectedChanged = prevSelected !== selStr;
+
+  // Update data attributes
+  el.setAttribute('data-course', String(rot));
+  el.setAttribute('data-status', status);
+  el.setAttribute('data-selected', selStr);
+
+  // Always update z-index for selection
+  if (selectedChanged) el.style.zIndex = isSelected ? '10' : '1';
+
+  // Only touch the DOM when appearance actually changed
+  if (courseChanged || statusChanged || selectedChanged) {
+    const ring = inner.querySelector('.fleet-marker-ring') as HTMLElement | null;
+
+    if (courseChanged || selectedChanged) {
+      inner.style.transform = `rotate(${rot}deg)`;
+      inner.style.filter = `drop-shadow(${ringShadow(isSelected)})`;
+    }
+
+    if (ring && (statusChanged || selectedChanged)) {
+      ring.style.background = `radial-gradient(circle, ${c.glow} 0%, transparent 70%)`;
+      ring.style.opacity = status === 'moving' ? '0.88' : '0.5';
+    }
+
+    // Replace icon content only when status or selection changed
+    if (statusChanged || selectedChanged) {
+      const iconWrap = inner.querySelector('.fleet-car-icon-wrap');
+      if (iconWrap) iconWrap.remove();
+      inner.insertAdjacentHTML('beforeend', carInnerHtml(vehicle));
+    }
   }
 }

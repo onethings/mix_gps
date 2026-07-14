@@ -21,6 +21,7 @@ export interface TraccarUser {
   coordinateFormat?: string;
   disabled?: boolean;
   expiration?: string;
+  expirationTime?: string;
   deviceReadonly?: boolean;
   limitCommands?: boolean;
   poiLayer?: string;
@@ -63,6 +64,8 @@ export interface TraccarDevice {
   contact?: string;
   category?: string;
   groupId?: number;
+  calendarId?: number;
+  expirationTime?: string;
   positionId?: number;
   attributes?: Record<string, unknown>;
   latitude?: number;
@@ -139,10 +142,14 @@ export interface TraccarGroup {
 export interface TraccarNotification {
   id: number;
   type: string;
+  description?: string;
   notificators?: string[];
   web?: boolean;
   mail?: boolean;
   sms?: boolean;
+  commandId?: number;
+  always?: boolean;
+  calendarId?: number;
   attributes?: Record<string, unknown>;
 }
 
@@ -158,6 +165,7 @@ export interface TraccarCommand {
   deviceId?: number;
   description?: string;
   type: string;
+  textChannel?: boolean;
   attributes?: Record<string, unknown>;
 }
 

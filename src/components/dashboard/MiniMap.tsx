@@ -14,9 +14,11 @@ function validLatLng(lat: number | null | undefined, lng: number | null | undefi
 
 interface MiniMapProps {
   vehicles: Vehicle[];
+  selectedId?: number | null;
+  onSelectVehicle?: (id: number | null) => void;
 }
 
-export default function MiniMap({ vehicles = [] }: MiniMapProps) {
+export default function MiniMap({ vehicles = [], selectedId = null, onSelectVehicle }: MiniMapProps) {
   const onMap = useMemo(() => vehicles.filter((v) => validLatLng(v.lat, v.lng)), [vehicles]);
 
   const preview = useMemo(() => {
@@ -29,8 +31,8 @@ export default function MiniMap({ vehicles = [] }: MiniMapProps) {
       <FleetMapLibre
         className="absolute inset-0 min-h-[180px]"
         vehicles={vehicles}
-        selectedId={null}
-        onSelectVehicle={() => {}}
+        selectedId={selectedId}
+        onSelectVehicle={onSelectVehicle ?? (() => {})}
         showControls={false}
         showGeolocate={false}
         fitPadding={32}

@@ -78,6 +78,7 @@ export default function LoginPage() {
                 src="/custom/login_icon_logo.webp"
                 alt="Logo"
                 className="h-14 w-14 object-contain"
+                loading="lazy"
                 onError={(e: any) => {
                   e.target.style.display = 'none';
                   e.target.nextSibling.style.display = 'flex';

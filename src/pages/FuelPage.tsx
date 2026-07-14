@@ -50,12 +50,12 @@ export default function FuelPage() {
         <Card><CardContent className="p-5">
           <div className="text-xs font-medium uppercase text-muted-foreground">{t('totalDistance')}</div>
           <div className="mt-1 text-2xl font-semibold tabular-nums">{loading ? '…' : `${totalKm.toFixed(1)} km`}</div>
-          <div className="text-xs text-muted-foreground">Last 14 days</div>
+          <div className="text-xs text-muted-foreground">{t('last14days')}</div>
         </CardContent></Card>
         <Card><CardContent className="p-5">
           <div className="text-xs font-medium uppercase text-muted-foreground">{t('spentFuel')}</div>
           <div className="mt-1 text-2xl font-semibold tabular-nums">{loading ? '…' : `${Math.round(totalLiters * 10) / 10} L`}</div>
-          <div className="text-xs text-muted-foreground">Per-device summary</div>
+          <div className="text-xs text-muted-foreground">{t('perDeviceSummary')}</div>
         </CardContent></Card>
         <Card><CardContent className="p-5">
           <div className="text-xs font-medium uppercase text-muted-foreground">{t('vehicle')}</div>

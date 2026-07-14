@@ -1,12 +1,34 @@
-import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { useMemo, useState, useRef, memo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { Search, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import StatusBadge from '@/components/common/StatusBadge';
-import { cn, formatDate } from '@/lib/utils';
+import { cn, formatRelativeTime } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 import type { Vehicle } from '@/types';
 
 const FILTERS = ['all', 'moving', 'idle', 'stopped', 'alert'] as const;
+
+const STATUS_PREFIX: Record<string, string> = {
+  moving: 'moving', idle: 'idle', stopped: 'parking', offline: 'offline', alert: 'parking', maintenance: 'maintenance',
+};
+
+const STATUS_COLORS: Record<string, { dot: string; text: string }> = {
+  moving: { dot: 'bg-blue-500', text: 'text-blue-600 dark:text-blue-400' },
+  idle: { dot: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+  stopped: { dot: 'bg-slate-500', text: 'text-slate-600 dark:text-slate-400' },
+  offline: { dot: 'bg-gray-400', text: 'text-gray-500 dark:text-gray-400' },
+  alert: { dot: 'bg-red-500', text: 'text-red-600 dark:text-red-400' },
+  maintenance: { dot: 'bg-purple-500', text: 'text-purple-600 dark:text-purple-400' },
+};
+
+function getMarkerIconSrc(vehicle: Vehicle): string {
+  const status = vehicle.status && STATUS_PREFIX[vehicle.status] ? vehicle.status : 'stopped';
+  const prefix = STATUS_PREFIX[status] || 'parking';
+  const type = (vehicle.iconType || '').toLowerCase().trim();
+  const validTypes = ['car','truck','bus','van','taxi','motocycle','bicycle','scooter','plane','helicopter','ship','boat','train','tram','pickup','trailer','tractor','crane','camper','person','animal'];
+  const vehicleType = type && validTypes.includes(type) ? type : 'car';
+  return `/markers/${prefix}_${vehicleType}.svg`;
+}
 
 interface VehicleListProps {
   vehicles: Vehicle[];
@@ -14,10 +36,93 @@ interface VehicleListProps {
   onSelect: (vehicle: Vehicle) => void;
 }
 
-export default function VehicleList({ vehicles, selectedId, onSelect }: VehicleListProps) {
+const ITEM_HEIGHT = 60; // px per row — includes border
+
+function VehicleRow({
+  vehicle,
+  selectedId,
+  onSelect,
+  locale,
+}: {
+  vehicle: Vehicle;
+  selectedId: number | null;
+  onSelect: (v: Vehicle) => void;
+  locale: string;
+}) {
   const { t } = useT();
+  const colors = STATUS_COLORS[vehicle.status] || STATUS_COLORS.stopped;
+  const timeText = formatRelativeTime(vehicle.lastUpdate, locale, t);
+  const isAlert = vehicle.status === 'alert';
+  const alarmType = isAlert ? vehicle._raw?.position?.attributes?.alarm : null;
+  const alarmLabel = alarmType ? t('alarmType_' + alarmType) : null;
+
+  return (
+    <button
+      onClick={() => onSelect(vehicle)}
+      className={cn(
+        'flex w-full items-start gap-2.5 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-accent/50',
+        selectedId === vehicle.id && 'bg-accent shadow-[inset_3px_0_0_0] shadow-primary',
+      )}
+      style={{ height: ITEM_HEIGHT }}
+    >
+      {/* Vehicle icon */}
+      <div className="shrink-0 mt-0.5 flex items-center justify-center w-[28px] h-[28px] rounded-md bg-muted/60">
+        <img
+          src={getMarkerIconSrc(vehicle)}
+          alt=""
+          width="22"
+          height="22"
+          className="object-contain"
+          loading="lazy"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-semibold truncate">{vehicle.name}</p>
+          {isAlert && (
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+          )}
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {isAlert ? (
+            <span className="text-xs text-red-500 font-medium truncate">{alarmLabel || t('alert')}</span>
+          ) : (
+            <>
+              <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', colors.dot)} />
+              <span className={cn('text-xs font-medium', colors.text)}>
+                {t(vehicle.status)}
+              </span>
+            </>
+          )}
+          <span className="text-xs text-muted-foreground">·</span>
+          <span className="text-xs text-muted-foreground">{timeText}</span>
+        </div>
+      </div>
+
+      {/* Speed */}
+      <div className="shrink-0 text-right mt-0.5">
+        <p className={cn(
+          'text-sm font-bold tabular-nums',
+          vehicle.status === 'moving' ? 'text-foreground' : 'text-muted-foreground',
+        )}>
+          {vehicle.status === 'moving' ? `${vehicle.speed}` : '—'}
+        </p>
+        <p className="text-[10px] text-muted-foreground leading-tight">
+          {vehicle.status === 'moving' ? t('unitKmh') : ' '}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+const VehicleList = memo(function VehicleList({ vehicles, selectedId, onSelect }: VehicleListProps) {
+  const { t, locale } = useT();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<string>('all');
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
     let list = vehicles;
@@ -33,6 +138,13 @@ export default function VehicleList({ vehicles, selectedId, onSelect }: VehicleL
     }
     return list;
   }, [vehicles, filter, q]);
+
+  const virtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ITEM_HEIGHT,
+    overscan: 10,
+  });
 
   return (
     <div className="flex h-full flex-col">
@@ -64,30 +176,44 @@ export default function VehicleList({ vehicles, selectedId, onSelect }: VehicleL
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto" style={{ marginLeft: '15px' }}>
-        {filtered.map((v) => (
-          <button
-            key={v.id}
-            onClick={() => onSelect(v)}
-            className={cn(
-              'flex w-full items-center gap-3 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-accent/50',
-              selectedId === v.id && 'bg-accent',
-            )}
-          >
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{v.name}</p>
-              <p className="text-xs text-muted-foreground">{v.plate}</p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-sm font-semibold tabular-nums">{v.speed}</p>
-              <StatusBadge status={v.status} />
-            </div>
-          </button>
-        ))}
+      <div ref={parentRef} className="flex-1 overflow-y-auto" style={{ contain: 'layout' }}>
+        <div
+          style={{
+            height: `${virtualizer.getTotalSize()}px`,
+            width: '100%',
+            position: 'relative',
+          }}
+        >
+          {virtualizer.getVirtualItems().map((virtualItem) => {
+            const v = filtered[virtualItem.index];
+            if (!v) return null;
+            return (
+              <div
+                key={v.id}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualItem.start}px)`,
+                }}
+              >
+                <VehicleRow
+                  vehicle={v}
+                  selectedId={selectedId}
+                  onSelect={onSelect}
+                  locale={locale}
+                />
+              </div>
+            );
+          })}
+        </div>
         {filtered.length === 0 && (
           <p className="px-3 py-6 text-center text-xs text-muted-foreground">{t('noData')}</p>
         )}
       </div>
     </div>
   );
-}
+});
+
+export default VehicleList;

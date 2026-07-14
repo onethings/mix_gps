@@ -1,6 +1,12 @@
-// Kevin GPS  Service Worker — offline-capable app shell caching
-const CACHE = 'Kevin GPS -v1';
-const STATIC_ASSETS = [
+// Kevin GPS Service Worker — runtime caching strategy
+// Uses cache-on-access instead of precaching (supports Vite hashed assets)
+const CACHE = 'kevin-gps-v2';
+const STATIC_CACHE = 'kevin-gps-static-v2';
+const API_CACHE = 'kevin-gps-api-v2';
+const MARKER_CACHE = 'kevin-gps-markers-v2';
+
+// Assets that exist at known, unhashed paths
+const PRECACHE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
@@ -10,63 +16,60 @@ const STATIC_ASSETS = [
   '/custom/login_bg.webp',
   '/custom/login_icon_logo.webp',
   '/custom/nav_icon_head.png',
-  '/markers/car-top.svg',
-  '/markers/parking.svg',
-  '/markers/start.svg',
-  '/markers/end.svg',
-  '/markers/moving_car.svg',
-  '/markers/idle_car.svg',
-  '/markers/parking_car.svg',
-  '/markers/offline_car.svg',
-  '/markers/maintenance_car.svg',
-  '/markers/speeding_car.svg',
-  '/markers/moving_truck.svg',
-  '/markers/moving_bus.svg',
-  '/markers/moving_van.svg',
-  '/markers/moving_motocycle.svg',
-  '/markers/moving_default.svg',
-  '/markers/idle_truck.svg',
-  '/markers/idle_default.svg',
-  '/markers/parking_truck.svg',
-  '/markers/parking_default.svg',
-  '/markers/offline_default.svg',
-  '/markers/maintenance_default.svg',
+  '/custom/nav_icon_head.webp',
 ];
 
-// Install: cache app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {
-        // Non-critical — proceed even if some assets fail
-      });
-    })
+    caches.open(CACHE).then((cache) =>
+      cache.addAll(PRECACHE_ASSETS).catch(() => {
+        // Non-critical — proceed if some fail
+      })
+    )
   );
+  // Activate immediately — don't wait for old SW to close
   self.skipWaiting();
 });
 
-// Activate: clean old caches
 self.addEventListener('activate', (event) => {
+  // Clean old caches
+  const expectedCaches = [CACHE, STATIC_CACHE, API_CACHE, MARKER_CACHE];
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+      Promise.all(
+        keys
+          .filter((k) => !expectedCaches.includes(k))
+          .map((k) => caches.delete(k))
+      )
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for static assets
+// Determine which cache to use based on request type
+function getCacheName(url) {
+  const { pathname } = url;
+  if (pathname.startsWith('/api/')) return API_CACHE;
+  if (pathname.startsWith('/markers/')) return MARKER_CACHE;
+  if (/\.(js|css|svg|png|webp|jpg|jpeg|gif|woff2?|ttf|eot)$/i.test(pathname)) {
+    return STATIC_CACHE;
+  }
+  return CACHE;
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API requests — network first, fallback to cache (GET only)
+  // Same-origin only
+  if (url.origin !== location.origin) return;
+
+  // API: network-first, cache fallback (GET only)
   if (url.pathname.startsWith('/api/') && request.method === 'GET') {
     event.respondWith(
       fetch(request)
         .then((response) => {
           const clone = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, clone));
+          caches.open(API_CACHE).then((cache) => cache.put(request, clone));
           return response;
         })
         .catch(() => caches.match(request))
@@ -74,18 +77,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets — cache first (GET only)
+  // Non-GET: pass through
   if (request.method !== 'GET') return;
+
+  // Static assets & markers: cache-first (runtime caching)
+  // This naturally handles Vite's hashed filenames without precaching
   event.respondWith(
     caches.match(request).then((cached) => {
-      const fetchPromise = fetch(request).then((response) => {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-      return cached || fetchPromise;
+      const fetchAndCache = fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const clone = response.clone();
+            const cacheName = getCacheName(url);
+            caches.open(cacheName).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => cached);
+      return cached || fetchAndCache;
     })
   );
 });

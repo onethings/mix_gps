@@ -1,100 +1,151 @@
+import { useState, useRef, useEffect } from 'react';
 import { useSession } from '@/context/SessionContext';
 import { useTheme } from '@/context/ThemeContext';
-import { LogOut, Moon, Sun, ChevronRight } from 'lucide-react';
+import { LogOut, Moon, Sun, Settings, ChevronDown, LayoutDashboard, Map, BarChart3, Smartphone } from 'lucide-react';
 import { initials, cn } from '@/lib/utils';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useT } from '@/lib/i18n';
 
-const BREADCRUMB_MAP = {
-  '/dashboard': 'dashboard',
-  '/tracking': 'tracking',
-  '/devices': 'devices',
-  '/trips': 'trips',
-  '/fuel': 'fuel',
-  '/drivers': 'drivers',
-  '/maintenance': 'maintenance',
-  '/logistics': 'logistics',
-  '/route-planning': 'routePlans',
-  '/replay': 'replay',
-  '/alerts': 'alerts',
-  '/reports': 'reports',
-  '/geofences': 'geofences',
-  '/orders': 'orders',
-  '/events': 'events',
-  '/settings': 'settings',
-};
+interface NavItem {
+  path: string;
+  key: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { path: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
+  { path: '/tracking', key: 'monitor', icon: Map },
+  { path: '/reports', key: 'report', icon: BarChart3 },
+  { path: '/devices', key: 'mgmt', icon: Smartphone },
+];
 
 export default function Topbar() {
   const { user, logout } = useSession();
   const { theme, toggle } = useTheme();
   const { t } = useT();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const basePath = '/' + (location.pathname.split('/')[1] || '');
-  const breadcrumbKey = BREADCRUMB_MAP[basePath];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [dropdownOpen]);
+
+  const handleNavClick = (path: string) => {
+    navigate(path);
+  };
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4">
-      {/* Left — Breadcrumb / Page Title */}
-      <div className="flex items-center gap-2 min-w-0">
-        {/* Logo — visible on all screen sizes */}
-        <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-          <img
-            src="/custom/nav_icon_head.webp"
-            alt="Logo"
-            className="h-7 w-7 rounded object-contain"
-            onError={(e: any) => { e.target.style.display = 'none'; }}
-          />
-          <span className="hidden text-sm font-semibold sm:inline">Kevin GPS </span>
+    <header className="flex h-14 items-center border-b border-border bg-card px-4">
+      {/* Left — Logo */}
+      <div className="flex items-center gap-2 shrink-0">
+        <Link to="/dashboard" className="flex items-center gap-2">
+          <picture>
+            <source srcSet="/custom/nav_icon_head.webp" type="image/webp" />
+            <img
+              src="/custom/nav_icon_head.png"
+              alt="Logo"
+              className="h-7 w-7 rounded object-contain"
+              onError={(e: any) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          </picture>
+          <span className="hidden text-sm font-semibold sm:inline">Kevin GPS</span>
         </Link>
-
-        {/* Breadcrumb separator + current page */}
-        {breadcrumbKey && (
-          <div className="hidden items-center gap-2 md:flex">
-            <ChevronRight className="h-4 w-4 text-muted-foreground/40" />
-            <span className="text-sm font-medium text-muted-foreground">
-              {t(breadcrumbKey)}
-            </span>
-          </div>
-        )}
       </div>
 
+      {/* Center — Main Navigation */}
+      <nav className="flex flex-1 items-center justify-center gap-0.5">
+        {NAV_ITEMS.map((item) => {
+          const isActive = item.path === '/reports'
+            ? basePath === '/reports' || ['/trips','/fuel','/maintenance','/logistics','/alerts','/events','/orders','/geofences','/route-planning'].includes(basePath)
+            : item.path === '/tracking'
+            ? ['/tracking', '/replay'].includes(basePath)
+            : item.path === '/devices'
+            ? ['/devices','/drivers'].includes(basePath)
+            : basePath === item.path;
+          return (
+            <button
+              key={item.path}
+              type="button"
+              onClick={() => handleNavClick(item.path)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                isActive
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              <span className="hidden sm:inline">{t(item.key)}</span>
+            </button>
+          );
+        })}
+      </nav>
+
       {/* Right side */}
-      <div className="flex items-center gap-1 sm:gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         {/* Language switcher */}
         <LanguageSwitcher />
         {/* Theme toggle */}
         <button
           type="button"
           onClick={toggle}
-          className={cn(
-            'rounded-lg p-2 text-muted-foreground hover:bg-accent transition-colors',
-          )}
+          className={cn('rounded-lg p-2 text-muted-foreground hover:bg-accent transition-colors')}
           aria-label="Toggle theme"
         >
           {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        {/* User */}
-        <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors cursor-default">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-            {initials(user?.name || user?.email)}
-          </div>
-          <span className="hidden text-sm font-medium sm:inline">
-            {user?.name || user?.email}
-          </span>
-        </div>
+        {/* User dropdown */}
+        <div ref={dropdownRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setDropdownOpen((v) => !v)}
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm hover:bg-accent/50 transition-colors"
+          >
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+              {initials(user?.name || user?.email)}
+            </div>
+            <span className="hidden text-sm font-medium sm:inline">
+              {user?.name || user?.email}
+            </span>
+            <ChevronDown className={cn('h-3.5 w-3.5 text-muted-foreground transition-transform', dropdownOpen && 'rotate-180')} />
+          </button>
 
-        {/* Logout (mobile) */}
-        <button
-          type="button"
-          onClick={logout}
-          className="rounded-lg p-2 text-muted-foreground hover:bg-accent lg:hidden"
-          aria-label="Sign out"
-        >
-          <LogOut className="h-4 w-4" />
-        </button>
+          {dropdownOpen && (
+            <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-lg border border-border bg-popover p-1 shadow-lg">
+              <button
+                type="button"
+                onClick={() => { setDropdownOpen(false); navigate('/settings'); }}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                {t('settings')}
+              </button>
+              <div className="mx-2 my-0.5 h-px bg-border" />
+              <button
+                type="button"
+                onClick={() => { setDropdownOpen(false); logout(); }}
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                {t('signOut')}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -1,0 +1,18 @@
+# Security headers
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=()
+
+# SVG sprite is large — cache for 30 days
+/markers/sprite.svg
+  Cache-Control: public, max-age=2592000, immutable
+
+# Service worker — never cache
+/sw.js
+  Cache-Control: no-cache
+
+# API responses
+/api/*
+  Cache-Control: no-store

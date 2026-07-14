@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Navigation, Play, Repeat, Share2, Gauge, Fuel, Power,
@@ -28,7 +28,7 @@ interface VehicleDetailsProps {
   vehicle: Vehicle | null;
 }
 
-export default function VehicleDetails({ vehicle }: VehicleDetailsProps) {
+const VehicleDetails = memo(function VehicleDetails({ vehicle }: VehicleDetailsProps) {
   const { t } = useT();
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -67,7 +67,7 @@ export default function VehicleDetails({ vehicle }: VehicleDetailsProps) {
           <div className="rounded-lg border border-border bg-muted/30 p-3">
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('speed')}</div>
             <div className="mt-1 text-lg font-semibold tabular-nums">{vehicle.speed}</div>
-            <div className="text-[10px] text-muted-foreground">{t('unitMph')}</div>
+            <div className="text-[10px] text-muted-foreground">{t('unitKmh')}</div>
           </div>
           <div className="rounded-lg border border-border bg-muted/30 p-3">
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('fuel')}</div>
@@ -79,7 +79,7 @@ export default function VehicleDetails({ vehicle }: VehicleDetailsProps) {
             <div className="mt-1 text-lg font-semibold tabular-nums">
               {vehicle.odometer != null ? Number(vehicle.odometer).toLocaleString() : '0'}
             </div>
-            <div className="text-[10px] text-muted-foreground">{t('unitMi')}</div>
+            <div className="text-[10px] text-muted-foreground">km</div>
           </div>
         </div>
       </div>
@@ -129,12 +129,12 @@ export default function VehicleDetails({ vehicle }: VehicleDetailsProps) {
 
         {/* Action buttons */}
         <div className="grid grid-cols-2 gap-2">
-          <Button size="sm" variant="default" asChild>
+          <Button size="sm" variant="outline" asChild>
             <Link to="/tracking">
               <Navigation className="h-4 w-4" /> {t('liveMap')}
             </Link>
           </Button>
-          <Button size="sm" variant="outline" asChild>
+          <Button size="sm" variant="default" asChild>
             <Link to={`/replay?deviceId=${vehicle.id}`}>
               <Play className="h-4 w-4" /> {t('replay')}
             </Link>
@@ -184,4 +184,6 @@ export default function VehicleDetails({ vehicle }: VehicleDetailsProps) {
       </div>
     </div>
   );
-}
+});
+
+export default VehicleDetails;

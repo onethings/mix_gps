@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useSession } from '@/context/SessionContext';
 import { useFlash } from '@/context/FlashContext';
@@ -106,38 +107,6 @@ export default function DevicesPage() {
   }, [vehicles, isOnline]);
 
   /* ── CRUD ── */
-  const persistDevice = async (form, deviceId) => {
-    const gid = form.groupId?.trim();
-    const groupIdParsed = gid ? Number(gid) : null;
-    if (deviceId) {
-      const current = await api.devices.get(deviceId);
-      await api.devices.update(deviceId, {
-        ...current, name: form.name.trim(), uniqueId: current.uniqueId,
-        model: form.model || '',
-        groupId: Number.isFinite(groupIdParsed) ? groupIdParsed : current.groupId ?? null,
-        category: form.iconType || current.category || null,
-        attributes: { ...(current.attributes || {}), plate: form.plate, vin: form.vin },
-      });
-    } else {
-      const uid = form.uniqueId.trim() || form.plate.trim() || `device-${Date.now()}`;
-      await api.devices.create({
-        name: form.name.trim(), uniqueId: uid, model: form.model || '',
-        ...(Number.isFinite(groupIdParsed) ? { groupId: groupIdParsed } : {}),
-        category: form.iconType || null,
-        attributes: { plate: form.plate, vin: form.vin },
-      });
-    }
-  };
-
-  const submitVehicle = async (form) => {
-    try {
-      await persistDevice(form, editing?._raw?.device?.id ?? null);
-      showSuccess(editing ? 'Device updated' : 'Device created');
-      await refresh();
-      setEditing(null);
-    } catch (err) { showError(err.message || t('saveFailed')); throw err; }
-  };
-
   const handleDelete = async () => {
     if (deleteId == null) return;
     setDeleting(true);
@@ -157,7 +126,7 @@ export default function DevicesPage() {
        { key: 'category', label: t('category') }, { key: 'phone', label: t('phone') }, { key: 'status', label: t('status') },
        { key: 'driver', label: t('driver') }, { key: 'group', label: t('group') },
        { key: 'speed', label: t('speed') }, { key: 'odometer', label: t('odometer') },
-       { key: 'lat', label: 'Latitude' }, { key: 'lng', label: 'Longitude' },
+       { key: 'lat', label: t('csvLatitude') }, { key: 'lng', label: t('csvLongitude') },
        { key: 'address', label: t('address') }, { key: 'lastUpdate', label: t('lastUpdate') }],
       vehicles);
     showSuccess('CSV downloaded');
@@ -165,9 +134,9 @@ export default function DevicesPage() {
 
   const downloadSampleCsv = () => {
     downloadCsv(`device-import-template.csv`,
-      [{ key: 'name', label: 'Name' }, { key: 'uniqueId', label: 'Unique ID' }, { key: 'plate', label: 'Plate' },
-       { key: 'model', label: 'Model' }, { key: 'phone', label: 'Phone' }, { key: 'contact', label: 'Contact' },
-       { key: 'category', label: 'Category' }, { key: 'groupId', label: 'Group ID' }],
+      [{ key: 'name', label: t('name') }, { key: 'uniqueId', label: t('csvUniqueId') }, { key: 'plate', label: t('plate') },
+       { key: 'model', label: t('model') }, { key: 'phone', label: t('phone') }, { key: 'contact', label: t('contact') },
+       { key: 'category', label: t('category') }, { key: 'groupId', label: t('groupId') }],
       [
         { name: '配送貨車 A', uniqueId: '861234567890123', plate: 'ABC-1234', model: 'Toyota HiAce', phone: '09123456789', contact: '王小明', category: 'van', groupId: '1' },
         { name: '物流卡車 B', uniqueId: '861234567890124', plate: 'XYZ-5678', model: 'Scania R500', phone: '09123456788', contact: '李大華', category: 'truck', groupId: '2' },
@@ -297,7 +266,7 @@ export default function DevicesPage() {
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name, plate, driver, IMEI, or phone…"
+          placeholder={t('searchDevicesPlaceholder')}
           className="h-10 w-full pl-10"
         />
       </div>
@@ -319,10 +288,10 @@ export default function DevicesPage() {
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('status')}</th>
                   <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell">{t('driver')}</th>
                   <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">{t('group')}</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">Fuel</th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">{t('fuel')}</th>
                   <th className="hidden px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">{t('odometer')}</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">IMEI</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">Signal</th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">{t('imei')}</th>
+                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">{t('signal')}</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('lastUpdate')}</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('management')}</th>
                 </tr>
@@ -363,7 +332,7 @@ export default function DevicesPage() {
                               >
                                 {v.name}
                               </Link>
-                              {d?.disabled && <Badge variant="secondary" className="text-[10px] px-1 py-0">Disabled</Badge>}
+                              {d?.disabled && <Badge variant="secondary" className="text-[10px] px-1 py-0">{t('disabled')}</Badge>}
                             </div>
                             <p className="flex items-center gap-2 text-xs text-muted-foreground">
                               {v.model && <span>{v.model}</span>}
@@ -409,7 +378,7 @@ export default function DevicesPage() {
 
                       {/* Odometer */}
                       <td className="hidden px-4 py-3 text-right tabular-nums lg:table-cell">
-                        {v.odometer != null ? `${Number(v.odometer).toLocaleString()} mi` : '—'}
+                        {v.odometer != null ? `${Number(v.odometer).toLocaleString()} ${t('km')}` : '—'}
                       </td>
 
                       {/* IMEI */}
@@ -475,9 +444,9 @@ export default function DevicesPage() {
               {filtered.length} / {vehicles.length} {t('devices')}
             </span>
             <span className="flex items-center gap-3">
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" />{stats.moving} moving</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" />{stats.idle} idle</span>
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" />{stats.offline} offline</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" />{stats.moving} {t('moving')}</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" />{stats.idle} {t('idle')}</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/40" />{stats.offline} {t('offline')}</span>
             </span>
           </div>
         </div>
@@ -493,11 +462,19 @@ export default function DevicesPage() {
       />
 
       {/* ── Vehicle form (add / edit) ── */}
-      {open && <VehicleForm
-        device={editing?._raw?.device}
-        onSave={() => submitVehicle(editing?._raw?.device)}
-        onCancel={() => setOpen(false)}
-      />}
+      <Dialog open={open} onOpenChange={(v) => { if (!v) { setOpen(false); setEditing(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editing ? t('vehicleFormEdit') : t('vehicleFormAdd')}</DialogTitle>
+            <DialogDescription>{editing ? t('vehicleFormUpdate') : t('vehicleFormRegister')}</DialogDescription>
+          </DialogHeader>
+          <VehicleForm
+            device={editing?._raw?.device}
+            onSave={() => { refresh(); setOpen(false); setEditing(null); }}
+            onCancel={() => { setOpen(false); setEditing(null); }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* ── Share dialog ── */}
       <ShareDialog open={shareOpen} onOpenChange={setShareOpen} vehicles={vehicles} />

@@ -1,12 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { useT } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {
   Fence, Plus, Map as MapIcon, Edit3, Trash2, Search,
-  ExternalLink,
 } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import EmptyState from '@/components/common/EmptyState';
@@ -14,7 +12,8 @@ import LoadingScreen from '@/components/common/LoadingScreen';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
 import GeofenceEditorDialog from '@/components/geofences/GeofenceEditorDialog';
 import { useListFetch } from '@/hooks/useListFetch';
-import { cn, formatDate } from '@/lib/utils';
+import { useLiveData } from '@/context/LiveDataContext';
+import { cn, formatDate, wktPolygonAreaKm2 } from '@/lib/utils';
 import type { TraccarGeofence } from '@/types';
 
 const STYLE_ROAD = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
@@ -312,11 +311,14 @@ export default function GeofencesPage() {
     () => api.geofences.list() as Promise<TraccarGeofence[]>,
     [],
   );
+  const { vehicles } = useLiveData();
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [showMap, setShowMap] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editGeofence, setEditGeofence] = useState<TraccarGeofence | null>(null);
 
   const filtered = (geofences || []).filter((g) => {
     if (!search) return true;
@@ -342,6 +344,11 @@ export default function GeofencesPage() {
     setSelectedId((prev) => (prev === id ? null : id));
   }, []);
 
+  const handleSaveGeofence = useCallback(async (data: { name: string; description?: string; area: string }) => {
+    await api.geofences.create(data);
+    reload();
+  }, [reload]);
+
   if (loading) return <LoadingScreen />;
 
   return (
@@ -359,14 +366,14 @@ export default function GeofencesPage() {
             <MapIcon className="h-4 w-4" />
             {showMap ? t('hideMap') : t('showMap')}
           </button>
-          <Link
-            to="/settings/geofences"
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+          <button
+            type="button"
+            onClick={() => setDialogOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <Edit3 className="h-4 w-4" />
-            {t('advanced')}
-            <ExternalLink className="h-3 w-3" />
-          </Link>
+            <Plus className="h-4 w-4" />
+            {t('addGeofence')}
+          </button>
         </div>
       </PageHeader>
 
@@ -411,7 +418,8 @@ export default function GeofencesPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((g, i) => {
           const isSelected = selectedId === g.id;
-          const color = g.attributes?.color || COLORS[i % COLORS.length];
+          const color = (g.attributes?.color as string) || COLORS[i % COLORS.length];
+          const areaKm2 = wktPolygonAreaKm2(g.area);
           return (
             <div
               key={g.id}
@@ -424,7 +432,7 @@ export default function GeofencesPage() {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: `${color}20` }}>
-                    <Fence className="h-5 w-5" style={{ color: color as string }} />
+                    <Fence className="h-5 w-5" style={{ color: color }} />
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold">{g.name || `Geofence #${g.id}`}</h3>
@@ -434,13 +442,14 @@ export default function GeofencesPage() {
                   </div>
                 </div>
                 <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  <Link
-                    to={`/settings/geofences`}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setEditGeofence(g); }}
                     className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent"
                     title={t('editTooltip')}
                   >
                     <Edit3 className="h-3.5 w-3.5" />
-                  </Link>
+                  </button>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setDeleteTarget(g); }}
@@ -471,6 +480,14 @@ export default function GeofencesPage() {
                      g.area?.startsWith('LINESTRING') ? t('lineGeofence') : '—'}
                   </span>
                 </div>
+                {areaKm2 != null && (
+                  <div className="flex justify-between">
+                    <span>Area</span>
+                    <span className="font-mono text-foreground tabular-nums">
+                      {areaKm2 >= 1000 ? `${(areaKm2 / 1000).toFixed(1)}k km²` : `${areaKm2.toFixed(1)} km²`}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -488,6 +505,21 @@ export default function GeofencesPage() {
           destructive
         />
       )}
+
+      <GeofenceEditorDialog
+        open={dialogOpen || !!editGeofence}
+        onOpenChange={(open) => { if (!open) { setDialogOpen(false); setEditGeofence(null); } }}
+        initial={editGeofence ? { name: editGeofence.name, description: editGeofence.description, area: editGeofence.area } : null}
+        vehicles={(vehicles || []).map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          lat: v.lat ?? 0,
+          lng: v.lng ?? 0,
+          plate: v.plate || v.uniqueId,
+          status: v.status,
+        }))}
+        onSave={editGeofence ? async (data) => { await api.geofences.update(editGeofence.id, data); reload(); setEditGeofence(null); } : handleSaveGeofence}
+      />
     </div>
   );
 }

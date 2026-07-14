@@ -39,7 +39,7 @@ export function useTripsReport({ deviceIds, fromIso, toIso, nameByDeviceId }: Us
       } finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [key, fromIso, toIso, deviceIds]);
+  }, [key]);
 
   return { trips, loading, error };
 }

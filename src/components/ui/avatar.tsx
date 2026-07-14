@@ -6,6 +6,7 @@ const Avatar = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElem
     <div
       ref={ref}
       className={cn('relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full', className)}
+      style={{ aspectRatio: '1' }}
       {...props}
     />
   ),
@@ -14,7 +15,7 @@ Avatar.displayName = 'Avatar';
 
 const AvatarImage = React.forwardRef<HTMLImageElement, React.ImgHTMLAttributes<HTMLImageElement>>(
   ({ className, ...props }, ref) => (
-    <img ref={ref} className={cn('aspect-square h-full w-full', className)} {...props} />
+    <img ref={ref} className={cn('aspect-square h-full w-full', className)} loading="lazy" {...props} />
   ),
 );
 AvatarImage.displayName = 'AvatarImage';

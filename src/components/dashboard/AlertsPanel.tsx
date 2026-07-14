@@ -3,18 +3,20 @@ import { useState } from 'react';
 import type { Alert } from '@/types';
 import EmptyState from '@/components/common/EmptyState';
 import { formatDate } from '@/lib/utils';
+import { useT } from '@/lib/i18n';
 
 interface AlertsPanelProps {
   alerts: Alert[];
 }
 
 export default function AlertsPanel({ alerts }: AlertsPanelProps) {
+  const { t } = useT();
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
   const visible = alerts.filter((a) => !dismissed.has(a.id));
 
   if (visible.length === 0) {
-    return <EmptyState icon={Bell} title="No open alerts" description="All clear — no unresolved events" />;
+    return <EmptyState icon={Bell} title={t('dashboardNoOpenAlerts')} description={t('dashboardAllClear')} />;
   }
 
   return (

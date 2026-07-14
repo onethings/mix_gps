@@ -1,5 +1,5 @@
-const KNOTS_TO_MPH = 1.15078;
-const METERS_TO_MILES = 0.000621371;
+const KNOTS_TO_KMH = 1.852;
+const METERS_TO_KM = 0.001;
 
 function num(value, fallback = 0) {
   const n = Number(value);
@@ -27,8 +27,8 @@ function positionForDevice(device, positionsByDevice) {
   const id = device.id;
   let pos = positionsByDevice[id];
   if (!pos) pos = positionsByDevice[String(id)];
-  if (!pos) pos = positionFromDevice(device);
-  return pos;
+  // Do NOT fall back to device.latitude/longitude — those are registration defaults, not real GPS
+  return pos || null;
 }
 
 export function toVehicle(device, position) {
@@ -36,7 +36,7 @@ export function toVehicle(device, position) {
   const deviceAttr = device.attributes || {};
 
   const isOffline = device.status === 'offline' || device.status === 'unknown';
-  const speedMph = num(position?.speed) * KNOTS_TO_MPH;
+  const speedKmh = num(position?.speed) * KNOTS_TO_KMH;
   const ignition = attr.ignition === true;
   const hasAlarm = Boolean(attr.alarm);
 
@@ -44,7 +44,7 @@ export function toVehicle(device, position) {
   if (isOffline) status = 'offline';
   else if (hasAlarm) status = 'alert';
   else if (device.disabled) status = 'maintenance';
-  else if (speedMph > 2) status = 'moving';
+  else if (speedKmh > 3) status = 'moving';
   else if (ignition) status = 'idle';
 
   return {
@@ -54,14 +54,14 @@ export function toVehicle(device, position) {
     status,
     driver: attr.driverUniqueId || device.contact || 'Unassigned',
     driverId: attr.driverUniqueId || null,
-    speed: Math.round(speedMph),
+    speed: Math.round(speedKmh),
     fuel: attr.fuel != null ? Math.round(attr.fuel) : null,
     ignition,
     odometer:
       attr.odometer != null
-        ? Math.round(num(attr.odometer) * METERS_TO_MILES)
+        ? Math.round(num(attr.odometer) * METERS_TO_KM)
         : attr.totalDistance != null
-          ? Math.round(num(attr.totalDistance) * METERS_TO_MILES)
+          ? Math.round(num(attr.totalDistance) * METERS_TO_KM)
           : 0,
     lastUpdate: device.lastUpdate || position?.fixTime || null,
     lat: position?.latitude ?? null,
@@ -80,9 +80,39 @@ export function toVehicle(device, position) {
   };
 }
 
+// Stable reference cache: only creates new objects when data actually changes
+// Prevents cascading re-renders when only one vehicle's position updates
+const _vehicleCache = new Map();
+
 export function toVehicles(devices = [], positionsByDevice = {}) {
   if (!Array.isArray(devices)) return [];
-  return devices.map((d) => toVehicle(d, positionForDevice(d, positionsByDevice)));
+  return devices.map((d) => {
+    const pos = positionForDevice(d, positionsByDevice);
+    const fresh = toVehicle(d, pos);
+    const cached = _vehicleCache.get(fresh.id);
+    if (cached && shallowEqualVehicle(cached, fresh)) {
+      return cached;
+    }
+    _vehicleCache.set(fresh.id, fresh);
+    return fresh;
+  });
+}
+
+function shallowEqualVehicle(a, b) {
+  return (
+    a.id === b.id &&
+    a.lat === b.lat &&
+    a.lng === b.lng &&
+    a.speed === b.speed &&
+    a.status === b.status &&
+    a.course === b.course &&
+    a.fuel === b.fuel &&
+    a.odometer === b.odometer &&
+    a.ignition === b.ignition &&
+    a.lastUpdate === b.lastUpdate &&
+    a.address === b.address &&
+    a.battery === b.battery
+  );
 }
 
 export function toTrip(trip, deviceName) {
@@ -95,8 +125,8 @@ export function toTrip(trip, deviceName) {
     endTime: trip.endTime,
     distance: num(trip.distance) / 1000,
     duration: num(trip.duration) / 60000,
-    avgSpeed: Math.round(num(trip.averageSpeed) * KNOTS_TO_MPH),
-    maxSpeed: Math.round(num(trip.maxSpeed) * KNOTS_TO_MPH),
+    avgSpeed: Math.round(num(trip.averageSpeed) * KNOTS_TO_KMH),
+    maxSpeed: Math.round(num(trip.maxSpeed) * KNOTS_TO_KMH),
     fuelUsed: num(trip.spentFuel),
     violations: 0,
     from: trip.startAddress || `${trip.startLat?.toFixed(3)}, ${trip.startLon?.toFixed(3)}`,
@@ -130,7 +160,7 @@ export function toAlert(event, deviceName) {
   const message =
     attr.message ||
     (event.type === 'deviceOverspeed'
-      ? `Overspeed: ${Math.round(num(attr.speed) * KNOTS_TO_MPH)} mph (limit ${Math.round(num(attr.speedLimit) * KNOTS_TO_MPH)})`
+      ? `Overspeed: ${Math.round(num(attr.speed) * KNOTS_TO_KMH)} km/h (limit ${Math.round(num(attr.speedLimit) * KNOTS_TO_KMH)})`
       : event.type === 'alarm'
         ? `Alarm: ${attr.alarm || 'unknown'}`
         : event.type.replace(/([A-Z])/g, ' $1').trim());

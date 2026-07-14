@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import * as Sentry from '@sentry/react';
 import AppShell from './components/layout/AppShell';
 import LoadingScreen from './components/common/LoadingScreen';
 import { useSession } from './context/SessionContext';
@@ -17,6 +18,15 @@ const ReplayPage = lazy(() => import('./pages/ReplayPage'));
 const ReportsShell = lazy(() => import('./pages/reports/ReportsShell'));
 const ReportsIndexPage = lazy(() => import('./pages/reports/ReportsIndexPage'));
 const ReportPage = lazy(() => import('./pages/reports/ReportPage'));
+const CombinedReportPage = lazy(() => import('./pages/reports/CombinedReportPage'));
+const EventsReportPage = lazy(() => import('./pages/reports/EventsReportPage'));
+const GeofencesReportPage = lazy(() => import('./pages/reports/GeofencesReportPage'));
+const StopsReportPage = lazy(() => import('./pages/reports/StopsReportPage'));
+const SummaryReportPage = lazy(() => import('./pages/reports/SummaryReportPage'));
+const ChartReportPage = lazy(() => import('./pages/reports/ChartReportPage'));
+const RouteReportPage = lazy(() => import('./pages/reports/RouteReportPage'));
+const LogsReportPage = lazy(() => import('./pages/reports/LogsReportPage'));
+const ScheduledReportPage = lazy(() => import('./pages/reports/ScheduledReportPage'));
 const DevicesPage = lazy(() => import('./pages/DevicesPage'));
 const GeofencesPage = lazy(() => import('./pages/GeofencesPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
@@ -26,16 +36,23 @@ const SettingsLayout = lazy(() => import('./pages/settings/SettingsLayout'));
 const SettingsOverviewPage = lazy(() => import('./pages/settings/SettingsOverviewPage'));
 const ServerSettingsPage = lazy(() => import('./pages/settings/ServerSettingsPage'));
 const UsersSettingsPage = lazy(() => import('./pages/settings/UsersSettingsPage'));
+const UserEditorPage = lazy(() => import('./pages/settings/UserEditorPage'));
 const DevicesSettingsPage = lazy(() => import('./pages/settings/DevicesSettingsPage'));
+const DeviceEditorPage = lazy(() => import('./pages/settings/DeviceEditorPage'));
 const GroupsSettingsPage = lazy(() => import('./pages/settings/GroupsSettingsPage'));
-const GeofencesSettingsPage = lazy(() => import('./pages/settings/GeofencesSettingsPage'));
 const NotificationsSettingsPage = lazy(() => import('./pages/settings/NotificationsSettingsPage'));
+const NotificationEditorPage = lazy(() => import('./pages/settings/NotificationEditorPage'));
 const PreferencesSettingsPage = lazy(() => import('./pages/settings/PreferencesSettingsPage'));
 const CommandsSettingsPage = lazy(() => import('./pages/settings/CommandsSettingsPage'));
+const CommandEditorPage = lazy(() => import('./pages/settings/CommandEditorPage'));
 const CalendarsSettingsPage = lazy(() => import('./pages/settings/CalendarsSettingsPage'));
 const DriversSettingsPage = lazy(() => import('./pages/settings/DriversSettingsPage'));
 const MaintenanceSettingsPage = lazy(() => import('./pages/settings/MaintenanceSettingsPage'));
 const ComputedAttributesSettingsPage = lazy(() => import('./pages/settings/ComputedAttributesSettingsPage'));
+const AttributeEditorPage = lazy(() => import('./pages/settings/AttributeEditorPage'));
+const DriverEditorPage = lazy(() => import('./pages/settings/DriverEditorPage'));
+const GroupEditorPage = lazy(() => import('./pages/settings/GroupEditorPage'));
+const MaintenanceEditorPage = lazy(() => import('./pages/settings/MaintenanceEditorPage'));
 const PermissionsSettingsPage = lazy(() => import('./pages/settings/PermissionsSettingsPage'));
 const AnnouncementSettingsPage = lazy(() => import('./pages/settings/AnnouncementSettingsPage'));
 const ConnectionsHubPage = lazy(() => import('./pages/settings/ConnectionsHubPage'));
@@ -98,6 +115,16 @@ function AppRoutes() {
           <Route element={<ReportsShell />}>
             <Route path="reports">
               <Route index element={<ReportsIndexPage />} />
+              <Route path="combined" element={<CombinedReportPage />} />
+              <Route path="events" element={<EventsReportPage />} />
+              <Route path="geofences" element={<GeofencesReportPage />} />
+              <Route path="trips" element={<TripsPage />} />
+              <Route path="stops" element={<StopsReportPage />} />
+              <Route path="summary" element={<SummaryReportPage />} />
+              <Route path="chart" element={<ChartReportPage />} />
+              <Route path="route" element={<RouteReportPage />} />
+              <Route path="logs" element={<LogsReportPage />} />
+              <Route path="scheduled" element={<ScheduledReportPage />} />
               <Route path=":type" element={<ReportPage />} />
             </Route>
           </Route>
@@ -109,17 +136,33 @@ function AppRoutes() {
             <Route index element={<SettingsOverviewPage />} />
             <Route path="server" element={<ServerSettingsPage />} />
             <Route path="users" element={<UsersSettingsPage />} />
+            <Route path="user/new" element={<UserEditorPage />} />
+            <Route path="user/:id" element={<UserEditorPage />} />
             <Route path="devices" element={<DevicesSettingsPage />} />
+            <Route path="device/new" element={<DeviceEditorPage />} />
+            <Route path="device/:id" element={<DeviceEditorPage />} />
             <Route path="groups" element={<GroupsSettingsPage />} />
-            <Route path="geofences" element={<GeofencesSettingsPage />} />
+            <Route path="groups" element={<GroupsSettingsPage />} />
+            <Route path="group/new" element={<GroupEditorPage />} />
+            <Route path="group/:id" element={<GroupEditorPage />} />
             <Route path="notifications" element={<NotificationsSettingsPage />} />
+            <Route path="notification/new" element={<NotificationEditorPage />} />
+            <Route path="notification/:id" element={<NotificationEditorPage />} />
             <Route path="preferences" element={<PreferencesSettingsPage />} />
             <Route path="commands" element={<CommandsSettingsPage />} />
+            <Route path="command/new" element={<CommandEditorPage />} />
+            <Route path="command/:id" element={<CommandEditorPage />} />
             <Route path="calendars" element={<CalendarsSettingsPage />} />
             <Route path="drivers" element={<DriversSettingsPage />} />
+            <Route path="driver/new" element={<DriverEditorPage />} />
+            <Route path="driver/:id" element={<DriverEditorPage />} />
             <Route path="maintenance" element={<MaintenanceSettingsPage />} />
             <Route path="maintenances" element={<MaintenanceSettingsPage />} />
+            <Route path="maintenance/new" element={<MaintenanceEditorPage />} />
+            <Route path="maintenance/:id" element={<MaintenanceEditorPage />} />
             <Route path="attributes" element={<ComputedAttributesSettingsPage />} />
+            <Route path="attribute/new" element={<AttributeEditorPage />} />
+            <Route path="attribute/:id" element={<AttributeEditorPage />} />
             <Route path="permissions" element={<PermissionsSettingsPage />} />
             <Route path="announcement" element={<AnnouncementSettingsPage />} />
             <Route path="connections" element={<ConnectionsHubPage />} />

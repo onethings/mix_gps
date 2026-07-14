@@ -39,7 +39,9 @@
 |------|-------|-------------|
 | Dashboard | `/dashboard` | KPI cards, live map, fleet status table, WebSocket connection indicator |
 | Live Tracking | `/tracking` | MapLibre map, vehicle SVG markers, 3-panel layout, basemap switcher, geofence toggle, ruler measurement |
+| Shared View | `/shared` | Shareable live tracking view, no login required, real-time vehicle positions |
 | Devices | `/devices` | Vehicle list, stats cards, search, CRUD, CSV import/export, sharing, signal/battery/IMEI display |
+| Vehicle Profile | `/devices/:id` | Detailed vehicle info, real-time stats, trips, maintenance history |
 | Drivers | `/drivers` | Driver CRUD, name/ID/phone/email/license |
 | Trips | `/trips` | Trip history (1/3/7/30 days), CSV export |
 | Fuel Management | `/fuel` | Fuel statistics, vehicle fuel progress bars, average utilization |
@@ -51,9 +53,9 @@
 | Geofences | `/geofences` | Geofence CRUD, WKT editor, map display |
 | Orders | `/orders` | Order CRUD (localStorage), status/customer/driver |
 | Events | `/events` | Event timeline, type filter, search, real-time push |
-| Reports | `/reports` | Comprehensive/route/events/summary/trips/stops/chart reports |
+| Reports | `/reports` | Combined/route/events/geofences/trips/stops/summary/chart/logs/scheduled reports |
 
-### Settings (18 Pages)
+### Settings (15 Pages)
 
 | Setting | Description |
 |---------|-------------|
@@ -62,7 +64,6 @@
 | Users | User account CRUD |
 | Devices | Device registry |
 | Groups | Device grouping |
-| Geofences | Geofence list |
 | Notifications | Event notification rules |
 | Commands | Saved commands |
 | Calendars | Business calendars |
@@ -514,7 +515,9 @@ This project is licensed under the MIT License. See the [LICENSE](./LICENSE) fil
 |------|------|------|
 | 儀表板 | `/dashboard` | KPI 卡片、即時地圖、車隊狀態表、WebSocket 連線指示 |
 | 即時追蹤 | `/tracking` | MapLibre 地圖、車輛 SVG 標記、3 面板佈局、底圖切換、圍欄開關、尺規測量 |
+| 共享檢視 | `/shared` | 可分享的即時追蹤檢視，無需登入，顯示車輛即時位置 |
 | 設備管理 | `/devices` | 車輛列表、統計卡片、搜尋、CRUD、CSV 匯入/匯出、分享、訊號/電量/IMEI 顯示 |
+| 車輛詳情 | `/devices/:id` | 車輛詳細資訊、即時統計、行程記錄、維修歷史 |
 | 駕駛員 | `/drivers` | 駕駛員 CRUD、姓名/ID/電話/Email/駕照 |
 | 行程記錄 | `/trips` | 行程查詢 (1/3/7/30 天)、CSV 匯出 |
 | 油耗管理 | `/fuel` | 油耗統計、車輛油量進度條、平均利用率 |
@@ -526,9 +529,9 @@ This project is licensed under the MIT License. See the [LICENSE](./LICENSE) fil
 | 地理圍欄 | `/geofences` | 圍欄 CRUD、WKT 編輯器、地圖顯示 |
 | 訂單管理 | `/orders` | 訂單 CRUD (localStorage)、狀態/客戶/駕駛員 |
 | 事件日誌 | `/events` | 事件時間線、類型篩選、搜尋、即時推送 |
-| 報表統計 | `/reports` | 綜合/路線/事件/摘要/行程/停靠/圖表報表 |
+| 報表統計 | `/reports` | 綜合/路線/事件/圍欄/行程/停靠/摘要/圖表/日誌/排程報表 |
 
-### 設定管理 (18 頁)
+### 設定管理 (15 頁)
 
 | 設定 | 說明 |
 |------|------|
@@ -537,7 +540,6 @@ This project is licensed under the MIT License. See the [LICENSE](./LICENSE) fil
 | 用戶管理 | 用戶帳號 CRUD |
 | 設備管理 | 設備註冊表 |
 | 分組管理 | 設備分組 |
-| 地理圍欄 | 圍欄清單 |
 | 通知規則 | 事件通知條件 |
 | 指令管理 | 儲存常用指令 |
 | 日曆管理 | 營運日曆 |

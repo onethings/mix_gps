@@ -13,6 +13,16 @@ import { geocodeKey, lookupCached, reverseGeocode, subscribeGeocode } from '@/li
 import { useSession } from './SessionContext';
 import type { Vehicle, TraccarDevice, TraccarPosition, TraccarEvent, Alert } from '@/types';
 
+function shallowEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  for (const key of ka) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
+}
+
 interface LiveDataContextValue {
   vehicles: any[];
   devices: TraccarDevice[];
@@ -31,18 +41,18 @@ interface LiveDataContextValue {
 const LiveDataContext = createContext<LiveDataContextValue | null>(null);
 const MAX_EVENTS = 100;
 
-export function LiveDataProvider({ children }) {
+export function LiveDataProvider({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
-  const [devices, setDevices] = useState([]);
-  const [positions, setPositions] = useState({});
-  const [events, setEvents] = useState([]);
+  const [devices, setDevices] = useState<TraccarDevice[]>([]);
+  const [positions, setPositions] = useState<Record<string, TraccarPosition>>({});
+  const [events, setEvents] = useState<TraccarEvent[]>([]);
   const [connected, setConnected] = useState(false);
-  const [socketError, setSocketError] = useState(null);
+  const [socketError, setSocketError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [geocoded, setGeocoded] = useState({});
-  const socketRef = useRef(null);
-  const reconnectRef = useRef(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [geocoded, setGeocoded] = useState<Record<string, string>>({});
+  const socketRef = useRef<WebSocket | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return subscribeGeocode((key, address) => {
@@ -90,32 +100,91 @@ export function LiveDataProvider({ children }) {
     };
   }, [user]);
 
+  // RAF-based batching for WebSocket frames — merge multiple frames per animation frame
+  const pendingDevicesRef = useRef<Map<number, any> | null>(null);
+  const pendingPositionsRef = useRef<Map<number, any> | null>(null);
+  const pendingEventsRef = useRef<any[] | null>(null);
+  const flushRafRef = useRef<number | null>(null);
+
+  function flushFrameBatch() {
+    flushRafRef.current = null;
+
+    if (pendingDevicesRef.current) {
+      const batch = pendingDevicesRef.current;
+      pendingDevicesRef.current = null;
+      setDevices((prev) => {
+        let hasChanges = false;
+        const map = new Map(prev.map((d) => [d.id, d]));
+        batch.forEach((merged, id) => {
+          const existing = map.get(id);
+          map.set(id, merged);
+          if (!hasChanges && existing && !shallowEqual(existing as any, merged as any)) {
+            hasChanges = true;
+          }
+        });
+        return hasChanges ? Array.from(map.values()) : prev;
+      });
+    }
+
+    if (pendingPositionsRef.current) {
+      const batch = pendingPositionsRef.current;
+      pendingPositionsRef.current = null;
+      setPositions((prev) => {
+        const next = { ...prev };
+        let hasChanges = false;
+        batch.forEach((p, id) => {
+          const existing = next[id];
+          next[id] = p;
+          next[String(id)] = p;
+          if (!hasChanges && existing && !shallowEqual(existing as any, p as any)) {
+            hasChanges = true;
+          }
+        });
+        return hasChanges ? next : prev;
+      });
+    }
+
+    if (pendingEventsRef.current) {
+      const batch = pendingEventsRef.current;
+      pendingEventsRef.current = null;
+      setEvents((prev) => [...batch, ...prev].slice(0, MAX_EVENTS));
+    }
+  }
+
+  function scheduleFlush() {
+    if (flushRafRef.current === null) {
+      flushRafRef.current = requestAnimationFrame(flushFrameBatch);
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!user) return undefined;
 
     const connect = () => {
-      const socket = openSocket((frame) => {
+      const socket = openSocket((frame: any) => {
+        // Accumulate into pending refs — React state only updates once per RAF
         if (Array.isArray(frame.devices)) {
-          setDevices((prev) => {
-            const map = new Map(prev.map((d) => [d.id, d]));
-            frame.devices.forEach((d) => map.set(d.id, { ...map.get(d.id), ...d }));
-            return Array.from(map.values());
+          if (!pendingDevicesRef.current) pendingDevicesRef.current = new Map();
+          frame.devices.forEach((d) => {
+            const existing = pendingDevicesRef.current!.get(d.id);
+            pendingDevicesRef.current!.set(d.id, { ...existing, ...d });
           });
+          scheduleFlush();
         }
         if (Array.isArray(frame.positions)) {
-          setPositions((prev) => {
-            const next = { ...prev };
-            frame.positions.forEach((p) => {
-              const id = p.deviceId;
-              if (id == null) return;
-              next[id] = p;
-              next[String(id)] = p;
-            });
-            return next;
+          if (!pendingPositionsRef.current) pendingPositionsRef.current = new Map();
+          frame.positions.forEach((p) => {
+            const id = p.deviceId;
+            if (id == null) return;
+            pendingPositionsRef.current!.set(id, p);
           });
+          scheduleFlush();
         }
         if (Array.isArray(frame.events)) {
-          setEvents((prev) => [...frame.events, ...prev].slice(0, MAX_EVENTS));
+          if (!pendingEventsRef.current) pendingEventsRef.current = [];
+          pendingEventsRef.current.push(...frame.events);
+          scheduleFlush();
         }
       });
 
@@ -138,6 +207,11 @@ export function LiveDataProvider({ children }) {
     connect();
 
     return () => {
+      if (flushRafRef.current !== null) cancelAnimationFrame(flushRafRef.current);
+      flushRafRef.current = null;
+      pendingDevicesRef.current = null;
+      pendingPositionsRef.current = null;
+      pendingEventsRef.current = null;
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       socketRef.current?.close();
       setConnected(false);
