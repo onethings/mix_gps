@@ -101,7 +101,7 @@ function AppRoutes() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/tracking" element={<LiveTrackingPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
-          <Route path="/trips" element={<TripsPage />} />
+          <Route path="/trips" element={<Navigate to="/reports/trips" replace />} />
           <Route path="/fuel" element={<FuelPage />} />
           <Route path="/vehicles" element={<Navigate to="/devices" replace />} />
           <Route path="/devices" element={<DevicesPage />} />

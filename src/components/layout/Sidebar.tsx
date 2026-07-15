@@ -20,7 +20,7 @@ interface NavItemConfig {
 const REPORT_NAV: NavItemConfig[] = [
   { to: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
   { to: '/reports', key: 'reports', icon: BarChart3 },
-  { to: '/trips', key: 'trips', icon: Route },
+  { to: '/reports/trips', key: 'trips', icon: Route },
   { to: '/fuel', key: 'fuel', icon: Fuel },
   { to: '/maintenance', key: 'maintenance', icon: Wrench },
   { to: '/logistics', key: 'logistics', icon: Package },

@@ -9,7 +9,7 @@ import Topbar from './Topbar';
 import TabBar from './TabBar';
 import GlobalMapLayer from './GlobalMapLayer';
 
-const REPORT_PATHS = ['/reports','/trips','/fuel','/maintenance','/logistics','/alerts','/events','/orders','/geofences','/route-planning'];
+const REPORT_PATHS = ['/reports','/fuel','/maintenance','/logistics','/alerts','/events','/orders','/geofences','/route-planning'];  // /reports/trips is covered by '/reports'
 const MGMT_PATHS = ['/devices','/drivers','/settings'];
 const SIDEBAR_PATHS = new Set([...REPORT_PATHS, ...MGMT_PATHS]);
 

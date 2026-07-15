@@ -110,10 +110,12 @@ export default function ReportFilter({ children, loading, onShow, extraFilters, 
   const [customTo, setCustomTo] = useState('');
 
   const selectedPeriodLabel = t(period);
-  const selectedDeviceCount = selectedDeviceIds.length === 0 ? allDeviceIds.length : selectedDeviceIds.length;
+  const selectedDeviceCount = selectedDeviceIds.length === 0
+    ? allDeviceIds.length
+    : selectedDeviceIds[0] === -1 ? 0 : selectedDeviceIds.length;
 
   const handleShow = useCallback(() => {
-    const ids = selectedDeviceIds.length === 0 ? allDeviceIds : selectedDeviceIds;
+    const ids = selectedDeviceIds.length === 0 ? allDeviceIds : (selectedDeviceIds[0] === -1 ? [] : selectedDeviceIds);
     let fromIso: string, toIso: string;
     if (period === 'custom') {
       fromIso = customFrom ? new Date(customFrom).toISOString() : '';
@@ -126,16 +128,19 @@ export default function ReportFilter({ children, loading, onShow, extraFilters, 
     onShow({ deviceIds: ids, from: fromIso, to: toIso });
   }, [selectedDeviceIds, allDeviceIds, period, customFrom, customTo, onShow]);
 
-  const canShow = period !== 'custom' || (customFrom && customTo);
+  const canShow = (period !== 'custom' || (customFrom && customTo)) && selectedDeviceIds[0] !== -1;
 
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
       {/* Devices */}
       <Dropdown label={selectedDeviceIds.length === 0 ? `${t('allDevices')} (${allDeviceIds.length})` : t('deviceSelected').replace('{n}', String(selectedDeviceCount))}>
-        <div className="max-h-56 overflow-y-auto">
+        <div className="overflow-y-auto">
           <button type="button"
             className={`flex w-full items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-accent transition-colors ${selectedDeviceIds.length === 0 ? 'bg-accent/50' : ''}`}
-            onClick={() => setSelectedDeviceIds([])}
+            onClick={() => {
+              // Toggle: All ↔ None
+              setSelectedDeviceIds(selectedDeviceIds.length === 0 ? [-1] : []);
+            }}
           >
             <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${selectedDeviceIds.length === 0 ? 'border-primary bg-primary' : 'border-input'}`}>
               {selectedDeviceIds.length === 0 && <Check className="h-3 w-3 text-primary-foreground" />}
@@ -150,8 +155,19 @@ export default function ReportFilter({ children, loading, onShow, extraFilters, 
                 className={`flex w-full items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-accent transition-colors ${checked ? 'bg-accent/50' : ''}`}
                 onClick={() => {
                   setSelectedDeviceIds((prev) => {
-                    if (prev.length === 0) return [d.id];
-                    return checked ? prev.filter((id) => id !== d.id) : [...prev, d.id];
+                    if (prev.length === 0) {
+                      // All mode → switch to selecting only this device
+                      return [d.id];
+                    }
+                    if (prev[0] === -1) {
+                      // None mode → select only this device
+                      return [d.id];
+                    }
+                    const next = checked
+                      ? prev.filter((id) => id !== d.id)
+                      : [...prev, d.id];
+                    // If all manually selected, simplify back to All mode
+                    return next.length === allDeviceIds.length ? [] : next;
                   });
                 }}
               >
@@ -197,7 +213,7 @@ export default function ReportFilter({ children, loading, onShow, extraFilters, 
       {/* Columns */}
       {columnDefs && visibleColumns && onToggleColumn && (
         <Dropdown label={`${visibleColumns.size} ${t('columns')}`} align="right">
-          <div className="max-h-64 overflow-y-auto">
+          <div className="overflow-y-auto">
             {columnDefs.filter((c) => !c.always).map((c) => (
               <label key={c.key} className="flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-accent rounded cursor-pointer">
                 <input type="checkbox" checked={visibleColumns.has(c.key)}

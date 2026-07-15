@@ -323,6 +323,8 @@ export interface Trip {
   avgSpeed: number;
   maxSpeed: number;
   fuelUsed: number;
+  startOdometer?: number;
+  endOdometer?: number;
   startAddress?: string;
   endAddress?: string;
 }

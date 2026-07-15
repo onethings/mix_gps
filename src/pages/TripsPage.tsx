@@ -96,6 +96,18 @@ const ALL_COLUMNS: ColumnDef[] = [
       <span className="truncate">{trip.endAddress || '—'}</span>
     </div>
   )},
+  { key: 'startOdometer', labelKey: 'reportColStartOdometer', render: (trip, t) => (
+    <span className="text-right tabular-nums block">{trip.startOdometer != null ? trip.startOdometer.toLocaleString() : '—'}</span>
+  )},
+  { key: 'startAddress', labelKey: 'reportColStartAddress', render: (trip, t) => (
+    <span className="text-xs text-muted-foreground max-w-[180px] block truncate">{trip.startAddress || '—'}</span>
+  )},
+  { key: 'endOdometer', labelKey: 'reportColEndOdometer', render: (trip, t) => (
+    <span className="text-right tabular-nums block">{trip.endOdometer != null ? trip.endOdometer.toLocaleString() : '—'}</span>
+  )},
+  { key: 'endAddress', labelKey: 'reportColEndAddress', render: (trip, t) => (
+    <span className="text-xs text-muted-foreground max-w-[180px] block truncate">{trip.endAddress || '—'}</span>
+  )},
 ];
 
 /* ── Helpers ── */
@@ -141,7 +153,7 @@ export default function TripsPage() {
 
   // Filters (shared via context)
   const { filters: { selectedDeviceIds, period }, setSelectedDeviceIds, setPeriod } = useReportFilter();
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(['device', 'startTime', 'endTime', 'distance', 'avgSpeed']));
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(['device', 'startTime', 'endTime', 'distance', 'avgSpeed', 'maxSpeed', 'duration', 'driver']));
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [showTriggered, setShowTriggered] = useState(0); // increment to trigger
@@ -165,6 +177,7 @@ export default function TripsPage() {
   // Fetch only when showTriggered changes
   const deviceIds = useMemo(() => {
     if (selectedDeviceIds.length === 0) return devices.map((d) => d.id);
+    if (selectedDeviceIds[0] === -1) return [];
     return selectedDeviceIds;
   }, [selectedDeviceIds, devices]);
 
@@ -193,7 +206,9 @@ export default function TripsPage() {
   }, []);
 
   const allDeviceIds = useMemo(() => devices.map((d) => d.id), [devices]);
-  const selectedDeviceCount = selectedDeviceIds.length === 0 ? allDeviceIds.length : selectedDeviceIds.length;
+  const selectedDeviceCount = selectedDeviceIds.length === 0
+    ? allDeviceIds.length
+    : selectedDeviceIds[0] === -1 ? 0 : selectedDeviceIds.length;
   const selectedPeriodLabel = t(period);
 
   // Columns for CSV
@@ -203,6 +218,7 @@ export default function TripsPage() {
     if (c.key === 'duration') return { key: c.key, label, format: (r: any) => formatDuration(r.duration) };
     if (c.key === 'avgSpeed') return { key: c.key, label };
     if (c.key === 'maxSpeed') return { key: c.key, label };
+    if (c.key === 'startOdometer' || c.key === 'endOdometer') return { key: c.key, label, format: (r: any) => r[c.key] != null ? r[c.key].toLocaleString() : '' };
     return { key: c.key, label };
   }), [visibleCols, t]);
 
@@ -216,11 +232,14 @@ export default function TripsPage() {
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
         {/* Devices */}
         <Dropdown label={selectedDeviceIds.length === 0 ? `${t('allDevices')} (${allDeviceIds.length})` : t('deviceSelected').replace('{n}', String(selectedDeviceCount))} icon={null}>
-          <div className="max-h-56 overflow-y-auto">
+          <div className="overflow-y-auto">
             <button
               type="button"
               className={`flex w-full items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-accent transition-colors ${selectedDeviceIds.length === 0 ? 'bg-accent/50' : ''}`}
-              onClick={() => setSelectedDeviceIds([])}
+              onClick={() => {
+                // Toggle: All ↔ None
+                setSelectedDeviceIds(selectedDeviceIds.length === 0 ? [-1] : []);
+              }}
             >
               <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${selectedDeviceIds.length === 0 ? 'border-primary bg-primary' : 'border-input'}`}>
                 {selectedDeviceIds.length === 0 && <Check className="h-3 w-3 text-primary-foreground" />}
@@ -237,9 +256,19 @@ export default function TripsPage() {
                   className={`flex w-full items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-accent transition-colors ${checked ? 'bg-accent/50' : ''}`}
                   onClick={() => {
                     setSelectedDeviceIds((prev) => {
-                      // In All Devices mode → switch to selecting only this device
-                      if (prev.length === 0) return [d.id];
-                      return checked ? prev.filter((id) => id !== d.id) : [...prev, d.id];
+                      if (prev.length === 0) {
+                        // All mode → switch to selecting only this device
+                        return [d.id];
+                      }
+                      if (prev[0] === -1) {
+                        // None mode → select only this device
+                        return [d.id];
+                      }
+                      const next = checked
+                        ? prev.filter((id) => id !== d.id)
+                        : [...prev, d.id];
+                      // If all manually selected, simplify back to All mode
+                      return next.length === allDeviceIds.length ? [] : next;
                     });
                   }}
                 >
@@ -285,7 +314,7 @@ export default function TripsPage() {
 
         {/* Columns */}
         <Dropdown label={`${activeColumns.length} ${t('columns')}`} icon={null} align="right">
-          <div className="max-h-64 overflow-y-auto">
+          <div className="overflow-y-auto">
             {ALL_COLUMNS.filter((c) => !c.always).map((c) => (
               <label key={c.key} className="flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-accent rounded cursor-pointer">
                 <input
@@ -301,7 +330,7 @@ export default function TripsPage() {
         </Dropdown>
 
         {/* SHOW button */}
-        <Button size="sm" onClick={handleShow} disabled={loading || (period === 'custom' && (!customFrom || !customTo))}>
+        <Button size="sm" onClick={handleShow} disabled={loading || selectedDeviceIds[0] === -1 || (period === 'custom' && (!customFrom || !customTo))}>
           {loading ? t('loading') : t('show')}
         </Button>
 
@@ -345,7 +374,7 @@ export default function TripsPage() {
               <TableHeader>
                 <TableRow>
                   {activeColumns.map((c) => (
-                    <TableHead key={c.key} className={c.key === 'distance' || c.key === 'avgSpeed' || c.key === 'maxSpeed' || c.key === 'duration' || c.key === 'fuelUsed' ? 'text-right' : ''}>
+                    <TableHead key={c.key} className={c.key === 'distance' || c.key === 'avgSpeed' || c.key === 'maxSpeed' || c.key === 'duration' || c.key === 'fuelUsed' || c.key === 'startOdometer' || c.key === 'endOdometer' ? 'text-right' : ''}>
                       {t(c.labelKey)}
                     </TableHead>
                   ))}

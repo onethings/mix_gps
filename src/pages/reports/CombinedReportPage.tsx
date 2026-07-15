@@ -171,7 +171,9 @@ export default function CombinedReportPage() {
   // Fetch — only when showTriggered changes
   const fetchKey = useMemo(() => {
     if (showTriggered === 0) return '';
-    const ids = selectedDeviceIds.length === 0 ? devices.map((d) => d.id) : selectedDeviceIds;
+    const ids = selectedDeviceIds.length === 0
+      ? devices.map((d) => d.id)
+      : selectedDeviceIds[0] === -1 ? [] : selectedDeviceIds;
     return `${dateRange.fromIso}|${dateRange.toIso}|${ids.join(',')}|${showTriggered}`;
   }, [showTriggered, dateRange, selectedDeviceIds, devices]);
 
@@ -241,7 +243,9 @@ export default function CombinedReportPage() {
   }, []);
 
   const allDeviceIds = useMemo(() => devices.map((d) => d.id), [devices]);
-  const selectedDeviceCount = selectedDeviceIds.length === 0 ? allDeviceIds.length : selectedDeviceIds.length;
+  const selectedDeviceCount = selectedDeviceIds.length === 0
+    ? allDeviceIds.length
+    : selectedDeviceIds[0] === -1 ? 0 : selectedDeviceIds.length;
   const selectedPeriodLabel = t(period);
 
   // ── Build GeoJSON features from device groups ──
@@ -391,11 +395,14 @@ export default function CombinedReportPage() {
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">
         {/* Devices */}
         <Dropdown label={selectedDeviceIds.length === 0 ? `${t('allDevices')} (${allDeviceIds.length})` : t('deviceSelected').replace('{n}', String(selectedDeviceCount))} icon={null}>
-          <div className="max-h-56 overflow-y-auto">
+          <div className="overflow-y-auto">
             <button
               type="button"
               className={`flex w-full items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-accent transition-colors ${selectedDeviceIds.length === 0 ? 'bg-accent/50' : ''}`}
-              onClick={() => setSelectedDeviceIds([])}
+              onClick={() => {
+                // Toggle: All ↔ None
+                setSelectedDeviceIds(selectedDeviceIds.length === 0 ? [-1] : []);
+              }}
             >
               <span className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${selectedDeviceIds.length === 0 ? 'border-primary bg-primary' : 'border-input'}`}>
                 {selectedDeviceIds.length === 0 && <Check className="h-3 w-3 text-primary-foreground" />}
@@ -412,8 +419,19 @@ export default function CombinedReportPage() {
                   className={`flex w-full items-center gap-2 px-2 py-1.5 text-xs rounded hover:bg-accent transition-colors ${checked ? 'bg-accent/50' : ''}`}
                   onClick={() => {
                     setSelectedDeviceIds((prev) => {
-                      if (prev.length === 0) return [d.id];
-                      return checked ? prev.filter((id) => id !== d.id) : [...prev, d.id];
+                      if (prev.length === 0) {
+                        // All mode → switch to selecting only this device
+                        return [d.id];
+                      }
+                      if (prev[0] === -1) {
+                        // None mode → select only this device
+                        return [d.id];
+                      }
+                      const next = checked
+                        ? prev.filter((id) => id !== d.id)
+                        : [...prev, d.id];
+                      // If all manually selected, simplify back to All mode
+                      return next.length === allDeviceIds.length ? [] : next;
                     });
                   }}
                 >
@@ -458,7 +476,7 @@ export default function CombinedReportPage() {
         )}
 
         {/* SHOW button */}
-        <Button size="sm" onClick={handleShow} disabled={loading || (period === 'custom' && (!customFrom || !customTo))}>
+        <Button size="sm" onClick={handleShow} disabled={loading || selectedDeviceIds[0] === -1 || (period === 'custom' && (!customFrom || !customTo))}>
           {loading ? t('loading') : t('show')}
         </Button>
 
