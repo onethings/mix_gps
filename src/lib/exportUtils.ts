@@ -36,15 +36,15 @@ export async function downloadExcel(filename: string, title: string, sheets: Exc
     right: { style: 'thin' as const },
   };
 
-  const headerFill: ExcelJS.Fill = {
-    type: 'pattern',
-    pattern: 'solid',
+  const headerFill = {
+    type: 'pattern' as const,
+    pattern: 'solid' as const,
     fgColor: { argb: 'FF2563EB' }, // blue-600 primary color
   };
 
-  const titleFont: Partial<ExcelJS.Font> = { bold: true, size: 13, color: { argb: 'FF1E293B' } };
-  const headerFont: Partial<ExcelJS.Font> = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-  const cellFont: Partial<ExcelJS.Font> = { color: { argb: 'FF334155' }, size: 10 };
+  const titleFont = { bold: true, size: 13, color: { argb: 'FF1E293B' } } as const;
+  const headerFont = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 } as const;
+  const cellFont = { color: { argb: 'FF334155' }, size: 10 } as const;
 
   sheets.forEach(({ name, rows: sheetRows }) => {
     if (!sheetRows.length) return;
@@ -161,7 +161,7 @@ export async function downloadPdf(filename: string, title: string, arg3: string[
     }
 
     // Table
-    doc.autoTable({
+    (doc as any).autoTable({
       head: [group.headers],
       body: group.rows,
       startY: cursorY,

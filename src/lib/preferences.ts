@@ -18,6 +18,7 @@ export interface GeneralPrefs {
 /** Live Tracking page preferences */
 export interface LiveTrackingPrefs {
   showBottomPanel?: boolean;
+  showVehicleList?: boolean;
   lastVehicleId?: number | null;
 }
 

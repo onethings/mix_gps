@@ -1272,3 +1272,5 @@ export const status = {
   "accOn": "ACC ଅନ୍",
   "accOff": "ACC ଅଫ୍"
 };
+
+export const alarms = {};
