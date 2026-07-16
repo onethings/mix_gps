@@ -71,7 +71,7 @@ function ShellContent() {
             showSidebar ? 'p-3 sm:p-4' : 'p-0',
             isMapPage ? 'bg-transparent' : 'bg-background',
           )}>
-            <div className={cn(isMapPage ? '' : 'mx-auto w-full max-w-7xl')}>
+            <div className={cn(isMapPage ? 'h-full' : 'mx-auto w-full max-w-7xl')}>
               <Outlet />
             </div>
           </main>
