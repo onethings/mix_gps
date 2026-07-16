@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "ពេលវេលាផុតកំណត់",
   "deviceImage": "រូបភាពឧបករណ៍",
   "clickToUpload": "ចុចដើម្បីផ្ទុកឡើង",
-  "motionInfo": "ព័ត៌មានអំពីចលនា"
+  "motionInfo": "ព័ត៌មានអំពីចលនា",
+  "liveTracking": "ការតាមដានផ្ទាល់",
+  "fleetMap": "ផែនទីក្រុមរថយន្ត",
+  "statusOverview": "ទិដ្ឋភាពទូទៅនៃស្ថានភាព",
 };
 
 export const status = {

@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "Nako ea ho fela",
   "deviceImage": "Setšoantšo sa sesebelisoa",
   "clickToUpload": "Tobetsa ho kenya",
-  "motionInfo": "Boitsebiso ba motsamao"
+  "motionInfo": "Boitsebiso ba motsamao",
+  "liveTracking": "Go sala morago hona joale",
+  "fleetMap": "Mmapa wa dipalangwang",
+  "statusOverview": "Kakaretso ya boemo",
 };
 
 export const status = {

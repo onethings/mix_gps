@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "Ntango ya nsuka",
   "deviceImage": "Elili ya masini",
   "clickToUpload": "Pɛsɛ awa mpo na kotia",
-  "motionInfo": "Nsango ya mobimbi"
+  "motionInfo": "Nsango ya mobimbi",
+  "liveTracking": "Bolandi ya mbala moko",
+  "fleetMap": "Karte ya banyama-ndeke",
+  "statusOverview": "Botalo ya makambo nyonso",
 };
 
 export const status = {

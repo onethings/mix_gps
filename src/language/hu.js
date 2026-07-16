@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Lejárati idő",
   "deviceImage": "Eszköz kép",
   "clickToUpload": "Kattintson a feltöltéshez",
-  "motionInfo": "Mozgási információk"
+  "motionInfo": "Mozgási információk",
+  "liveTracking": "Élő nyomon követés",
+  "fleetMap": "Flotta térkép",
+  "statusOverview": "Állapot áttekintése",
 };
 
 export const status = {

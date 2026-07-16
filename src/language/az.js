@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Bitmə vaxtı",
   "deviceImage": "Cihaz şəkli",
   "clickToUpload": "Yükləmək üçün klikləyin",
-  "motionInfo": "Hərəkət məlumatı"
+  "motionInfo": "Hərəkət məlumatı",
+  "liveTracking": "Canlı izləmə",
+  "fleetMap": "Donanma xəritəsi",
+  "statusOverview": "Statusun icmalı",
 };
 
 export const status = {

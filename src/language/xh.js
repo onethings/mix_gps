@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Ixesha lokuphelelwa",
   "deviceImage": "Umfanekiso wesixhobo",
   "clickToUpload": "Cofa ukuze ulayishe",
-  "motionInfo": "Ulwazi malunga nentshukumo"
+"motionInfo": "Ulwazi malunga nentshukumo",
+  "liveTracking": "Ukulandela bukhoma",
+  "fleetMap": "Imephu yezithuthi",
+  "statusOverview": "Isishwankathelo sesimo"
 };
 
 export const status = {

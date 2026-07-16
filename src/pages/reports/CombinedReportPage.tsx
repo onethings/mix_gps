@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Check, ChevronDown, Download, GripHorizontal, Search } from 'lucide-react';
+import { Calendar, Check, ChevronDown, GripHorizontal, Search } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import PageHeader from '@/components/common/PageHeader';
@@ -14,6 +14,8 @@ import { api } from '@/lib/api';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useReportFilter } from '@/context/ReportFilterContext';
 import { useT } from '@/lib/i18n';
+import ExportButton from '@/components/reports/ExportButton';
+import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 const STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
@@ -481,25 +483,41 @@ export default function CombinedReportPage() {
         </Button>
 
         {/* Export */}
-        <Button variant="outline" size="sm" disabled={!filtered.length}
-          onClick={() => {
-            const csvHeaders = [t('deviceName'), t('fixTime'), t('type'), t('address')];
-            const csvRows = filtered.map((r) =>
-              [r.deviceName || '—', formatDate(r.eventTime || r.serverTime || ''), eventTypeLabel(r.type, t), r.address || '—']
-                .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')
-            );
-            const csv = '\uFEFF' + [csvHeaders.join(','), ...csvRows].join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `combined-${new Date().toISOString().slice(0, 10)}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
+        <ExportButton disabled={!filtered.length}
+          csv={{
+            onClick: () => downloadCsv(`combined-${new Date().toISOString().slice(0, 10)}.csv`,
+              [t('deviceName'), t('fixTime'), t('type'), t('address')],
+              filtered.map((r) => [r.deviceName || '—', formatDate(r.eventTime || r.serverTime || ''), eventTypeLabel(r.type, t), r.address || '—'])
+            )
           }}
-        >
-          <Download className="h-4 w-4" /> {t('exportCsv')}
-        </Button>
+          excel={{
+            onClick: () => downloadExcel(`combined-${new Date().toISOString().slice(0, 10)}.xlsx`, 'Combined Report',
+              [{ name: 'Events', rows: filtered.map((r) => ({
+                [t('deviceName')]: r.deviceName || '—',
+                [t('fixTime')]: formatDate(r.eventTime || r.serverTime || ''),
+                [t('type')]: eventTypeLabel(r.type, t),
+                [t('address')]: r.address || '—',
+              })) }]
+            )
+          }}
+          pdf={{
+            onClick: () => {
+              const pdfHeaders = [t('deviceName'), t('fixTime'), t('type'), t('address')];
+              const groupsMap = new Map<string, typeof filtered>();
+              filtered.forEach((r) => {
+                const name = r.deviceName || `Device ${r.deviceId}`;
+                if (!groupsMap.has(name)) groupsMap.set(name, []);
+                groupsMap.get(name)!.push(r);
+              });
+              const pdfGroups = Array.from(groupsMap.entries()).map(([deviceName, rows]) => ({
+                title: deviceName,
+                headers: pdfHeaders,
+                rows: rows.map((r) => [r.deviceName || '—', formatDate(r.eventTime || r.serverTime || ''), eventTypeLabel(r.type, t), r.address || '—']),
+              }));
+              downloadPdf(`combined-${new Date().toISOString().slice(0, 10)}.pdf`, 'Combined Report', pdfGroups);
+            }
+          }}
+        />
       </div>
 
       {/* ── Map ── */}

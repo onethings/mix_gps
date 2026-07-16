@@ -12,20 +12,32 @@ import { formatDate, formatDuration } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useT } from '@/lib/i18n';
-import ReportFilter, { downloadCsvBlob } from '@/components/reports/ReportFilterV2';
+import ReportFilter from '@/components/reports/ReportFilterV2';
 import type { ReportFilterValue } from '@/components/reports/ReportFilterV2';
+import ExportButton from '@/components/reports/ExportButton';
+import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 const STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
 const COLUMNS = [
   { key: 'deviceName', labelKey: 'deviceName', always: true },
   { key: 'startTime', labelKey: 'startTime' },
+  { key: 'startOdometer', labelKey: 'startOdometer' },
   { key: 'address', labelKey: 'address' },
   { key: 'endTime', labelKey: 'endTime' },
   { key: 'duration', labelKey: 'duration' },
   { key: 'spentFuel', labelKey: 'spentFuel' },
   { key: 'engineHours', labelKey: 'engineHours' },
 ];
+
+function formatStopCell(key: string, r: any): string {
+  if (key === 'startTime' || key === 'endTime') return formatDate(r[key] || '');
+  if (key === 'startOdometer' || key === 'endOdometer') return r[key] != null ? `${(r[key] / 1000).toFixed(1)} km` : '—';
+  if (key === 'duration') return formatDuration(r.duration || 0);
+  if (key === 'spentFuel') return `${(r.spentFuel || 0).toFixed(1)} L`;
+  if (key === 'engineHours') return `${((r.engineHours || 0) / 3600).toFixed(1)} h`;
+  return String(r[key] ?? '—');
+}
 
 export default function StopsReportPage() {
   const { t } = useT();
@@ -34,7 +46,7 @@ export default function StopsReportPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(['startTime', 'endTime', 'address']));
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(['startTime', 'endTime', 'startOdometer', 'address']));
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [selectedPosition, setSelectedPosition] = useState<any>(null);
   const [q, setQ] = useState('');
@@ -118,19 +130,46 @@ export default function StopsReportPage() {
       <ReportFilter loading={loading} onShow={handleShow}
         columnDefs={COLUMNS} visibleColumns={visibleCols} onToggleColumn={toggleColumn}
       >
-        <Button variant="outline" size="sm" disabled={!filtered.length}
-          onClick={() => downloadCsvBlob(`stops-${new Date().toISOString().slice(0, 10)}.csv`,
-            activeColumns.map((c) => t(c.labelKey)),
-            filtered.map((r) => activeColumns.map((c) => {
-              if (c.key === 'startTime' || c.key === 'endTime') return formatDate(r[c.key] || '');
-              if (c.key === 'duration') return formatDuration(r.duration || 0);
-              if (c.key === 'spentFuel') return `${(r.spentFuel || 0).toFixed(1)} L`;
-              if (c.key === 'engineHours') return `${((r.engineHours || 0) / 3600).toFixed(1)} h`;
-              return String(r[c.key] ?? '—');
-            }))
-          )}>
-          {t('exportCsv')}
-        </Button>
+        <ExportButton disabled={!filtered.length}
+          csv={{
+            onClick: () => {
+              const csvHeaders = activeColumns.map((c) => t(c.labelKey));
+              downloadCsv(`stops-${new Date().toISOString().slice(0, 10)}.csv`, csvHeaders,
+                filtered.map((r) => activeColumns.map((c) => formatStopCell(c.key, r)))
+              );
+            }
+          }}
+          excel={{
+            onClick: () => {
+              const excelHeaders = activeColumns.map((c) => t(c.labelKey));
+              downloadExcel(`stops-${new Date().toISOString().slice(0, 10)}.xlsx`, 'Stops Report',
+                [{ name: 'Stops', rows: filtered.map((r) => {
+                  const obj: Record<string, string> = {};
+                  activeColumns.forEach((c) => { obj[t(c.labelKey)] = formatStopCell(c.key, r); });
+                  return obj;
+                })}]
+              );
+            }
+          }}
+          pdf={{
+            onClick: () => {
+              const pdfHeaders = activeColumns.map((c) => t(c.labelKey));
+              // Group by device for PDF
+              const groupsMap = new Map<string, typeof filtered>();
+              filtered.forEach((r) => {
+                const name = r.deviceName || `Device ${r.deviceId}`;
+                if (!groupsMap.has(name)) groupsMap.set(name, []);
+                groupsMap.get(name)!.push(r);
+              });
+              const pdfGroups = Array.from(groupsMap.entries()).map(([deviceName, rows]) => ({
+                title: deviceName,
+                headers: pdfHeaders,
+                rows: rows.map((r) => activeColumns.map((c) => formatStopCell(c.key, r))),
+              }));
+              downloadPdf(`stops-${new Date().toISOString().slice(0, 10)}.pdf`, 'Stops Report', pdfGroups);
+            }
+          }}
+        />
       </ReportFilter>
 
       {/* Map for selected stop */}
@@ -175,6 +214,7 @@ export default function StopsReportPage() {
                   <TableCell key={c.key} className="text-xs text-muted-foreground">
                     {c.key === 'deviceName' ? <span className="font-medium text-foreground">{row.deviceName}</span> :
                      c.key === 'startTime' || c.key === 'endTime' ? formatDate(row[c.key] || '') :
+                     c.key === 'startOdometer' || c.key === 'endOdometer' ? (row[c.key] != null ? `${(row[c.key] / 1000).toFixed(1)} km` : '—') :
                      c.key === 'duration' ? formatDuration(row.duration || 0) :
                      c.key === 'spentFuel' ? `${(row.spentFuel || 0).toFixed(1)} L` :
                      c.key === 'engineHours' ? `${((row.engineHours || 0) / 3600).toFixed(1)} h` :

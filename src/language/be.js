@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Тэрмін прыдатнасці",
   "deviceImage": "Выява прылады",
   "clickToUpload": "Націсніце для загрузкі",
-  "motionInfo": "Інфармацыя аб руху"
+  "motionInfo": "Інфармацыя аб руху",
+  "liveTracking": "Адсочванне ў рэальным часе",
+  "fleetMap": "Карта аўтапарка",
+  "statusOverview": "Агляд стану",
 
 };
 

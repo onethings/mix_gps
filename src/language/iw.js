@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "זמן תפוגה",
   "deviceImage": "תמונת התקן",
   "clickToUpload": "לחץ להעלאה",
-  "motionInfo": "מידע על תנועה"
+  "motionInfo": "מידע על תנועה",
+  "liveTracking": "מעקב בזמן אמת",
+  "fleetMap": "מפת צי רכבים",
+  "statusOverview": "סקירת סטטוס",
 };
 
 export const status = {

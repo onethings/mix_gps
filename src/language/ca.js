@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "Data de venciment",
   "deviceImage": "Imatge del dispositiu",
   "clickToUpload": "Feu clic per carregar",
-  "motionInfo": "Informació de moviment"
+  "motionInfo": "Informació de moviment",
+  "liveTracking": "Seguiment en directe",
+  "fleetMap": "Mapa de la flota",
+  "statusOverview": "Resum de l'estat",
 };
 
 export const status = {

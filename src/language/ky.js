@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Мөөнөтүнүн бүтүшү",
   "deviceImage": "Түзмөктүн сүрөтү",
   "clickToUpload": "Жүктөө үчүн чыкылдатыңыз",
-  "motionInfo": "Кыймыл тууралуу маалымат"
+  "motionInfo": "Кыймыл тууралуу маалымат",
+  "liveTracking": "Түз байкоо",
+  "fleetMap": "Автопарк картасы",
+  "statusOverview": "Абалдын жалпы көрүнүшү",
 };
 
 export const status = {

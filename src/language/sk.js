@@ -1095,7 +1095,10 @@ export const nav = {
   "expirationTime": "Dátum vypršania",
   "deviceImage": "Obrázok zariadenia",
   "clickToUpload": "Kliknite pre nahranie",
-  "motionInfo": "Informácie o pohybe"
+  "motionInfo": "Informácie o pohybe",
+  "liveTracking": "Sledovanie naživo",
+  "fleetMap": "Mapa vozového parku",
+  "statusOverview": "Prehľad stavu",
 };
 
 export const status = {

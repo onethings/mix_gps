@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Tan ekspirasyon",
   "deviceImage": "Imaj aparèy",
   "clickToUpload": "Klike pou telechaje",
-  "motionInfo": "Enfòmasyon sou mouvman"
+  "motionInfo": "Enfòmasyon sou mouvman",
+  "liveTracking": "Suivi an dirèk",
+  "fleetMap": "Kat flòt la",
+  "statusOverview": "Apèsi sou estati a",
 };
 
 export const status = {

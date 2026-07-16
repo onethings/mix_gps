@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "Oge mmebi",
   "deviceImage": "Foto ngwaọrụ",
   "clickToUpload": "Pịa iji bulite",
-  "motionInfo": "Ozi mmegharị"
+  "motionInfo": "Ozi mmegharị",
+  "liveTracking": "Nsochi ozugbo",
+  "fleetMap": "Mapụ ụgbọ gasị",
+  "statusOverview": "Nchịkọta ọnọdụ",
 };
 
 export const status = {

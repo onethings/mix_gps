@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "ვადის გასვლის დრო",
   "deviceImage": "მოწყობილობის სურათი",
   "clickToUpload": "დააწკაპუნეთ ასატვირთად",
-  "motionInfo": "ინფორმაცია მოძრაობის შესახებ"
+  "motionInfo": "ინფორმაცია მოძრაობის შესახებ",
+  "liveTracking": "ცოცხალი თრექინგი",
+  "fleetMap": "ავტოპარკის რუკა",
+  "statusOverview": "სტატუსის მიმოხილვა",
   
 };
 

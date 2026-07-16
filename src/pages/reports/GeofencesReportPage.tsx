@@ -10,8 +10,10 @@ import { formatDate, formatDuration } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useT } from '@/lib/i18n';
-import ReportFilter, { downloadCsvBlob } from '@/components/reports/ReportFilterV2';
+import ReportFilter from '@/components/reports/ReportFilterV2';
 import type { ReportFilterValue } from '@/components/reports/ReportFilterV2';
+import ExportButton from '@/components/reports/ExportButton';
+import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 const COLUMNS = [
   { key: 'geofenceId', labelKey: 'geofence' },
@@ -20,6 +22,13 @@ const COLUMNS = [
   { key: 'endTime', labelKey: 'endTime' },
   { key: 'duration', labelKey: 'duration' },
 ];
+
+function formatGeofenceCell(key: string, r: any): string {
+  if (key === 'startTime' || key === 'endTime') return formatDate(r[key] || '');
+  if (key === 'duration') return formatDuration(r.duration || 0);
+  if (key === 'geofenceId') return r.geofenceName || `#${r.geofenceId}`;
+  return String(r[key] ?? '—');
+}
 
 export default function GeofencesReportPage() {
   const { t } = useT();
@@ -105,17 +114,45 @@ export default function GeofencesReportPage() {
           </div>
         }
       >
-        <Button variant="outline" size="sm" disabled={!filtered.length}
-          onClick={() => downloadCsvBlob(`geofences-${new Date().toISOString().slice(0, 10)}.csv`,
-            activeColumns.map((c) => t(c.labelKey)),
-            filtered.map((r) => activeColumns.map((c) => {
-              if (c.key === 'startTime' || c.key === 'endTime') return formatDate(r[c.key] || '');
-              if (c.key === 'duration') return formatDuration(r.duration || 0);
-              return String(r[c.key] ?? '—');
-            }))
-          )}>
-          {t('exportCsv')}
-        </Button>
+        <ExportButton disabled={!filtered.length}
+          csv={{
+            onClick: () => {
+              const csvHeaders = activeColumns.map((c) => t(c.labelKey));
+              downloadCsv(`geofences-${new Date().toISOString().slice(0, 10)}.csv`, csvHeaders,
+                filtered.map((r) => activeColumns.map((c) => formatGeofenceCell(c.key, r)))
+              );
+            }
+          }}
+          excel={{
+            onClick: () => {
+              const excelHeaders = activeColumns.map((c) => t(c.labelKey));
+              downloadExcel(`geofences-${new Date().toISOString().slice(0, 10)}.xlsx`, 'Geofences Report',
+                [{ name: 'Geofences', rows: filtered.map((r) => {
+                  const obj: Record<string, string> = {};
+                  activeColumns.forEach((c) => { obj[t(c.labelKey)] = formatGeofenceCell(c.key, r); });
+                  return obj;
+                })}]
+              );
+            }
+          }}
+          pdf={{
+            onClick: () => {
+              const pdfHeaders = activeColumns.map((c) => t(c.labelKey));
+              const groupsMap = new Map<string, typeof filtered>();
+              filtered.forEach((r) => {
+                const name = r.deviceName || `Device ${r.deviceId}`;
+                if (!groupsMap.has(name)) groupsMap.set(name, []);
+                groupsMap.get(name)!.push(r);
+              });
+              const pdfGroups = Array.from(groupsMap.entries()).map(([deviceName, rows]) => ({
+                title: deviceName,
+                headers: pdfHeaders,
+                rows: rows.map((r) => activeColumns.map((c) => formatGeofenceCell(c.key, r))),
+              }));
+              downloadPdf(`geofences-${new Date().toISOString().slice(0, 10)}.pdf`, 'Geofences Report', pdfGroups);
+            }
+          }}
+        />
       </ReportFilter>
       <Card>
         <CardHeader className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">

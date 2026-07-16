@@ -1090,7 +1090,10 @@ export const nav = {
   "expirationTime": "Време на истекување",
   "deviceImage": "Слика од уредот",
   "clickToUpload": "Кликнете за поставување",
-  "motionInfo": "Информации за движење"
+  "motionInfo": "Информации за движење",
+  "liveTracking": "Следење во живо",
+  "fleetMap": "Мапа на флота",
+  "statusOverview": "Преглед на статус",
 };
 
 export const status = {

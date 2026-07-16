@@ -1091,7 +1091,10 @@ export const nav = {
   "expirationTime": "သက်တမ်းကုန်ဆုံးချိန်",
   "deviceImage": "စက်ပစ္စည်းပုံ",
   "clickToUpload": "တင်ရန် နှိပ်ပါ",
-  "motionInfo": "ရွေ့လျားမှုဆိုင်ရာ အချက်အလက်"
+  "motionInfo": "ရွေ့လျားမှုဆိုင်ရာ အချက်အလက်",
+  "liveTracking": "တိုက်ရိုက်ခြေရာခံခြင်း",
+  "fleetMap": "ယာဉ်အုပ်စု မြေပုံ",
+  "statusOverview": "အခြေအနေ ခြုံငုံသုံးသပ်ချက်",
 };
 
 export const status = {

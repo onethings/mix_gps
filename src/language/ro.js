@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Data expirării",
   "deviceImage": "Imagine dispozitiv",
   "clickToUpload": "Dă click pentru a încărca",
-  "motionInfo": "Informații despre mișcare"
+  "motionInfo": "Informații despre mișcare",
+  "liveTracking": "Urmărire în timp real",
+  "fleetMap": "Harta flotei",
+  "statusOverview": "Prezentare generală a stării",
 };
 
 export const status = {

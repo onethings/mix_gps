@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "Am éagtha",
   "deviceImage": "Íomhá na feiste",
   "clickToUpload": "Cliceáil chun uaslódáil",
-  "motionInfo": "Faisnéis gluaiseachta"
+  "motionInfo": "Faisnéis gluaiseachta",
+  "liveTracking": "Rianú beo",
+  "fleetMap": "Léarscáil an chabhlaigh",
+  "statusOverview": "Foramharc stádais",
 };
 
 export const status = {

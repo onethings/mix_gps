@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "Amser dod i ben",
   "deviceImage": "Delwedd dyfais",
   "clickToUpload": "Cliciwch i uwchlwytho",
-  "motionInfo": "Gwybodaeth mudiant"
+  "motionInfo": "Gwybodaeth mudiant",
+  "liveTracking": "Tracio byw",
+  "fleetMap": "Map fflyd",
+  "statusOverview": "Trosolwg statws",
 };
 
 export const status = {

@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Fotoana lany daty",
   "deviceImage": "Saritry ny fitaovana",
   "clickToUpload": "Tsindrio raha hampiditra",
-  "motionInfo": "Fampahalalana momba ny hetsika"
+  "motionInfo": "Fampahalalana momba ny hetsika",
+  "liveTracking": "Fanaraha-maso mivantana",
+  "fleetMap": "Sarintanin'ny fiara",
+  "statusOverview": "Topimaso momba ny toe-javatra",
 };
 
 export const status = {

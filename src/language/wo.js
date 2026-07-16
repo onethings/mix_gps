@@ -1088,7 +1088,10 @@ export const nav = {
   "expirationTime": "Waxtu bi yegg",
   "deviceImage": "Foto jumtukaay",
   "clickToUpload": "Céebal ngir yeb",
-  "motionInfo": "Xibaar ci yëngu"
+"motionInfo": "Xibaar ci yëngu",
+  "liveTracking": "Toftal cig dund",
+  "fleetMap": "Kartu oto yi",
+  "statusOverview": "Tënku taxaway"
 };
 
 export const status = {

@@ -1092,7 +1092,10 @@ export const nav = {
   "expirationTime": "കാലാവധി കഴിയുന്ന സമയം",
   "deviceImage": "ഉപകരണ ചിത്രം",
   "clickToUpload": "അപ്‌ലോഡ് ചെയ്യാൻ ക്ലിക്ക് ചെയ്യുക",
-  "motionInfo": "ചലനത്തെക്കുറിച്ചുള്ള വിവരങ്ങൾ"
+  "motionInfo": "ചലനത്തെക്കുറിച്ചുള്ള വിവരങ്ങൾ",
+  "liveTracking": "ലൈവ് ട്രാക്കിംഗ്",
+  "fleetMap": "ഫ്ലീറ്റ് മാപ്പ്",
+  "statusOverview": "സ്ഥിതിവിവരക്കണക്ക്",
 };
 
 export const status = {

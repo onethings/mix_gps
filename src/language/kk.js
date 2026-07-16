@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "Аяқталу уақыты",
   "deviceImage": "Құрылғы суреті",
   "clickToUpload": "Жүктеп салу үшін басыңыз",
-  "motionInfo": "Қозғалыс туралы ақпарат"
+  "motionInfo": "Қозғалыс туралы ақпарат",
+  "liveTracking": "Тікелей бақылау",
+  "fleetMap": "Автопарк картасы",
+  "statusOverview": "Күйге шолу",
 };
 
 export const status = {

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Calendar, Check, ChevronDown, Download, Search, X } from 'lucide-react';
+import { ArrowRight, Calendar, Check, ChevronDown, Search, X } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,8 @@ import { useLiveData } from '@/context/LiveDataContext';
 import { useReportFilter } from '@/context/ReportFilterContext';
 import { useTripsReport } from '@/hooks/useTripsReport';
 import { useT } from '@/lib/i18n';
-import { downloadCsv } from '@/lib/csv';
+import ExportButton from '@/components/reports/ExportButton';
+import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 /* ── Period presets (like traccar-web) ── */
 type PeriodKey = 'today' | 'yesterday' | 'thisWeek' | 'prevWeek' | 'thisMonth' | 'prevMonth' | 'custom';
@@ -211,18 +212,26 @@ export default function TripsPage() {
     : selectedDeviceIds[0] === -1 ? 0 : selectedDeviceIds.length;
   const selectedPeriodLabel = t(period);
 
-  // Columns for CSV
-  const csvColumns = useMemo(() => ALL_COLUMNS.filter((c) => visibleCols.has(c.key) || c.always).map((c) => {
-    const label = t(c.labelKey);
-    if (c.key === 'distance') return { key: c.key, label, format: (r: any) => r.distance?.toFixed(2) };
-    if (c.key === 'duration') return { key: c.key, label, format: (r: any) => formatDuration(r.duration) };
-    if (c.key === 'avgSpeed') return { key: c.key, label };
-    if (c.key === 'maxSpeed') return { key: c.key, label };
-    if (c.key === 'startOdometer' || c.key === 'endOdometer') return { key: c.key, label, format: (r: any) => r[c.key] != null ? r[c.key].toLocaleString() : '' };
-    return { key: c.key, label };
-  }), [visibleCols, t]);
-
   const activeColumns = useMemo(() => ALL_COLUMNS.filter((c) => visibleCols.has(c.key) || c.always), [visibleCols]);
+
+  // Export helpers
+  const exportHeaders = useMemo(() => activeColumns.map((c) => t(c.labelKey)), [activeColumns, t]);
+
+  const formatTripValue = useCallback((key: string, trip: any): string => {
+    if (key === 'device') return trip.vehicle || `Device ${trip.deviceId}`;
+    if (key === 'startTime' || key === 'endTime') return formatDate(trip[key] || '');
+    if (key === 'distance') return formatDistance(trip.distance);
+    if (key === 'duration') return formatDuration(trip.duration);
+    if (key === 'avgSpeed') return `${trip.avgSpeed || 0} km/h`;
+    if (key === 'maxSpeed') return `${trip.maxSpeed || 0} km/h`;
+    if (key === 'fuelUsed') return `${(trip.fuelUsed || 0).toFixed(1)} L`;
+    if (key === 'driver') return trip.driver || '—';
+    if (key === 'route') return `${trip.startAddress || '—'} → ${trip.endAddress || '—'}`;
+    if (key === 'startAddress') return trip.startAddress || '—';
+    if (key === 'endAddress') return trip.endAddress || '—';
+    if (key === 'startOdometer' || key === 'endOdometer') return trip[key] != null ? trip[key].toLocaleString() : '—';
+    return String(trip[key] ?? '—');
+  }, []);
 
   return (
     <div className="space-y-5">
@@ -335,15 +344,46 @@ export default function TripsPage() {
         </Button>
 
         {/* Export */}
-        <Button variant="outline" size="sm" disabled={!filtered.length}
-          onClick={() => downloadCsv(
-            `trips-${period}-${new Date().toISOString().slice(0, 10)}.csv`,
-            csvColumns as any,
-            filtered as any,
-          )}
-        >
-          <Download className="h-4 w-4" /> {t('exportCsv')}
-        </Button>
+        <ExportButton disabled={!filtered.length}
+          csv={{
+            onClick: () => {
+              downloadCsv(`trips-${new Date().toISOString().slice(0, 10)}.csv`, exportHeaders,
+                filtered.map((r) => activeColumns.map((c) => formatTripValue(c.key, r)))
+              );
+            }
+          }}
+          excel={{
+            onClick: () => {
+              // Group by device name (like traccar-web's multi-sheet export)
+              const sheetsMap = new Map<string, Record<string, string>[]>();
+              filtered.forEach((trip) => {
+                const deviceName = trip.vehicle || `Device ${trip.deviceId}`;
+                if (!sheetsMap.has(deviceName)) sheetsMap.set(deviceName, []);
+                const row: Record<string, string> = {};
+                activeColumns.forEach((c) => { row[t(c.labelKey)] = formatTripValue(c.key, trip); });
+                sheetsMap.get(deviceName)!.push(row);
+              });
+              const sheets = Array.from(sheetsMap.entries()).map(([name, rows]) => ({ name, rows }));
+              downloadExcel(`trips-${new Date().toISOString().slice(0, 10)}.xlsx`, 'Trips Report', sheets);
+            }
+          }}
+          pdf={{
+            onClick: () => {
+              const groupsMap = new Map<string, typeof filtered>();
+              filtered.forEach((r) => {
+                const name = r.vehicle || `Device ${r.deviceId}`;
+                if (!groupsMap.has(name)) groupsMap.set(name, []);
+                groupsMap.get(name)!.push(r);
+              });
+              const pdfGroups = Array.from(groupsMap.entries()).map(([deviceName, rows]) => ({
+                title: deviceName,
+                headers: exportHeaders,
+                rows: rows.map((r) => activeColumns.map((c) => formatTripValue(c.key, r))),
+              }));
+              downloadPdf(`trips-${new Date().toISOString().slice(0, 10)}.pdf`, 'Trips Report', pdfGroups);
+            }
+          }}
+        />
       </div>
 
       {/* ── Results table ── */}

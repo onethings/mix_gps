@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import VehicleList from '@/components/tracking/VehicleList';
 import LiveTrackingBottomPanel from '@/components/tracking/LiveTrackingBottomPanel';
 import { useLiveData } from '@/context/LiveDataContext';
@@ -12,6 +13,7 @@ export default function LiveTrackingPage() {
   const { selectedVehicleId, setSelectedVehicleId } = useMapContext();
   const { t } = useT();
   const [showBottomPanel, setShowBottomPanel] = useState(true);
+  const [showVehicleList, setShowVehicleList] = useState(true);
   const prefsLoadedRef = useRef(false);
   const pendingVehicleIdRef = useRef<number | null>(null);
 
@@ -21,6 +23,9 @@ export default function LiveTrackingPage() {
     getLiveTrackingPrefs().then((prefs) => {
       if (prefs.showBottomPanel !== undefined) {
         setShowBottomPanel(prefs.showBottomPanel);
+      }
+      if (prefs.showVehicleList !== undefined) {
+        setShowVehicleList(prefs.showVehicleList);
       }
       if (prefs.lastVehicleId != null) {
         pendingVehicleIdRef.current = prefs.lastVehicleId;
@@ -36,6 +41,14 @@ export default function LiveTrackingPage() {
       setLiveTrackingPrefs({ ...existing, showBottomPanel });
     });
   }, [showBottomPanel]);
+
+  // Persist showVehicleList whenever it changes
+  useEffect(() => {
+    if (!prefsLoadedRef.current) return;
+    getLiveTrackingPrefs().then((existing) => {
+      setLiveTrackingPrefs({ ...existing, showVehicleList });
+    });
+  }, [showVehicleList]);
 
   // Persist last selected vehicle
   useEffect(() => {
@@ -86,13 +99,39 @@ export default function LiveTrackingPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-1 overflow-hidden">
-        {/* Vehicle List Sidebar — floats over the global map */}
-        <aside className="w-[320px] shrink-0 border-r border-border bg-card/95 backdrop-blur-md pointer-events-auto">
-          <VehicleList
-            vehicles={vehicles}
-            selectedId={selectedVehicleId}
-            onSelect={(v) => setSelectedVehicleId(v.id)}
-          />
+        {/* Vehicle List Sidebar — collapsible; overlay on mobile, sidebar on desktop */}
+        <aside className={cn(
+          'shrink-0 border-r border-border bg-card/95 backdrop-blur-md pointer-events-auto transition-all duration-200',
+          'max-md:absolute max-md:inset-y-0 max-md:z-30 max-md:shadow-xl',
+          showVehicleList
+            ? 'max-md:w-[85vw] max-md:left-0 w-[320px] lg:w-[320px]'
+            : 'max-md:w-0 max-md:overflow-hidden w-[40px]',
+        )}>
+          {/* Mobile backdrop */}
+          {showVehicleList && (
+            <div
+              className="fixed inset-0 z-[-1] bg-black/40 md:hidden"
+              onClick={() => setShowVehicleList(false)}
+            />
+          )}
+          {showVehicleList ? (
+            <VehicleList
+              vehicles={vehicles}
+              selectedId={selectedVehicleId}
+              onSelect={(v) => setSelectedVehicleId(v.id)}
+              showList={showVehicleList}
+              onToggleList={() => setShowVehicleList((v) => !v)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowVehicleList(true)}
+              className="flex h-full w-full items-start justify-center pt-3 text-muted-foreground hover:text-foreground transition-colors"
+              title={t('showList')}
+            >
+              <Eye className="h-5 w-5" />
+            </button>
+          )}
         </aside>
 
         {/* Empty center section — the global map shows through and is interactive */}
@@ -115,7 +154,7 @@ export default function LiveTrackingPage() {
 
       {/* Bottom panel */}
       {showBottomPanel && (
-        <div className="h-[240px] shrink-0 lg:h-[260px] border-t border-border bg-card/95 backdrop-blur-md pointer-events-auto">
+        <div className="h-[180px] shrink-0 md:h-[220px] lg:h-[260px] border-t border-border bg-card/95 backdrop-blur-md pointer-events-auto">
           <LiveTrackingBottomPanel
             vehicles={vehicles}
             selectedId={selectedVehicleId}

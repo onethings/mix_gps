@@ -1085,7 +1085,10 @@ export const nav = {
   "expirationTime": "过期时间",
   "deviceImage": "设备图片",
   "clickToUpload": "点击上传",
-  "motionInfo": "运动信息"
+"motionInfo": "移动信息",
+  "liveTracking": "实时追踪",
+  "fleetMap": "车队地图",
+  "statusOverview": "状态概览"
 };
 
 export const status = {

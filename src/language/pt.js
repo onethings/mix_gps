@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Data de expiração",
   "deviceImage": "Imagem do dispositivo",
   "clickToUpload": "Clique para fazer upload",
-  "motionInfo": "Informações de movimento"
+  "motionInfo": "Informações de movimento",
+  "liveTracking": "Rastreamento em tempo real",
+  "fleetMap": "Mapa da frota",
+  "statusOverview": "Visão geral do status",
 
 };
 

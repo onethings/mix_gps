@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "ಮುಕ್ತಾಯದ ಸಮಯ",
   "deviceImage": "ಸಾಧನದ ಚಿತ್ರ",
   "clickToUpload": "ಅಪ್‌ಲೋಡ್ ಮಾಡಲು ಕ್ಲಿಕ್ ಮಾಡಿ",
-  "motionInfo": "ಚಲನೆಯ ಮಾಹಿತಿ"
+  "motionInfo": "ಚಲನೆಯ ಮಾಹಿತಿ",
+  "liveTracking": "ಲೈವ್ ಟ್ರ್ಯಾಕಿಂಗ್",
+  "fleetMap": "ಫ್ಲೀಟ್ ನಕ್ಷೆ",
+  "statusOverview": "ಸ್ಥಿತಿಯ ಅವಲೋಕನ",
 };
 
 export const status = {

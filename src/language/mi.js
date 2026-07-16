@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "Wā pau",
   "deviceImage": "Atahanga pūrere",
   "clickToUpload": "Pāwhiri ki te tukuake",
-  "motionInfo": "Mōhiohio nekehanga"
+  "motionInfo": "Mōhiohio nekehanga",
+  "liveTracking": "Whai huarahi ora",
+  "fleetMap": "Mahere mapi o ngā waka",
+  "statusOverview": "Tirowhanui tūnga",
 };
 
 export const status = {

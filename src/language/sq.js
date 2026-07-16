@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "Data e skadimit",
   "deviceImage": "Imazhi i pajisjes",
   "clickToUpload": "Klikoni për të ngarkuar",
-  "motionInfo": "Informacioni i lëvizjes"
+  "motionInfo": "Informacioni i lëvizjes",
+  "liveTracking": "Gjurmim i drejtpërdrejtë",
+  "fleetMap": "Harta e flotës",
+  "statusOverview": "Përmbledhja e statusit",
 };
 
 export const status = {

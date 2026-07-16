@@ -46,7 +46,7 @@ export default function FuelPage() {
               { key: 'spentFuel', label: t('spentFuelL'), format: (r) => (r.spentFuel != null ? (Math.round(Number(r.spentFuel) * 10) / 10) : '') }], rows)}>
           <Download className="h-4 w-4" /> {t('exportCsv')}</Button>}
       />
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
         <Card><CardContent className="p-5">
           <div className="text-xs font-medium uppercase text-muted-foreground">{t('totalDistance')}</div>
           <div className="mt-1 text-2xl font-semibold tabular-nums">{loading ? '…' : `${totalKm.toFixed(1)} km`}</div>

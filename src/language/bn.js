@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "মেয়াদ শেষ হওয়ার সময়",
   "deviceImage": "ডিভাইসের ছবি",
   "clickToUpload": "আপলোড করতে ক্লিক করুন",
-  "motionInfo": "গতিবিধির তথ্য"
+  "motionInfo": "গতিবিধির তথ্য",
+  "liveTracking": "লাইভ ট্র্যাকিং",
+  "fleetMap": "যানবাহনের মানচিত্র",
+  "statusOverview": "অবস্থার সংক্ষিপ্ত বিবরণ",
 };
 
 export const status = {

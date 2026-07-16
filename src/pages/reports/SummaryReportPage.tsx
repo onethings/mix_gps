@@ -6,12 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import EmptyState from '@/components/common/EmptyState';
 import { Button } from '@/components/ui/button';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatDuration } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useT } from '@/lib/i18n';
-import ReportFilter, { downloadCsvBlob } from '@/components/reports/ReportFilterV2';
+import ReportFilter from '@/components/reports/ReportFilterV2';
 import type { ReportFilterValue } from '@/components/reports/ReportFilterV2';
+import ExportButton from '@/components/reports/ExportButton';
+import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 const COLUMNS = [
   { key: 'deviceName', labelKey: 'deviceName', always: true },
@@ -23,7 +25,20 @@ const COLUMNS = [
   { key: 'engineHours', labelKey: 'engineHours' },
   { key: 'startOdometer', labelKey: 'startOdometer' },
   { key: 'endOdometer', labelKey: 'endOdometer' },
+  { key: 'startHours', labelKey: 'startHours' },
+  { key: 'endHours', labelKey: 'endHours' },
 ];
+
+function formatSummaryCell(key: string, r: any): string {
+  if (key === 'startTime') return formatDate(r[key] || '');
+  if (key === 'distance') return `${((r.distance || 0) / 1000).toFixed(1)} km`;
+  if (key === 'averageSpeed' || key === 'maxSpeed') return `${((r[key] || 0) * 1.852).toFixed(1)} km/h`;
+  if (key === 'spentFuel') return `${(r.spentFuel || 0).toFixed(1)} L`;
+  if (key === 'engineHours') return `${((r.engineHours || 0) / 3600).toFixed(1)} h`;
+  if (key === 'startHours' || key === 'endHours') return r[key] != null ? `${(r[key] / 3600).toFixed(1)} h` : '—';
+  if (key === 'startOdometer' || key === 'endOdometer') return `${((r[key] || 0) / 1000).toFixed(1)} km`;
+  return String(r[key] ?? '—');
+}
 
 export default function SummaryReportPage() {
   const { t } = useT();
@@ -88,21 +103,45 @@ export default function SummaryReportPage() {
           </button>
         }
       >
-        <Button variant="outline" size="sm" disabled={!filtered.length}
-          onClick={() => downloadCsvBlob(`summary-${new Date().toISOString().slice(0, 10)}.csv`,
-            activeColumns.map((c) => t(c.labelKey)),
-            filtered.map((r) => activeColumns.map((c) => {
-              if (c.key === 'startTime') return formatDate(r[c.key] || '');
-              if (c.key === 'distance') return `${((r.distance || 0) / 1000).toFixed(1)} km`;
-              if (c.key === 'averageSpeed' || c.key === 'maxSpeed') return `${((r[c.key] || 0) * 1.852).toFixed(1)} km/h`;
-              if (c.key === 'spentFuel') return `${(r.spentFuel || 0).toFixed(1)} L`;
-              if (c.key === 'engineHours') return `${((r.engineHours || 0) / 3600).toFixed(1)} h`;
-              if (c.key === 'startOdometer' || c.key === 'endOdometer') return `${((r[c.key] || 0) / 1000).toFixed(1)} km`;
-              return String(r[c.key] ?? '—');
-            }))
-          )}>
-          {t('exportCsv')}
-        </Button>
+        <ExportButton disabled={!filtered.length}
+          csv={{
+            onClick: () => {
+              const csvHeaders = activeColumns.map((c) => t(c.labelKey));
+              downloadCsv(`summary-${new Date().toISOString().slice(0, 10)}.csv`, csvHeaders,
+                filtered.map((r) => activeColumns.map((c) => formatSummaryCell(c.key, r)))
+              );
+            }
+          }}
+          excel={{
+            onClick: () => {
+              const excelHeaders = activeColumns.map((c) => t(c.labelKey));
+              downloadExcel(`summary-${new Date().toISOString().slice(0, 10)}.xlsx`, 'Summary Report',
+                [{ name: 'Summary', rows: filtered.map((r) => {
+                  const obj: Record<string, string> = {};
+                  activeColumns.forEach((c) => { obj[t(c.labelKey)] = formatSummaryCell(c.key, r); });
+                  return obj;
+                })}]
+              );
+            }
+          }}
+          pdf={{
+            onClick: () => {
+              const pdfHeaders = activeColumns.map((c) => t(c.labelKey));
+              const groupsMap = new Map<string, typeof filtered>();
+              filtered.forEach((r) => {
+                const name = r.deviceName || `Device ${r.deviceId}`;
+                if (!groupsMap.has(name)) groupsMap.set(name, []);
+                groupsMap.get(name)!.push(r);
+              });
+              const pdfGroups = Array.from(groupsMap.entries()).map(([deviceName, rows]) => ({
+                title: deviceName,
+                headers: pdfHeaders,
+                rows: rows.map((r) => activeColumns.map((c) => formatSummaryCell(c.key, r))),
+              }));
+              downloadPdf(`summary-${new Date().toISOString().slice(0, 10)}.pdf`, 'Summary Report', pdfGroups);
+            }
+          }}
+        />
       </ReportFilter>
       <Card>
         <CardHeader className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
@@ -138,6 +177,7 @@ export default function SummaryReportPage() {
                      c.key === 'spentFuel' ? `${(row.spentFuel || 0).toFixed(1)} L` :
                      c.key === 'engineHours' ? `${((row.engineHours || 0) / 3600).toFixed(1)} h` :
                      c.key === 'startOdometer' || c.key === 'endOdometer' ? `${((row[c.key] || 0) / 1000).toFixed(1)} km` :
+                     c.key === 'startHours' || c.key === 'endHours' ? (row[c.key] != null ? `${(row[c.key] / 3600).toFixed(1)} h` : '—') :
                      String(row[c.key] ?? '—')}
                   </TableCell>
                 ))}

@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Χρόνος λήξης",
   "deviceImage": "Εικόνα συσκευής",
   "clickToUpload": "Κάντε κλικ για μεταφόρτωση",
-  "motionInfo": "Πληροφορίες κίνησης"
+  "motionInfo": "Πληροφορίες κίνησης",
+  "liveTracking": "Ζωντανός εντοπισμός",
+  "fleetMap": "Χάρτης στόλου",
+  "statusOverview": "Επισκόπηση κατάστασης",
 };
 
 export const status = {

@@ -1090,7 +1090,10 @@ export const nav = {
   "expirationTime": "Waqtiga uu dhacayo",
   "deviceImage": "Sawirka qalabka",
   "clickToUpload": "Guji si aad u soo geliso",
-  "motionInfo": "Macluumaadka dhaqdhaqaaqa"
+  "motionInfo": "Macluumaadka dhaqdhaqaaqa",
+  "liveTracking": "La-socodka tooska ah",
+  "fleetMap": "Khariidadda gawaarida",
+  "statusOverview": "Guudmarka xaaladda",
 };
 
 export const status = {

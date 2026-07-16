@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Nguva yekupera",
   "deviceImage": "Mufananidzo wemudziyo",
   "clickToUpload": "Dzvanya kuti uise",
-  "motionInfo": "Ruzivo rwekufamba"
+  "motionInfo": "Ruzivo rwekufamba",
+  "liveTracking": "Kutevera panguva ino",
+  "fleetMap": "Mepu yemotokari",
+  "statusOverview": "Muchidimbu chemamiriro",
 };
 
 export const status = {

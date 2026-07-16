@@ -65,6 +65,9 @@ export const nav = {
   "resolved": "Resolved",
   "dismiss": "Dismiss",
   "exportCsv": "Export CSV",
+  "exportExcel": "Export XLSX",
+  "exportPdf": "Export PDF",
+  "exportTitle": "Export",
   "addVehicle": "Add vehicle",
   "editDevice": "Edit device",
   "deleteDevice": "Delete device",
@@ -1011,6 +1014,8 @@ export const nav = {
   "hide": "Hide",
   "hidePanel": "Hide panel",
   "showPanel": "Show panel",
+  "hideList": "Hide list",
+  "showList": "Show list",
   "searchTrips": "Search trips…",
   "searchDevices": "Search devices…",
   // 2026-07-08
@@ -1089,7 +1094,11 @@ export const nav = {
   "expirationTime": "Expiration",
   "deviceImage": "Device image",
   "clickToUpload": "Click to upload",
-  "motionInfo": "Motion info"
+  "motionInfo": "Motion info",
+  "liveTracking": "Live tracking",
+  "fleetMap": "Fleet map",
+  "statusOverview": "Status overview",
+
 };
 
 export const status = {

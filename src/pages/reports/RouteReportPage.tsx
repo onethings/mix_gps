@@ -10,8 +10,10 @@ import { formatDate } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useT } from '@/lib/i18n';
-import ReportFilter, { downloadCsvBlob } from '@/components/reports/ReportFilterV2';
+import ReportFilter from '@/components/reports/ReportFilterV2';
 import type { ReportFilterValue } from '@/components/reports/ReportFilterV2';
+import ExportButton from '@/components/reports/ExportButton';
+import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 const COLUMNS = [
   { key: 'deviceName', labelKey: 'deviceName', always: true },
@@ -23,6 +25,13 @@ const COLUMNS = [
   { key: 'altitude', labelKey: 'altitude' },
   { key: 'address', labelKey: 'address' },
 ];
+
+function formatRouteCell(key: string, r: any): string {
+  if (key === 'fixTime') return formatDate(r.fixTime || '');
+  if (key === 'speed') return r.speedKmh || '—';
+  if (key === 'latitude' || key === 'longitude') return (r[key] ?? '—').toString();
+  return String(r[key] ?? '—');
+}
 
 export default function RouteReportPage() {
   const { t } = useT();
@@ -80,18 +89,45 @@ export default function RouteReportPage() {
       <ReportFilter loading={loading} onShow={handleShow}
         columnDefs={COLUMNS} visibleColumns={visibleCols} onToggleColumn={toggleColumn}
       >
-        <Button variant="outline" size="sm" disabled={!filtered.length}
-          onClick={() => downloadCsvBlob(`route-${new Date().toISOString().slice(0, 10)}.csv`,
-            activeColumns.map((c) => t(c.labelKey)),
-            filtered.map((r) => activeColumns.map((c) => {
-              if (c.key === 'fixTime') return formatDate(r.fixTime || '');
-              if (c.key === 'speed') return r.speedKmh || '—';
-              if (c.key === 'latitude' || c.key === 'longitude') return (r[c.key] ?? '—').toString();
-              return String(r[c.key] ?? '—');
-            }))
-          )}>
-          {t('exportCsv')}
-        </Button>
+        <ExportButton disabled={!filtered.length}
+          csv={{
+            onClick: () => {
+              const csvHeaders = activeColumns.map((c) => t(c.labelKey));
+              downloadCsv(`route-${new Date().toISOString().slice(0, 10)}.csv`, csvHeaders,
+                filtered.map((r) => activeColumns.map((c) => formatRouteCell(c.key, r)))
+              );
+            }
+          }}
+          excel={{
+            onClick: () => {
+              const excelHeaders = activeColumns.map((c) => t(c.labelKey));
+              downloadExcel(`route-${new Date().toISOString().slice(0, 10)}.xlsx`, 'Route Report',
+                [{ name: 'Route', rows: filtered.map((r) => {
+                  const obj: Record<string, string> = {};
+                  activeColumns.forEach((c) => { obj[t(c.labelKey)] = formatRouteCell(c.key, r); });
+                  return obj;
+                })}]
+              );
+            }
+          }}
+          pdf={{
+            onClick: () => {
+              const pdfHeaders = activeColumns.map((c) => t(c.labelKey));
+              const groupsMap = new Map<string, typeof filtered>();
+              filtered.forEach((r) => {
+                const name = r.deviceName || `Device ${r.deviceId}`;
+                if (!groupsMap.has(name)) groupsMap.set(name, []);
+                groupsMap.get(name)!.push(r);
+              });
+              const pdfGroups = Array.from(groupsMap.entries()).map(([deviceName, rows]) => ({
+                title: deviceName,
+                headers: pdfHeaders,
+                rows: rows.map((r) => activeColumns.map((c) => formatRouteCell(c.key, r))),
+              }));
+              downloadPdf(`route-${new Date().toISOString().slice(0, 10)}.pdf`, 'Route Report', pdfGroups);
+            }
+          }}
+        />
       </ReportFilter>
       <Card>
         <CardHeader className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">

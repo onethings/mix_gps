@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "有効期限",
   "deviceImage": "デバイス画像",
   "clickToUpload": "クリックしてアップロード",
-  "motionInfo": "動作情報"
+  "motionInfo": "動作情報",
+  "liveTracking": "リアルタイム追跡",
+  "fleetMap": "車両マップ",
+  "statusOverview": "ステータス概要",
 };
 
 export const status = {

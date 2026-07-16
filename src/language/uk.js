@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Дата закінчення терміну дії",
   "deviceImage": "Зображення пристрою",
   "clickToUpload": "Натисніть для завантаження",
-  "motionInfo": "Інформація про рух"
+  "motionInfo": "Інформація про рух",
+  "liveTracking": "Онлайн-відстеження",
+  "fleetMap": "Карта автопарку",
+  "statusOverview": "Огляд статусу"
 };
 
 export const status = {

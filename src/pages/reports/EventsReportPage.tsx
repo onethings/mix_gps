@@ -12,8 +12,10 @@ import { formatDate } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useT } from '@/lib/i18n';
-import ReportFilter, { downloadCsvBlob } from '@/components/reports/ReportFilterV2';
+import ReportFilter from '@/components/reports/ReportFilterV2';
 import type { ReportFilterValue } from '@/components/reports/ReportFilterV2';
+import ExportButton from '@/components/reports/ExportButton';
+import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 const STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
@@ -23,6 +25,7 @@ const COLUMNS = [
   { key: 'geofenceId', labelKey: 'Geofence' },
   { key: 'maintenanceId', labelKey: 'Maintenance' },
   { key: 'address', labelKey: 'Address' },
+  { key: 'attributes', labelKey: 'attributes' },
 ];
 
 function eventTypeLabel(type: string | undefined | null, t: (s: string) => string): string {
@@ -39,7 +42,7 @@ export default function EventsReportPage() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(['eventTime', 'type', 'address']));
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(['eventTime', 'type', 'address', 'attributes']));
   const [eventTypes, setEventTypes] = useState<string[]>([]);
   const [selectedEventTypes, setSelectedEventTypes] = useState<Set<string>>(new Set(['allEvents']));
   const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -126,6 +129,25 @@ export default function EventsReportPage() {
     );
   }, [rows, q, nameByDeviceId]);
 
+  function formatAttrValue(attrs: Record<string, unknown> | undefined | null): string {
+    if (!attrs) return '—';
+    const parts: string[] = [];
+    for (const [k, v] of Object.entries(attrs)) {
+      parts.push(`${k}: ${v}`);
+    }
+    return parts.join('; ') || '—';
+  }
+
+  function formatEventCell(key: string, r: any): string {
+    if (key === 'eventTime') return formatDate(r.eventTime || r.serverTime || '');
+    if (key === 'type') return eventTypeLabel(r.type, t);
+    if (key === 'geofenceId') return r.geofenceId != null ? `#${r.geofenceId}` : '—';
+    if (key === 'maintenanceId') return r.maintenanceId != null ? `#${r.maintenanceId}` : '—';
+    if (key === 'address') return r.address || '—';
+    if (key === 'attributes') return formatAttrValue(r.attributes);
+    return String(r[key] ?? '—');
+  }
+
   const activeColumns = useMemo(() => COLUMNS.filter((c) => visibleCols.has(c.key)), [visibleCols]);
 
   const toggleColumn = useCallback((key: string) => {
@@ -156,13 +178,45 @@ export default function EventsReportPage() {
           </div>
         }
       >
-        <Button variant="outline" size="sm" disabled={!filtered.length}
-          onClick={() => downloadCsvBlob(`events-${new Date().toISOString().slice(0, 10)}.csv`,
-            ['Device', 'Event Time', 'Type', 'Geofence', 'Address'],
-            filtered.map((r) => [nameByDeviceId[r.deviceId] || `Device ${r.deviceId}`, formatDate(r.eventTime || r.serverTime || ''), eventTypeLabel(r.type, t), r.geofenceId != null ? `#${r.geofenceId}` : '—', r.address || '—'])
-          )}>
-          {t('exportCsv')}
-        </Button>
+        <ExportButton disabled={!filtered.length}
+          csv={{
+            onClick: () => {
+              const csvHeaders = ['Device', ...activeColumns.map((c) => t(c.labelKey))];
+              downloadCsv(`events-${new Date().toISOString().slice(0, 10)}.csv`, csvHeaders,
+                filtered.map((r) => [nameByDeviceId[r.deviceId] || `Device ${r.deviceId}`, ...activeColumns.map((c) => formatEventCell(c.key, r))])
+              );
+            }
+          }}
+          excel={{
+            onClick: () => {
+              const excelHeaders = ['Device', ...activeColumns.map((c) => t(c.labelKey))];
+              downloadExcel(`events-${new Date().toISOString().slice(0, 10)}.xlsx`, 'Events Report',
+                [{ name: 'Events', rows: filtered.map((r) => {
+                  const obj: Record<string, string> = { 'Device': nameByDeviceId[r.deviceId] || `Device ${r.deviceId}` };
+                  activeColumns.forEach((c) => { obj[t(c.labelKey)] = formatEventCell(c.key, r); });
+                  return obj;
+                })}]
+              );
+            }
+          }}
+          pdf={{
+            onClick: () => {
+              const pdfHeaders = ['Device', ...activeColumns.map((c) => t(c.labelKey))];
+              const groupsMap = new Map<string, typeof filtered>();
+              filtered.forEach((r) => {
+                const name = nameByDeviceId[r.deviceId] || `Device ${r.deviceId}`;
+                if (!groupsMap.has(name)) groupsMap.set(name, []);
+                groupsMap.get(name)!.push(r);
+              });
+              const pdfGroups = Array.from(groupsMap.entries()).map(([deviceName, rows]) => ({
+                title: deviceName,
+                headers: pdfHeaders,
+                rows: rows.map((r) => [nameByDeviceId[r.deviceId] || `Device ${r.deviceId}`, ...activeColumns.map((c) => formatEventCell(c.key, r))]),
+              }));
+              downloadPdf(`events-${new Date().toISOString().slice(0, 10)}.pdf`, 'Events Report', pdfGroups);
+            }
+          }}
+        />
       </ReportFilter>
 
       {/* Map for selected event */}
@@ -222,7 +276,9 @@ export default function EventsReportPage() {
                         {c.key === 'eventTime' ? formatDate(row.eventTime || row.serverTime || '') :
                          c.key === 'type' ? <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-semibold text-primary">{eventTypeLabel(row.type, t)}</span> :
                          c.key === 'geofenceId' ? (row.geofenceId != null ? `#${row.geofenceId}` : '—') :
+                         c.key === 'maintenanceId' ? (row.maintenanceId != null ? `#${row.maintenanceId}` : '—') :
                          c.key === 'address' ? (row.address || '—') :
+                         c.key === 'attributes' ? formatAttrValue(row.attributes) :
                          String(row[c.key] ?? '—')}
                       </TableCell>
                     ))}

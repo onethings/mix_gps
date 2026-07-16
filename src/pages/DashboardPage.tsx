@@ -137,11 +137,11 @@ export default function DashboardPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs font-medium uppercase text-muted-foreground">
-                  <th className="px-6 py-3">{t('vehicle')}</th>
-                  <th className="px-6 py-3">{t('status')}</th>
-                  <th className="px-6 py-3">{t('speed')}</th>
-                  <th className="px-6 py-3">{t('driver')}</th>
-                  <th className="px-6 py-3">{t('lastUpdate')}</th>
+                  <th className="px-4 py-3 sm:px-6">{t('vehicle')}</th>
+                  <th className="px-4 py-3 sm:px-6">{t('status')}</th>
+                  <th className="px-4 py-3 sm:px-6">{t('speed')}</th>
+                  <th className="hidden px-4 py-3 sm:table-cell md:px-6">{t('driver')}</th>
+                  <th className="hidden px-4 py-3 sm:table-cell md:px-6">{t('lastUpdate')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -158,7 +158,7 @@ export default function DashboardPage() {
                         !isAlert && 'hover:bg-muted/30',
                       )}
                     >
-                      <td className="px-6 py-3 font-medium">
+                      <td className="px-4 py-3 font-medium sm:px-6">
                         <span className="inline-flex items-center gap-1.5">
                           {isAlert && (
                             <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
@@ -166,16 +166,16 @@ export default function DashboardPage() {
                           {v.name}
                         </span>
                       </td>
-                      <td className="px-6 py-3"><StatusBadge status={v.status} /></td>
-                      <td className="px-6 py-3 tabular-nums">{v.speed} {t('unitKmh')}</td>
-                      <td className="px-6 py-3">
+                      <td className="px-4 py-3 sm:px-6"><StatusBadge status={v.status} /></td>
+                      <td className="px-4 py-3 tabular-nums sm:px-6">{v.speed} {t('unitKmh')}</td>
+                      <td className="hidden px-4 py-3 sm:table-cell md:px-6">
                         {hasNoDriver ? (
                           <span className="text-muted-foreground/40">—</span>
                         ) : (
                           <span className="text-muted-foreground">{v.driver}</span>
                         )}
                       </td>
-                      <td className="px-6 py-3 text-xs text-muted-foreground">
+                      <td className="hidden px-4 py-3 text-xs text-muted-foreground sm:table-cell md:px-6">
                         {formatRelativeTime(v.lastUpdate, locale, t)}
                       </td>
                     </tr>

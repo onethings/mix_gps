@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "Derīguma termiņš",
   "deviceImage": "Ierīces attēls",
   "clickToUpload": "Noklikšķiniet, lai augšupielādētu",
-  "motionInfo": "Informācija par kustību"
+  "motionInfo": "Informācija par kustību",
+  "liveTracking": "Sekošana tiešsaistē",
+  "fleetMap": "Autoparka karte",
+  "statusOverview": "Statusa pārskats",
 };
 
 export const status = {

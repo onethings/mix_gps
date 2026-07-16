@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Ističe",
   "deviceImage": "Slika uređaja",
   "clickToUpload": "Kliknite za otpremanje",
-  "motionInfo": "Informacije o kretanju"
+  "motionInfo": "Informacije o kretanju",
+  "liveTracking": "Praćenje uživo",
+  "fleetMap": "Karta voznog parka",
+  "statusOverview": "Pregled statusa",
 };
 
 export const status = {

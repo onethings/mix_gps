@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "කල් ඉකුත් වීමේ වේලාව",
   "deviceImage": "උපාංග රූපය",
   "clickToUpload": "උඩුගත කිරීමට ක්ලික් කරන්න",
-  "motionInfo": "චලන තොරතුරු"
+  "motionInfo": "චලන තොරතුරු",
+  "liveTracking": "සජීවී ලුහුබැඳීම",
+  "fleetMap": "වාහන සමූහ සිතියම",
+  "statusOverview": "තත්ව දළ විශ්ලේෂණය",
 };
 
 export const status = {

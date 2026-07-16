@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, memo } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Search, AlertTriangle } from 'lucide-react';
+import { Search, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
@@ -34,6 +34,8 @@ interface VehicleListProps {
   vehicles: Vehicle[];
   selectedId: number | null;
   onSelect: (vehicle: Vehicle) => void;
+  showList: boolean;
+  onToggleList: () => void;
 }
 
 const ITEM_HEIGHT = 60; // px per row — includes border
@@ -118,7 +120,7 @@ function VehicleRow({
   );
 }
 
-const VehicleList = memo(function VehicleList({ vehicles, selectedId, onSelect }: VehicleListProps) {
+const VehicleList = memo(function VehicleList({ vehicles, selectedId, onSelect, showList, onToggleList }: VehicleListProps) {
   const { t, locale } = useT();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<string>('all');
@@ -155,63 +157,75 @@ const VehicleList = memo(function VehicleList({ vehicles, selectedId, onSelect }
             placeholder={t('searchVehicles')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="pl-8 h-9"
+            className="pl-8 pr-9 h-9"
           />
+          <button
+            type="button"
+            onClick={onToggleList}
+            className="absolute right-1 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            title={showList ? t('hideList') : t('showList')}
+          >
+            {showList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
         </div>
-        <div className="flex gap-1 overflow-x-auto">
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                'rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors whitespace-nowrap',
-                filter === f
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-accent',
-              )}
-            >
-              {t(f)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div ref={parentRef} className="flex-1 overflow-y-auto" style={{ contain: 'layout' }}>
-        <div
-          style={{
-            height: `${virtualizer.getTotalSize()}px`,
-            width: '100%',
-            position: 'relative',
-          }}
-        >
-          {virtualizer.getVirtualItems().map((virtualItem) => {
-            const v = filtered[virtualItem.index];
-            if (!v) return null;
-            return (
-              <div
-                key={v.id}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualItem.start}px)`,
-                }}
+        {showList && (
+          <div className="flex gap-1 overflow-x-auto">
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  'rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors whitespace-nowrap',
+                  filter === f
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-accent',
+                )}
               >
-                <VehicleRow
-                  vehicle={v}
-                  selectedId={selectedId}
-                  onSelect={onSelect}
-                  locale={locale}
-                />
-              </div>
-            );
-          })}
-        </div>
-        {filtered.length === 0 && (
-          <p className="px-3 py-6 text-center text-xs text-muted-foreground">{t('noData')}</p>
+                {t(f)}
+              </button>
+            ))}
+          </div>
         )}
       </div>
+
+      {showList && (
+        <div ref={parentRef} className="flex-1 overflow-y-auto" style={{ contain: 'layout' }}>
+          <div
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: '100%',
+              position: 'relative',
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const v = filtered[virtualItem.index];
+              if (!v) return null;
+              return (
+                <div
+                  key={v.id}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                  }}
+                >
+                  <VehicleRow
+                    vehicle={v}
+                    selectedId={selectedId}
+                    onSelect={onSelect}
+                    locale={locale}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          {filtered.length === 0 && (
+            <p className="px-3 py-6 text-center text-xs text-muted-foreground">{t('noData')}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 });

@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Oras ti pannakapaso",
   "deviceImage": "Ladawan ti device",
   "clickToUpload": "Ag-click tapno ag-upload",
-  "motionInfo": "Impormasion maipapan iti panaggunay"
+  "motionInfo": "Impormasion maipapan iti panaggunay",
+  "liveTracking": "Live a panagsurot",
+  "fleetMap": "Mapa ti plota",
+  "statusOverview": "Pakabuklan ti kasasaad",
 };
 
 export const status = {

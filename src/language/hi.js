@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "समाप्ति का समय",
   "deviceImage": "डिवाइस की छवि",
   "clickToUpload": "अपलोड करने के लिए क्लिक करें",
-  "motionInfo": "गतिविधि की जानकारी"
+  "motionInfo": "गतिविधि की जानकारी",
+  "liveTracking": "लाइव ट्रैकिंग",
+  "fleetMap": "फ्लीट मैप",
+  "statusOverview": "स्थिति का अवलोकन",
 };
 
 export const status = {

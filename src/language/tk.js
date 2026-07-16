@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Gutarma wagty",
   "deviceImage": "Enjam suraty",
   "clickToUpload": "Ýüklemek üçin basyň",
-  "motionInfo": "Hereket maglumatlary"
+  "motionInfo": "Hereket maglumatlary",
+  "liveTracking": "Göni wagtly yzarlama",
+  "fleetMap": "Flot kartasy",
+  "statusOverview": "Ýagdaý syny",
 };
 
 export const status = {

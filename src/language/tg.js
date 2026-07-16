@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Вақти ба охир расидан",
   "deviceImage": "Тасвири дастгоҳ",
   "clickToUpload": "Барои боргузорӣ клик кунед",
-  "motionInfo": "Маълумот дар бораи ҳаракат"
+  "motionInfo": "Маълумот дар бораи ҳаракат",
+  "liveTracking": "Пайгирии зинда",
+  "fleetMap": "Харитаи автопарк",
+  "statusOverview": "Баррасии вазъият",
 };
 
 export const status = {

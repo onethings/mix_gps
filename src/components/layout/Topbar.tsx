@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSession } from '@/context/SessionContext';
 import { useTheme } from '@/context/ThemeContext';
-import { LogOut, Moon, Sun, Settings, ChevronDown, LayoutDashboard, Map, BarChart3, Smartphone } from 'lucide-react';
+import { LogOut, Moon, Sun, Settings, ChevronDown, LayoutDashboard, Map, BarChart3, Smartphone, Menu } from 'lucide-react';
 import { initials, cn } from '@/lib/utils';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
@@ -20,7 +20,11 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/devices', key: 'mgmt', icon: Smartphone },
 ];
 
-export default function Topbar() {
+interface TopbarProps {
+  onMenuToggle?: () => void;
+}
+
+export default function Topbar({ onMenuToggle }: TopbarProps) {
   const { user, logout } = useSession();
   const { theme, toggle } = useTheme();
   const { t } = useT();
@@ -49,8 +53,16 @@ export default function Topbar() {
 
   return (
     <header className="flex h-14 items-center border-b border-border bg-card px-4">
-      {/* Left — Logo */}
-      <div className="flex items-center gap-2 shrink-0">
+      {/* Left — Hamburger + Logo */}
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          onClick={onMenuToggle}
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent transition-colors lg:hidden"
+          aria-label="Toggle navigation menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
         <Link to="/dashboard" className="flex items-center gap-2">
           <picture>
             <source srcSet="/custom/nav_icon_head.webp" type="image/webp" />

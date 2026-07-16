@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Yeroo xumuramaa",
   "deviceImage": "Suuraa meeshichaa",
   "clickToUpload": "Oli fe'uuf cuqaasi",
-  "motionInfo": "Odeeffannoo sochii"
+  "motionInfo": "Odeeffannoo sochii",
+  "liveTracking": "Hordoffii bilisaa",
+  "fleetMap": "Kaarta kuusaa konkolaattotaa",
+  "statusOverview": "Ibsa guutuu haala jiru",
 };
 
 export const status = {

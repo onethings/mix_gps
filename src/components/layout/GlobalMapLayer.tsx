@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
-import { useT } from '@/lib/i18n';
+import { I18nContext } from '@/lib/i18n';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useMapContext } from '@/context/MapContext';
 import FleetMapLibre from '@/components/tracking/FleetMapLibre';
@@ -29,7 +29,8 @@ interface GlobalMapLayerProps {
 export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerProps) {
   const { vehicles } = useLiveData();
   const { selectedVehicleId, setSelectedVehicleId, mapHandleRef } = useMapContext();
-  const { t } = useT();
+  const i18nCtx = useContext(I18nContext);
+  const t = i18nCtx?.t ?? ((key: string) => key);
   const [basemap, setBasemap] = useState('road');
   const [showGeofences, setShowGeofences] = useState(false);
   const [geofences, setGeofences] = useState<TraccarGeofence[]>([]);
@@ -91,37 +92,38 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
       />
 
       {/* Map Controls (top-left) — grouped bar — only on tracking page */}
+      {/* top-14 positions controls below the Topbar (h-14) so they're not hidden behind it */}
       {showControls && (
-        <div className="absolute left-4 top-4 z-20 flex flex-col gap-1">
-          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur">
+        <div className="absolute left-2 top-14 z-20 flex flex-col gap-1 sm:left-4">
+          <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur">
             <button type="button" onClick={() => setBasemap('road')}
-              className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+              className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
                 basemap === 'road' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
-              <MapIcon className="h-3.5 w-3.5" /> {t('mapLayer')}
+              <MapIcon className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('mapLayer')}</span>
             </button>
             <button type="button" onClick={() => setBasemap('satellite')}
-              className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+              className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
                 basemap === 'satellite' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
-              <Satellite className="h-3.5 w-3.5" /> {t('satellite')}
+              <Satellite className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('satellite')}</span>
             </button>
             <div className="mx-0.5 h-5 w-px bg-border" />
             <button type="button" onClick={() => mapHandleRef.current?.fitAllVehicles()}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent"
+              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent sm:px-2.5"
               title={t('fitAllVehicles')}>
-              <Crosshair className="h-3.5 w-3.5" /> {t('all')}
+              <Crosshair className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('all')}</span>
             </button>
             <button type="button" onClick={handleToggleGeofences}
-              className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+              className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
                 showGeofences ? 'bg-primary/15 text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-accent')}
               title={showGeofences ? t('hideGeofences') : t('showGeofences')}>
-              {showGeofences ? <Shield className="h-3.5 w-3.5" /> : <ShieldOff className="h-3.5 w-3.5" />} {t('zones')}
+              {showGeofences ? <Shield className="h-3.5 w-3.5" /> : <ShieldOff className="h-3.5 w-3.5" />} <span className="hidden sm:inline">{t('zones')}</span>
             </button>
             <div className="mx-0.5 h-5 w-px bg-border" />
             <button type="button" onClick={() => { if (!measuring) setMeasureKm(0); setMeasuring((p) => !p); }}
-              className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+              className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
                 measuring ? 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30' : 'text-muted-foreground hover:bg-accent')}
               title={measuring ? t('stopMeasuring') : t('measureDistance')}>
-              <Ruler className="h-3.5 w-3.5" /> {t('ruler')}
+              <Ruler className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('ruler')}</span>
             </button>
           </div>
 
@@ -141,25 +143,24 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
 
       {/* Fleet Stats + Legend Bar (bottom-left) — only on tracking page */}
       {showControls && (
-        <div className="pointer-events-none absolute bottom-4 left-4 z-10 flex flex-col gap-1.5">
-          <div className="flex items-center gap-2 rounded-md border border-border bg-card/90 px-3 py-2 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
+        <div className="pointer-events-none absolute bottom-2 left-2 z-10 flex flex-col gap-1 sm:bottom-4 sm:left-4">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-border bg-card/90 px-2.5 py-1.5 text-[10px] text-muted-foreground shadow-sm backdrop-blur sm:px-3 sm:py-2 sm:text-[11px]">
             <span className="font-semibold text-foreground">{fleetStats.total}</span>
-            <span>{t('vehicles')}</span>
-            <span className="text-muted-foreground/30">|</span>
+            <span className="hidden sm:inline">{t('vehicles')}</span>
             {(['moving', 'idle', 'stopped', 'offline', 'alert'] as const).map((status) => {
               const count = fleetStats[status];
               if (count === 0) return null;
               return (
                 <span key={status} className="flex items-center gap-1">
-                  <span className={cn('h-2 w-2 rounded-full', STATUS_COLORS[status])} />
-                  <span>{count} {t(status)}</span>
+                  <span className={cn('h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2', STATUS_COLORS[status])} />
+                  <span>{count}<span className="hidden sm:inline"> {t(status)}</span></span>
                 </span>
               );
             })}
           </div>
 
           {noPositionCount > 0 && (
-            <div className="rounded-md border border-amber-200 bg-amber-50/90 px-3 py-1.5 text-[11px] text-amber-700 shadow-sm backdrop-blur dark:border-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
+            <div className="rounded-md border border-amber-200 bg-amber-50/90 px-2 py-1 text-[10px] text-amber-700 shadow-sm backdrop-blur dark:border-amber-800 dark:bg-amber-950/80 dark:text-amber-300 sm:px-3 sm:py-1.5 sm:text-[11px]">
               {t('deviceNoCoords').replace('{count}', String(noPositionCount)).replace('{total}', String(vehicles.length))}
             </div>
           )}

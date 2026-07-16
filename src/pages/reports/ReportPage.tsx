@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { Download } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
-import { Button } from '@/components/ui/button';
 import ReportToolbar from '@/components/reports/ReportToolbar';
 import EmptyState from '@/components/common/EmptyState';
+import ExportButton from '@/components/reports/ExportButton';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/context/SessionContext';
 import { formatDate } from '@/lib/utils';
+import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 type ReportParams = Record<string, unknown>;
 
@@ -139,24 +139,56 @@ export default function ReportPage() {
         description={t('reportApiDesc')}
         actions={
           <>
-            <Button variant="outline" size="sm" disabled={!rows?.length}
-              onClick={() => {
-                if (!rows?.length) return;
-                const csvHeaders = keys.map((k) => readableLabel(k, t));
-                const csvRows = rows.map((row) =>
-                  keys.map((k) => formatCell(k, row[k], speedUnit, t)).join(',')
-                );
-                const csv = '\uFEFF' + [csvHeaders.join(','), ...csvRows].join('\n');
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${type}-${new Date().toISOString().slice(0, 10)}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }}>
-              <Download className="h-4 w-4" /> {t('exportCsv')}
-            </Button>
+            <ExportButton disabled={!rows?.length}
+              csv={{
+                onClick: () => {
+                  if (!rows?.length) return;
+                  const csvHeaders = keys.map((k) => readableLabel(k, t));
+                  downloadCsv(`${type}-${new Date().toISOString().slice(0, 10)}.csv`, csvHeaders,
+                    rows.map((row) => keys.map((k) => formatCell(k, row[k], speedUnit, t)))
+                  );
+                }
+              }}
+              excel={{
+                onClick: () => {
+                  if (!rows?.length) return;
+                  const excelHeaders = keys.map((k) => readableLabel(k, t));
+                  downloadExcel(`${type}-${new Date().toISOString().slice(0, 10)}.xlsx`, `${type} Report`,
+                    [{ name: type || 'Data', rows: rows.map((row) => {
+                      const obj: Record<string, string> = {};
+                      keys.forEach((k) => { obj[readableLabel(k, t)] = formatCell(k, row[k], speedUnit, t); });
+                      return obj;
+                    })}]
+                  );
+                }
+              }}
+              pdf={{
+                onClick: () => {
+                  if (!rows?.length) return;
+                  const pdfHeaders = keys.map((k) => readableLabel(k, t));
+                  // Group by deviceId if available
+                  const hasDeviceId = rows.some((r: any) => r.deviceId != null);
+                  if (hasDeviceId) {
+                    const groupsMap = new Map<string, typeof rows>();
+                    rows.forEach((r: any) => {
+                      const name = r.deviceName || `Device ${r.deviceId}`;
+                      if (!groupsMap.has(name)) groupsMap.set(name, []);
+                      groupsMap.get(name)!.push(r);
+                    });
+                    const pdfGroups = Array.from(groupsMap.entries()).map(([deviceName, groupRows]) => ({
+                      title: deviceName,
+                      headers: pdfHeaders,
+                      rows: groupRows.map((row: any) => keys.map((k) => formatCell(k, row[k], speedUnit, t))),
+                    }));
+                    downloadPdf(`${type}-${new Date().toISOString().slice(0, 10)}.pdf`, `${type} Report`, pdfGroups);
+                  } else {
+                    downloadPdf(`${type}-${new Date().toISOString().slice(0, 10)}.pdf`, `${type} Report`, pdfHeaders,
+                      rows.map((row: any) => keys.map((k) => formatCell(k, row[k], speedUnit, t)))
+                    );
+                  }
+                }
+              }}
+            />
             <Link to="/reports" className="text-sm text-primary underline">{t('allReports')}</Link>
           </>
         }

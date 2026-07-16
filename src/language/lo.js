@@ -1090,7 +1090,10 @@ export const nav = {
   "expirationTime": "ເວລາໝົດອາຍຸ",
   "deviceImage": "ຮູບພາບອຸປະກອນ",
   "clickToUpload": "ກົດເພື່ອອັບໂຫຼດ",
-  "motionInfo": "ຂໍ້ມູນການເຄື່ອນໄຫວ"
+  "motionInfo": "ຂໍ້ມູນການເຄື່ອນໄຫວ",
+  "liveTracking": "ການຕິດຕາມແບບສົດ",
+  "fleetMap": "ແຜນທີ່ກຸ່ມລົດ",
+  "statusOverview": "ພາບລວມສະຖານະ",
 };
 
 export const status = {

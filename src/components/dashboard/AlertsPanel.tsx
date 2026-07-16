@@ -1,16 +1,17 @@
 import { Bell, CheckCircle } from 'lucide-react';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import type { Alert } from '@/types';
 import EmptyState from '@/components/common/EmptyState';
 import { formatDate } from '@/lib/utils';
-import { useT } from '@/lib/i18n';
+import { I18nContext } from '@/lib/i18n';
 
 interface AlertsPanelProps {
   alerts: Alert[];
 }
 
 export default function AlertsPanel({ alerts }: AlertsPanelProps) {
-  const { t } = useT();
+  const ctx = useContext(I18nContext);
+  const t = ctx?.t ?? ((key: string) => key);
   const [dismissed, setDismissed] = useState<Set<number>>(new Set());
 
   const visible = alerts.filter((a) => !dismissed.has(a.id));

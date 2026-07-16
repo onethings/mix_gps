@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Oras kan pagkapaso",
   "deviceImage": "Ladawan kan device",
   "clickToUpload": "Mag-click para mag-upload",
-  "motionInfo": "Impormasyon manungod sa paghiro"
+  "motionInfo": "Impormasyon manungod sa paghiro",
+  "liveTracking": "Live na pagsubaybay",
+  "fleetMap": "Mapa kan plota",
+  "statusOverview": "Katapusan na pagtanaw sa estado",
 };
 
 export const status = {

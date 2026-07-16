@@ -10,8 +10,10 @@ import { formatDate } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useT } from '@/lib/i18n';
-import ReportFilter, { downloadCsvBlob } from '@/components/reports/ReportFilterV2';
+import ReportFilter from '@/components/reports/ReportFilterV2';
 import type { ReportFilterValue } from '@/components/reports/ReportFilterV2';
+import ExportButton from '@/components/reports/ExportButton';
+import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 export default function LogsReportPage() {
   const { t } = useT();
@@ -55,16 +57,53 @@ export default function LogsReportPage() {
     <div className="space-y-5">
       <PageHeader title={t('logs')} description={t('deviceCommunicationLogs')} />
       <ReportFilter loading={loading} onShow={handleShow}>
-        <Button variant="outline" size="sm" disabled={!filtered.length}
-          onClick={() => downloadCsvBlob(`logs-${new Date().toISOString().slice(0, 10)}.csv`,
-            ['Device', 'Time', 'Latitude', 'Longitude', 'Speed', 'Course'],
-            filtered.map((r) => {
-              const dev = devices.find((d) => d.id === r.deviceId);
-              return [dev?.name || `Device ${r.deviceId}`, formatDate(r.serverTime || r.deviceTime || ''), (r.latitude || 0).toFixed(6), (r.longitude || 0).toFixed(6), `${((r.speed || 0) * 1.852).toFixed(1)} km/h`, r.course != null ? `${r.course}°` : '—'];
-            })
-          )}>
-          {t('exportCsv')}
-        </Button>
+        <ExportButton disabled={!filtered.length}
+          csv={{
+            onClick: () => downloadCsv(`logs-${new Date().toISOString().slice(0, 10)}.csv`,
+              ['Device', 'Time', 'Latitude', 'Longitude', 'Speed', 'Course'],
+              filtered.map((r) => {
+                const dev = devices.find((d) => d.id === r.deviceId);
+                return [dev?.name || `Device ${r.deviceId}`, formatDate(r.serverTime || r.deviceTime || ''), (r.latitude || 0).toFixed(6), (r.longitude || 0).toFixed(6), `${((r.speed || 0) * 1.852).toFixed(1)} km/h`, r.course != null ? `${r.course}°` : '—'];
+              })
+            )
+          }}
+          excel={{
+            onClick: () => downloadExcel(`logs-${new Date().toISOString().slice(0, 10)}.xlsx`, 'Device Logs',
+              [{ name: 'Logs', rows: filtered.map((r) => {
+                const dev = devices.find((d) => d.id === r.deviceId);
+                return {
+                  'Device': dev?.name || `Device ${r.deviceId}`,
+                  'Time': formatDate(r.serverTime || r.deviceTime || ''),
+                  'Latitude': (r.latitude || 0).toFixed(6),
+                  'Longitude': (r.longitude || 0).toFixed(6),
+                  'Speed': `${((r.speed || 0) * 1.852).toFixed(1)} km/h`,
+                  'Course': r.course != null ? `${r.course}°` : '—',
+                };
+              })}]
+            )
+          }}
+          pdf={{
+            onClick: () => {
+              const pdfHeaders = ['Device', 'Time', 'Latitude', 'Longitude', 'Speed', 'Course'];
+              const groupsMap = new Map<string, typeof filtered>();
+              filtered.forEach((r) => {
+                const dev = devices.find((d) => d.id === r.deviceId);
+                const name = dev?.name || `Device ${r.deviceId}`;
+                if (!groupsMap.has(name)) groupsMap.set(name, []);
+                groupsMap.get(name)!.push(r);
+              });
+              const pdfGroups = Array.from(groupsMap.entries()).map(([deviceName, rows]) => ({
+                title: deviceName,
+                headers: pdfHeaders,
+                rows: rows.map((r) => {
+                  const dev = devices.find((d) => d.id === r.deviceId);
+                  return [dev?.name || `Device ${r.deviceId}`, formatDate(r.serverTime || r.deviceTime || ''), (r.latitude || 0).toFixed(6), (r.longitude || 0).toFixed(6), `${((r.speed || 0) * 1.852).toFixed(1)} km/h`, r.course != null ? `${r.course}°` : '—'];
+                }),
+              }));
+              downloadPdf(`logs-${new Date().toISOString().slice(0, 10)}.pdf`, 'Device Logs', pdfGroups);
+            }
+          }}
+        />
       </ReportFilter>
       <Card>
         <CardHeader className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">

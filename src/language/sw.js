@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "Muda wa kuisha",
   "deviceImage": "Picha ya kifaa",
   "clickToUpload": "Bofya ili kupakia",
-  "motionInfo": "Taarifa za mwendo"
+  "motionInfo": "Taarifa za mwendo",
+  "liveTracking": "Ufuatiliaji wa moja kwa moja",
+  "fleetMap": "Ramani ya msafara",
+  "statusOverview": "Muhtasari wa hali",
 };
 
 export const status = {

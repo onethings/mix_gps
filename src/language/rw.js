@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Isaha yo kurangiza",
   "deviceImage": "Ifoto y'igikoresho",
   "clickToUpload": "Kanda kugira ngo ubyohereze",
-  "motionInfo": "Amakuru y'uko ibintu byimuka"
+  "motionInfo": "Amakuru y'uko ibintu byimuka",
+  "liveTracking": "Gukurikirana ako kanya",
+  "fleetMap": "Ikarita y'ajyanywa",
+  "statusOverview": "Incamake y'uko bihagaze",
 };
 
 export const status = {

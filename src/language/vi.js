@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Thời gian hết hạn",
   "deviceImage": "Hình ảnh thiết bị",
   "clickToUpload": "Nhấp để tải lên",
-  "motionInfo": "Thông tin chuyển động"
+"motionInfo": "Thông tin chuyển động",
+  "liveTracking": "Theo dõi trực tuyến",
+  "fleetMap": "Bản đồ đội xe",
+  "statusOverview": "Tổng quan trạng thái"
 };
 
 export const status = {

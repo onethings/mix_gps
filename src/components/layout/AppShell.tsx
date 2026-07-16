@@ -1,13 +1,14 @@
-import { useEffect } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useT } from '@/lib/i18n';
+import { I18nContext } from '@/lib/i18n';
 import { TAB_META } from '@/context/TabsContext';
 import { MapProvider } from '@/context/MapContext';
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import TabBar from './TabBar';
 import GlobalMapLayer from './GlobalMapLayer';
+import MobileNav from './MobileNav';
 
 const REPORT_PATHS = ['/reports','/fuel','/maintenance','/logistics','/alerts','/events','/orders','/geofences','/route-planning'];  // /reports/trips is covered by '/reports'
 const MGMT_PATHS = ['/devices','/drivers','/settings'];
@@ -19,11 +20,13 @@ const MAP_PATHS = new Set(['/tracking']);
 const APP_TITLE = 'Kevin GPS';
 
 function ShellContent() {
-  const { t } = useT();
+  const i18nCtx = useContext(I18nContext);
+  const t = i18nCtx?.t ?? ((key: string) => key);
   const { pathname } = useLocation();
   const basePath = '/' + (pathname.split('/')[1] || '');
   const showSidebar = SIDEBAR_PATHS.has(basePath);
   const isMapPage = MAP_PATHS.has(basePath);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Update browser tab title to match current page
   useEffect(() => {
@@ -35,6 +38,9 @@ function ShellContent() {
 
   return (
     <div className="relative h-full overflow-hidden">
+      {/* Mobile navigation drawer */}
+      <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+
       {/* Layer 1: Global map — always mounted, never reloads */}
       <GlobalMapLayer showControls={isMapPage} />
 
@@ -43,9 +49,15 @@ function ShellContent() {
         'absolute inset-0 flex flex-col z-10',
         isMapPage ? 'pointer-events-none bg-transparent' : 'bg-background',
       )}>
-        <div className={cn(isMapPage && 'pointer-events-auto')}>
-          <Topbar />
-          <TabBar />
+        {/* On tracking pages, limit pointer-events area so map controls (top-right zoom buttons,
+            top-left basemap ruler etc.) remain clickable through the overlay. */}
+        <div className={cn(isMapPage ? 'pointer-events-none' : '')}>
+          <div className={cn(isMapPage ? 'pointer-events-auto pr-12' : '')}>
+            <Topbar onMenuToggle={() => setMobileNavOpen((v) => !v)} />
+          </div>
+          <div className={cn(isMapPage ? 'pointer-events-auto pr-12' : '')}>
+            <TabBar />
+          </div>
         </div>
 
         <div className={cn(
@@ -56,10 +68,12 @@ function ShellContent() {
 
           <main className={cn(
             'flex-1 overflow-y-auto',
-            showSidebar ? 'p-4' : 'p-0',
+            showSidebar ? 'p-3 sm:p-4' : 'p-0',
             isMapPage ? 'bg-transparent' : 'bg-background',
           )}>
-            <Outlet />
+            <div className={cn(isMapPage ? '' : 'mx-auto w-full max-w-7xl')}>
+              <Outlet />
+            </div>
           </main>
         </div>
       </div>

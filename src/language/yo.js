@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Akoko ipari",
   "deviceImage": "Aworan ẹrọ",
   "clickToUpload": "Tẹ lati gbe si oke",
-  "motionInfo": "Alaye gbigbe"
+"motionInfo": "Alaye gbigbe",
+  "liveTracking": "Ìpasẹ̀ láyé",
+  "fleetMap": "Àwòrán ilẹ̀ àwọn ọkọ̀",
+  "statusOverview": "Àpapọ̀ ipò"
 };
 
 export const status = {

@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "Isikhathi sokuphelelwa",
   "deviceImage": "Isithombe sedivayisi",
   "clickToUpload": "Chofoza ukuze ulayishe",
-  "motionInfo": "Ulwazi ngokuhamba"
+"motionInfo": "Ulwazi ngokuhamba",
+  "liveTracking": "Ukulandela bukhoma",
+  "fleetMap": "Imephu yezimoto",
+  "statusOverview": "Isifingqo sesimo"
 };
 
 export const status = {

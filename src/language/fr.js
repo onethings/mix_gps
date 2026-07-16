@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Date d'expiration",
   "deviceImage": "Image du périphérique",
   "clickToUpload": "Cliquez pour télécharger",
-  "motionInfo": "Informations de mouvement"
+  "motionInfo": "Informations de mouvement",
+  "liveTracking": "Suivi en direct",
+  "fleetMap": "Carte de la flotte",
+  "statusOverview": "Aperçu du statut",
 };
 
 export const status = {

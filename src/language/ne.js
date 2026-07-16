@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "म्याद समाप्त हुने समय",
   "deviceImage": "उपकरणको तस्बिर",
   "clickToUpload": "अपलोड गर्न क्लिक गर्नुहोस्",
-  "motionInfo": "गतिविधि सम्बन्धी जानकारी"
+  "motionInfo": "गतिविधि सम्बन्धी जानकारी",
+  "liveTracking": "लाइभ ट्र्याकिङ",
+  "fleetMap": "फ्लीट नक्सा",
+  "statusOverview": "अवस्थाको सङ्क्षिप्त विवरण",
 };
 
 export const status = {

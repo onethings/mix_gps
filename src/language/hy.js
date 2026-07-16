@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Լրանալու ժամկետ",
   "deviceImage": "Սարքի նկար",
   "clickToUpload": "Սեղմեք վերբեռնելու համար",
-  "motionInfo": "Շարժման մասին տեղեկատվություն"
+  "motionInfo": "Շարժման մասին տեղեկատվություն",
+  "liveTracking": "Ուղիղ հետևում",
+  "fleetMap": "Ավտոպարկի քարտեզ",
+  "statusOverview": "Կարգավիճակի ամփոփում",
 };
 
 export const status = {

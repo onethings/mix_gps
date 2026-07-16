@@ -1256,7 +1256,10 @@ export const nav = {
   "expirationTime": "ସମୟ ସମାପ୍ତି",
   "deviceImage": "ଡିଭାଇସ୍ ଚିତ୍ର",
   "clickToUpload": "ଅପଲୋଡ୍ କରିବାକୁ କ୍ଲିକ୍ କରନ୍ତୁ",
-  "motionInfo": "ଗତିବିଧି ସୂଚନା"
+  "motionInfo": "ଗତିବିଧି ସୂଚନା",
+  "liveTracking": "ଲାଇଭ୍ ଟ୍ରାକିଂ",
+  "fleetMap": "ଯାନବାହନ ମାନଚିତ୍ର",
+  "statusOverview": "ସ୍ଥିତି ସମୀକ୍ଷା",
 
 };
 

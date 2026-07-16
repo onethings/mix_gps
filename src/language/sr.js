@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "Datum isteka",
   "deviceImage": "Slika uređaja",
   "clickToUpload": "Kliknite za otpremanje",
-  "motionInfo": "Informacije o kretanju"
+  "motionInfo": "Informacije o kretanju",
+  "liveTracking": "Praćenje uživo",
+  "fleetMap": "Mapa flote",
+  "statusOverview": "Pregled statusa",
 };
 
 export const status = {

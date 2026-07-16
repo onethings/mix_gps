@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Ára opa",
   "deviceImage": "Aporeko ta'anga",
   "clickToUpload": "Eikutu remopakwái hag̃ua",
-  "motionInfo": "Ñe'ẽ marandu"
+  "motionInfo": "Ñe'ẽ marandu",
+  "liveTracking": "Jeheka ko'agagua",
+  "fleetMap": "Mba'yrumýi rupa",
+  "statusOverview": "Mba'eichaitépa oñembyaty",
 };
 
 export const status = {

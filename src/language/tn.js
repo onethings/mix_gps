@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Nako ya go fela",
   "deviceImage": "Setshwantsho sa sediriswa",
   "clickToUpload": "Tobetsa go tsenya",
-  "motionInfo": "Tshedimosetso ya tsamaiso"
+  "motionInfo": "Tshedimosetso ya tsamaiso",
+  "liveTracking": "Go sala morago ka bofefo",
+  "fleetMap": "Mmepe wa ditsamaiso",
+  "statusOverview": "Tshoboko yaemo",
 };
 
 export const status = {

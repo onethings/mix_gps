@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Masa tamat tempoh",
   "deviceImage": "Imej peranti",
   "clickToUpload": "Klik untuk memuat naik",
-  "motionInfo": "Maklumat pergerakan"
+  "motionInfo": "Maklumat pergerakan",
+  "liveTracking": "Penjejakan langsung",
+  "fleetMap": "Peta armada",
+  "statusOverview": "Gambaran keseluruhan status",
 };
 
 export const status = {

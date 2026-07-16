@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "Galiojimo laikas",
   "deviceImage": "Įrenginio nuotrauka",
   "clickToUpload": "Spustelėkite norėdami įkelti",
-  "motionInfo": "Judesio informacija"
+  "motionInfo": "Judesio informacija",
+  "liveTracking": "Tiesioginis sekimas",
+  "fleetMap": "Autoparko žemėlapis",
+  "statusOverview": "Būsenos apžvalga",
 };
 
 export const status = {

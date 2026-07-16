@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Petsa ng pagkapaso",
   "deviceImage": "Larawan ng device",
   "clickToUpload": "I-click para mag-upload",
-  "motionInfo": "Impormasyon ng paggalaw"
+  "motionInfo": "Impormasyon ng paggalaw",
+  "liveTracking": "Live na pagsubaybay",
+  "fleetMap": "Mapa ng plota",
+  "statusOverview": "Pangkalahatang-ideya ng katayuan",
 };
 
 export const status = {

@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "زمان انقضا",
   "deviceImage": "تصویر دستگاه",
   "clickToUpload": "برای بارگذاری کلیک کنید",
-  "motionInfo": "اطلاعات حرکت"
+  "motionInfo": "اطلاعات حرکت",
+  "liveTracking": "ردیابی زنده",
+  "fleetMap": "نقشه ناوگان",
+  "statusOverview": "نمای کلی وضعیت",
 };
 
 export const status = {

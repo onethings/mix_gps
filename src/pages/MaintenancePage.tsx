@@ -62,7 +62,7 @@ export default function MaintenancePage() {
       />
 
       {rows && rows.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           <Card><CardHeader><CardTitle className="text-sm font-medium text-muted-foreground">{t('total')}</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold">{rows.length}</p></CardContent></Card>
         </div>
       )}

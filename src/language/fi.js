@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "Erääntymisaika",
   "deviceImage": "Laitteen kuva",
   "clickToUpload": "Klikkaa ladataksesi",
-  "motionInfo": "Liiketiedot"
+  "motionInfo": "Liiketiedot",
+  "liveTracking": "Reaaliaikainen seuranta",
+  "fleetMap": "Kalustokartta",
+  "statusOverview": "Tilannekatsaus",
 };
 
 export const status = {

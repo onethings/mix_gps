@@ -1097,7 +1097,10 @@ export const nav = {
   "expirationTime": "Wakkati timmude",
   "deviceImage": "Fuɗɗii naangal",
   "clickToUpload": "Dillu ngam upload",
-  "motionInfo": "Kabaaru yottinaare"
+  "motionInfo": "Kabaaru yottinaare",
+  "liveTracking": "Rewinda golle jooni",
+  "fleetMap": "Kartal mobilji",
+  "statusOverview": "Tijjo jonde",
 };
 
 export const status = {

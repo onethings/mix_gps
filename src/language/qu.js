@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Tukuy pacha",
   "deviceImage": "Antañiqiqpa rikch'aynin",
   "clickToUpload": "Qillqanapaq ñit'iy",
-  "motionInfo": "Kuyuy willaykuna"
+  "motionInfo": "Kuyuy willaykuna",
+  "liveTracking": "Kunanpacha qatiy",
+  "fleetMap": "Antawa qutu saywiti",
+  "statusOverview": "Iskaykay qhawariy",
 };
 
 export const status = {

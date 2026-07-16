@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Amal qilish muddati",
   "deviceImage": "Qurilma rasmi",
   "clickToUpload": "Yuklash uchun bosing",
-  "motionInfo": "Harakat ma'lumotlari"
+"motionInfo": "Harakat ma'lumotlari",
+  "liveTracking": "Jonli kuzatuv",
+  "fleetMap": "Park xaritasi",
+  "statusOverview": "Holat sharhi"
 };
 
 export const status = {

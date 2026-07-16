@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "గడువు సమయం",
   "deviceImage": "పరికర చిత్రం",
   "clickToUpload": "అప్‌లోడ్ చేయడానికి క్లిక్ చేయండి",
-  "motionInfo": "కదలిక సమాచారం"
+  "motionInfo": "కదలిక సమాచారం",
+  "liveTracking": "లైవ్ ట్రాకింగ్",
+  "fleetMap": "వాహనాల మ్యాప్",
+  "statusOverview": "స్థితి అవలోకనం",
 };
 
 export const status = {

@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "ግዜ መወዳእታ",
   "deviceImage": "ስእሊ መሳርሒ",
   "clickToUpload": "ንምጽዓን ጠውቕ",
-  "motionInfo": "ሓበሬታ ምንቅስቓስ"
+  "motionInfo": "ሓበሬታ ምንቅስቓስ",
+  "liveTracking": "ቀጥታ ምክትታል",
+  "fleetMap": "ካርታ መካይን",
+  "statusOverview": "ሓፈሻዊ ኩነታት",
 };
 
 export const status = {

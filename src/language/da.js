@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Udløbstid",
   "deviceImage": "Enhedsbillede",
   "clickToUpload": "Klik for at uploade",
-  "motionInfo": "Bevægelsesinfo"
+  "motionInfo": "Bevægelsesinfo",
+  "liveTracking": "Live-tracking",
+  "fleetMap": "Flådekort",
+  "statusOverview": "Statusoversigt",
 };
 
 export const status = {

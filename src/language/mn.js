@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "Дуусах хугацаа",
   "deviceImage": "Төхөөрөмжийн зураг",
   "clickToUpload": "Оруулахын тулд дарна уу",
-  "motionInfo": "Хөдөлгөөний мэдээлэл"
+  "motionInfo": "Хөдөлгөөний мэдээлэл",
+  "liveTracking": "Шууд хяналт",
+  "fleetMap": "Автопаркийн газрын зураг",
+  "statusOverview": "Төлөв байдлын тойм",
 };
 
 export const status = {

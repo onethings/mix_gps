@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Vervaldatum",
   "deviceImage": "Apparaatafbeelding",
   "clickToUpload": "Klik om te uploaden",
-  "motionInfo": "Bewegingsinformatie"
+  "motionInfo": "Bewegingsinformatie",
+  "liveTracking": "Live volgen",
+  "fleetMap": "Wagenparkkaart",
+  "statusOverview": "Statusoverzicht",
 };
 
 export const status = {

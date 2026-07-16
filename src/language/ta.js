@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "காலாவதி நேரம்",
   "deviceImage": "சாதனத்தின் படம்",
   "clickToUpload": "பதிவேற்ற கிளிக் செய்யவும்",
-  "motionInfo": "இயக்கத் தகவல்"
+  "motionInfo": "இயக்கத் தகவல்",
+  "liveTracking": "நேரடி கண்காணிப்பு",
+  "fleetMap": "வாகனக் குழு வரைபடம்",
+  "statusOverview": "நிலை மேலோட்டம்",
 };
 
 export const status = {

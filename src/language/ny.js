@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Nthawi yotha",
   "deviceImage": "Chithunzi cha chipangizo",
   "clickToUpload": "Dinani kuti muyike",
-  "motionInfo": "Zambiri zoyenda"
+  "motionInfo": "Zambiri zoyenda",
+  "liveTracking": "Kutsata pamanthawi yeniyeni",
+  "fleetMap": "Mapu a magalimoto",
+  "statusOverview": "Chidule cha momwe zinthu ziliri",
 };
 
 export const status = {

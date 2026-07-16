@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "Aegumise aeg",
   "deviceImage": "Seadme pilt",
   "clickToUpload": "Klõpsake üleslaadimiseks",
-  "motionInfo": "Liikumisteave"
+  "motionInfo": "Liikumisteave",
+  "liveTracking": "Reaalajas jälgimine",
+  "fleetMap": "Pargi kaart",
+  "statusOverview": "Oleku ülevaade",
 };
 
 export const status = {

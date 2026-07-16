@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Lokacin karewa",
   "deviceImage": "Hoton na'ura",
   "clickToUpload": "Danna don lodawa",
-  "motionInfo": "Bayanan motsi"
+  "motionInfo": "Bayanan motsi",
+  "liveTracking": "Binciko kai-tsaye",
+  "fleetMap": "Taswirar ababen hawa",
+  "statusOverview": "Bayanin matsayi",
 };
 
 export const status = {

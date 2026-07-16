@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "Utløpsdato",
   "deviceImage": "Enhetsbilde",
   "clickToUpload": "Klikk for å laste opp",
-  "motionInfo": "Bevegelsesinformasjon"
+  "motionInfo": "Bevegelsesinformasjon",
+  "liveTracking": "Live-sporing",
+  "fleetMap": "Flotekart",
+  "statusOverview": "Statusoversikt",
 };
 
 export const status = {

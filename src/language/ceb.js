@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Oras sa pag-expire",
   "deviceImage": "Litrato sa device",
   "clickToUpload": "I-klik aron i-upload",
-  "motionInfo": "Impormasyon sa paglihok"
+  "motionInfo": "Impormasyon sa paglihok",
+  "liveTracking": "Live nga pagsubay",
+  "fleetMap": "Mapa sa plota",
+  "statusOverview": "Kinatibuk-ang kahimtang",
 };
 
 export const status = {

@@ -1089,7 +1089,10 @@ export const nav = {
   "expirationTime": "Dema bidawîbûnê",
   "deviceImage": "Wêneyê amûrê",
   "clickToUpload": "Ji bo barkirinê bikirtîne",
-  "motionInfo": "Agahiyên tevgerê"
+  "motionInfo": "Agahiyên tevgerê",
+  "liveTracking": "Şopandina zindî",
+  "fleetMap": "Nexşeya fîloyê",
+  "statusOverview": "Giştpêvoya rewşê",
 };
 
 export const status = {

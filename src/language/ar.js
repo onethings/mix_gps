@@ -1087,7 +1087,10 @@ export const nav = {
   "expirationTime": "انتهاء الصلاحية",
   "deviceImage": "صورة الجهاز",
   "clickToUpload": "انقر للتحميل",
-  "motionInfo": "معلومات الحركة"
+  "motionInfo": "معلومات الحركة",
+  "liveTracking": "تتبع المباشر",
+  "fleetMap": "خريطة الأسطول",
+  "statusOverview": "نظرة عامة على الحالة",
 };
 
 export const status = {

@@ -1087,7 +1087,11 @@ export const nav = {
   "expirationTime": "ۋاقتى ئۆتۈش",
   "deviceImage": "ئۈسكۈنە سۈرىتى",
   "clickToUpload": "يۈكلەش ئۈچۈن چېكىڭ",
-  "motionInfo": "ھەرىكەت ئۇچۇرلىرى"
+  "motionInfo": "ھەرىكەت ئۇچۇرلىرى",
+  "liveTracking": "نەق مەيدان ئىز قوغلاش",
+  "fleetMap": "ئاپتوموبىل ئەترىتى خەرىتىسى",
+  "statusOverview": "ھالەت ئومۇمىي ئەھۋالى",
+
 };
 
 export const status = {

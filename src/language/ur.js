@@ -1094,7 +1094,10 @@ export const nav = {
   "expirationTime": "میعاد ختم ہونے کا وقت",
   "deviceImage": "ڈیوائس کی تصویر",
   "clickToUpload": "اپ لوڈ کرنے کے لیے کلک کریں",
-  "motionInfo": "حرکت کی معلومات"
+"motionInfo": "حرکت کی معلومات",
+  "liveTracking": "براہِ راست ٹریکنگ",
+  "fleetMap": "گاڑیوں کا نقشہ",
+  "statusOverview": "حالت کا جائزہ"
 };
 
 export const status = {

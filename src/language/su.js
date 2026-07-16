@@ -1093,7 +1093,10 @@ export const nav = {
   "expirationTime": "Waktos kadaluarsa",
   "deviceImage": "Gambar alat",
   "clickToUpload": "Klik kanggo unggah",
-  "motionInfo": "Inpormasi gerakan"
+  "motionInfo": "Inpormasi gerakan",
+  "liveTracking": "Nyukcruk langsung",
+  "fleetMap": "Peta armada",
+  "statusOverview": "Tinjauan status",
 };
 
 export const status = {

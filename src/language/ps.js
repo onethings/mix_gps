@@ -1090,7 +1090,10 @@ export const nav = {
   "expirationTime": "د ختمیدو وخت",
   "deviceImage": "د وسیلې انځور",
   "clickToUpload": "اپلوډ کولو لپاره کلیک وکړئ",
-  "motionInfo": "د حرکت معلومات"
+  "motionInfo": "د حرکت معلومات",
+  "liveTracking": "ژوندۍ تعقیبونه",
+  "fleetMap": "د هغې د بېړۍ نقشه",
+  "statusOverview": "د وضعیت عمومي کتنه",
   
 };
 
