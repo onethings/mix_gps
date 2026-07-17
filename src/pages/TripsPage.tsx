@@ -234,7 +234,7 @@ export default function TripsPage() {
   }, []);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 md:space-y-5">
       <PageHeader title={t('trips')} description={t('everyMovement')} />
 
       {/* ── Filter bar (like traccar-web) ── */}

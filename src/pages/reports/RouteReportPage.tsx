@@ -84,8 +84,8 @@ export default function RouteReportPage() {
   }, []);
 
   return (
-    <div className="space-y-5">
-      <PageHeader title={t('route')} description={t('reportRouteDesc')} />
+    <div className="space-y-3 md:space-y-5">
+      <PageHeader title={t('route')} description={t('reportRouteDesc')} className="max-md:hidden" />
       <ReportFilter loading={loading} onShow={handleShow}
         columnDefs={COLUMNS} visibleColumns={visibleCols} onToggleColumn={toggleColumn}
       >

@@ -80,8 +80,8 @@ export default function ChartReportPage() {
   }, [rows]);
 
   return (
-    <div className="space-y-5">
-      <PageHeader title={t('chart')} description={t('reportChartDesc')} />
+    <div className="space-y-3 md:space-y-5">
+      <PageHeader title={t('chart')} description={t('reportChartDesc')} className="max-md:hidden" />
       <ReportFilter loading={loading} onShow={handleShow} />
 
       <Card>

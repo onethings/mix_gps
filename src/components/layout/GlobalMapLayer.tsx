@@ -92,9 +92,9 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
       />
 
       {/* Map Controls (top-left) — grouped bar — only on tracking page */}
-      {/* top-14 positions controls below the Topbar (h-14) so they're not hidden behind it */}
+      {/* top-14 positions controls below the Topbar (h-14) on desktop; top-2 on mobile when Topbar is hidden */}
       {showControls && (
-        <div className="absolute left-2 top-14 z-20 flex flex-col gap-1 sm:left-4">
+        <div className="absolute left-2 top-2 z-20 flex flex-col gap-1 sm:left-4 sm:top-14">
           <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur">
             <button type="button" onClick={() => setBasemap('road')}
               className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
@@ -141,9 +141,9 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
         </div>
       )}
 
-      {/* Fleet Stats + Legend Bar (bottom-left) — only on tracking page */}
+      {/* Fleet Stats + Legend Bar (bottom-left) — only on tracking page; hidden on mobile */}
       {showControls && (
-        <div className="pointer-events-none absolute bottom-2 left-2 z-10 flex flex-col gap-1 sm:bottom-4 sm:left-4">
+        <div className="pointer-events-none absolute bottom-2 left-2 z-10 hidden gap-1 md:flex md:flex-col sm:bottom-4 sm:left-4">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md border border-border bg-card/90 px-2.5 py-1.5 text-[10px] text-muted-foreground shadow-sm backdrop-blur sm:px-3 sm:py-2 sm:text-[11px]">
             <span className="font-semibold text-foreground">{fleetStats.total}</span>
             <span className="hidden sm:inline">{t('vehicles')}</span>

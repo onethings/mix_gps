@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { NavLink, useLocation, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { buildReportPath, REPORT_TABS } from '@/lib/reportNav';
@@ -10,6 +11,7 @@ export default function ReportTypeTabs() {
   const [searchParams] = useSearchParams();
   const { administrator, readonly, disableReports } = usePermissions();
   const search = location.search || `?${searchParams.toString()}`;
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   if (disableReports) return null;
 
@@ -19,8 +21,17 @@ export default function ReportTypeTabs() {
     return true;
   });
 
+  // Auto-scroll active tab into view when navigating from overview
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const activeTab = scrollRef.current.querySelector('[aria-current="page"]') as HTMLElement | null;
+    if (activeTab) {
+      activeTab.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }, [location.pathname]);
+
   return (
-    <div className="-mx-1 mb-6 overflow-x-auto border-b border-border pb-px scrollbar-thin">
+    <div ref={scrollRef} className="-mx-1 mb-3 md:mb-6 overflow-x-auto border-b border-border pb-px scrollbar-thin">
       <div className="flex min-w-min gap-0.5 px-1">
         {tabs.map((tab) => {
           const to = buildReportPath(tab.path, search);

@@ -47,8 +47,8 @@ export default function ScheduledReportPage() {
   }, [deleteTarget, load]);
 
   return (
-    <div className="space-y-5">
-      <PageHeader title={t('scheduledReports')} description={t('manageAutomatedReportGeneration')} />
+    <div className="space-y-3 md:space-y-5">
+      <PageHeader title={t('scheduledReports')} description={t('manageAutomatedReportGeneration')} className="max-md:hidden" />
       <Card>
         <CardHeader>
           <CardTitle>{t('scheduledReports')}</CardTitle>

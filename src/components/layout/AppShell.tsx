@@ -9,6 +9,7 @@ import Topbar from './Topbar';
 import TabBar from './TabBar';
 import GlobalMapLayer from './GlobalMapLayer';
 import MobileNav from './MobileNav';
+import BottomNav from './BottomNav';
 
 const REPORT_PATHS = ['/reports','/fuel','/maintenance','/logistics','/alerts','/events','/orders','/geofences','/route-planning'];  // /reports/trips is covered by '/reports'
 const MGMT_PATHS = ['/devices','/drivers','/settings'];
@@ -16,6 +17,8 @@ const SIDEBAR_PATHS = new Set([...REPORT_PATHS, ...MGMT_PATHS]);
 
 /** Pages that use the full-screen map as background */
 const MAP_PATHS = new Set(['/tracking']);
+/** Pages that hide topbar on mobile (full-screen content like map/replay) */
+const HIDE_TOPBAR_PATHS = new Set(['/tracking', '/replay', '/reports', '/dashboard', '/settings']);
 
 const APP_TITLE = 'Kevin GPS';
 
@@ -26,6 +29,7 @@ function ShellContent() {
   const basePath = '/' + (pathname.split('/')[1] || '');
   const showSidebar = SIDEBAR_PATHS.has(basePath);
   const isMapPage = MAP_PATHS.has(basePath);
+  const hideMobileTopbar = HIDE_TOPBAR_PATHS.has(basePath);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Update browser tab title to match current page
@@ -44,14 +48,17 @@ function ShellContent() {
       {/* Layer 1: Global map — always mounted, never reloads */}
       <GlobalMapLayer showControls={isMapPage} />
 
+      {/* Mobile bottom navigation */}
+      <BottomNav />
+
       {/* Layer 2: UI Overlay — explicit z-10 ensures it's always above map markers */}
       <div className={cn(
         'absolute inset-0 flex flex-col z-10',
         isMapPage ? 'pointer-events-none bg-transparent' : 'bg-background',
       )}>
-        {/* On tracking pages, limit pointer-events area so map controls (top-right zoom buttons,
-            top-left basemap ruler etc.) remain clickable through the overlay. */}
-        <div className={cn(isMapPage ? 'pointer-events-none' : '')}>
+        {/* On tracking/replay pages, limit pointer-events so map controls remain clickable.
+            On mobile, hide the topbar + tabbar entirely for a full-screen map experience. */}
+        <div className={cn(isMapPage ? 'pointer-events-none' : '', hideMobileTopbar ? 'max-md:hidden' : '')}>
           <div className={cn(isMapPage ? 'pointer-events-auto pr-12' : '')}>
             <Topbar onMenuToggle={() => setMobileNavOpen((v) => !v)} />
           </div>
@@ -68,8 +75,9 @@ function ShellContent() {
 
           <main className={cn(
             'flex-1 overflow-y-auto',
-            showSidebar ? 'p-3 sm:p-4' : 'p-0',
+            showSidebar ? 'p-2 sm:p-4' : 'p-0',
             isMapPage ? 'bg-transparent' : 'bg-background',
+            'pb-safe-lg md:pb-0', // bottom nav spacing on mobile
           )}>
             <div className={cn(isMapPage ? 'h-full' : 'mx-auto w-full max-w-7xl')}>
               <Outlet />

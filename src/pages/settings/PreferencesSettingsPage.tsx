@@ -186,7 +186,7 @@ export default function PreferencesSettingsPage() {
 
   /* ---------- render ---------- */
   return (
-    <div className="space-y-6 pb-10">
+    <div className="space-y-3 md:space-y-6 pb-safe-lg md:pb-10">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -230,9 +230,9 @@ export default function PreferencesSettingsPage() {
         </div>
 
         {/* ════════════ MAP TAB ════════════ */}
-        <TabsContent value="map" className="space-y-4 mt-0">
+        <TabsContent value="map" className="space-y-3 md:space-y-4 mt-0">
           <Card>
-            <CardContent className="space-y-5 p-5">
+            <CardContent className="space-y-3 md:space-y-5 p-3 md:p-5">
               {/* Active map styles — checkboxes instead of multi-select */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">{t('mapActive')}</label>
@@ -347,9 +347,9 @@ export default function PreferencesSettingsPage() {
         </TabsContent>
 
         {/* ════════════ DEVICE TAB ════════════ */}
-        <TabsContent value="device" className="space-y-4 mt-0">
+        <TabsContent value="device" className="space-y-3 md:space-y-4 mt-0">
           <Card>
-            <CardContent className="space-y-5 p-5">
+            <CardContent className="space-y-3 md:space-y-5 p-3 md:p-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">{t('devicePrimaryInfo')}</label>
                 <select
@@ -380,9 +380,9 @@ export default function PreferencesSettingsPage() {
         </TabsContent>
 
         {/* ════════════ SOUND TAB ════════════ */}
-        <TabsContent value="sound" className="space-y-4 mt-0">
+        <TabsContent value="sound" className="space-y-3 md:space-y-4 mt-0">
           <Card>
-            <CardContent className="space-y-5 p-5">
+            <CardContent className="space-y-3 md:space-y-5 p-3 md:p-5">
               <div className="space-y-2">
                 <label className="text-sm font-medium">{t('eventsSoundEvents')}</label>
                 <div className="space-y-1.5 max-h-[240px] overflow-y-auto">
@@ -429,9 +429,9 @@ export default function PreferencesSettingsPage() {
         </TabsContent>
 
         {/* ════════════ TOKEN TAB ════════════ */}
-        <TabsContent value="token" className="space-y-4 mt-0">
+        <TabsContent value="token" className="space-y-3 md:space-y-4 mt-0">
           <Card>
-            <CardContent className="space-y-5 p-5">
+            <CardContent className="space-y-3 md:space-y-5 p-3 md:p-5">
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">{t('userExpirationTime')}</label>
                 <Input
@@ -469,9 +469,9 @@ export default function PreferencesSettingsPage() {
         </TabsContent>
 
         {/* ════════════ INFO TAB ════════════ */}
-        <TabsContent value="info" className="space-y-4 mt-0">
+        <TabsContent value="info" className="space-y-3 md:space-y-4 mt-0">
           <Card>
-            <CardContent className="space-y-3 p-5">
+            <CardContent className="space-y-2 md:space-y-3 p-3 md:p-5">
               <div className={rowClass}>
                 <span className="text-sm text-muted-foreground">{t('settingsAppVersion')}</span>
                 <span className="text-sm font-medium">{versionApp || '—'}</span>

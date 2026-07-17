@@ -93,8 +93,8 @@ export default function GeofencesReportPage() {
   }, []);
 
   return (
-    <div className="space-y-5">
-      <PageHeader title={t('geofences')} description={t('reportApiDesc')} />
+    <div className="space-y-3 md:space-y-5">
+      <PageHeader title={t('geofences')} description={t('reportApiDesc')} className="max-md:hidden" />
       <ReportFilter loading={loading} onShow={handleShow}
         columnDefs={COLUMNS} visibleColumns={visibleCols} onToggleColumn={toggleColumn}
         extraFilters={

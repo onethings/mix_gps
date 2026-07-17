@@ -56,11 +56,11 @@ export default function RoutePlanningPage() {
     setFormOpen(true);
   };
 
-  return (<div className="space-y-5">
+  return (<div className="space-y-3 md:space-y-5">
     <PageHeader title={t('routePlanningTitle')} description={t('routePlanningDesc')}
       actions={<Button size="sm" onClick={() => openForm()}><Plus className="h-4 w-4" /> {t('newPlan')}</Button>} />
 
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {routes.map(r => {
         const cfg = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
         const Icon = cfg.icon;

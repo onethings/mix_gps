@@ -85,4 +85,15 @@
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
+
+  /* Safe area insets for mobile (iOS notch / home indicator) */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pb-safe {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+  .pb-safe-lg {
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  }
 }

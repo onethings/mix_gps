@@ -2,12 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Download, Map as MapIcon, Pause, Play, Ruler, Satellite, Shield, SkipBack, SkipForward, Table2, BarChart3 } from 'lucide-react';
+import { Download, Map as MapIcon, Pause, Play, Ruler, Satellite, Shield, SkipBack, SkipForward, Table2, BarChart3, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
 import { useLiveData } from '@/context/LiveDataContext';
-import { useMapContext } from '@/context/MapContext';
 import { useT } from '@/lib/i18n';
 import { createCarMarkerElement, updateCarMarkerElement } from '@/components/tracking/carMarkerSvg';
 import { reverseGeocode, lookupCached, subscribeGeocode, geocodeKey } from '@/lib/geocoder';
@@ -310,12 +309,12 @@ function DataPanel({ route, stops, cursor, deviceName, selectedDate, onSeek }: {
 export default function ReplayPage() {
   const { t } = useT();
   const { devices, vehicles } = useLiveData();
-  const { selectedVehicleId } = useMapContext();
+  const fallbackVehicleId = devices.length === 1 ? devices[0].id : null;
   const [searchParams, setSearchParams] = useSearchParams();
   const deviceIdFromUrl = searchParams.get('deviceId') || '';
 
   // Default to last selected vehicle from tracking when no explicit deviceId in URL
-  const [deviceId, setDeviceId] = useState(deviceIdFromUrl || String(selectedVehicleId ?? ''));
+  const [deviceId, setDeviceId] = useState(deviceIdFromUrl || String(fallbackVehicleId ?? ''));
   const [basemap, setBasemap] = useState('road');
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
@@ -333,6 +332,7 @@ export default function ReplayPage() {
   const [showData, setShowData] = useState(false);
   const [showChartPanel, setShowChartPanel] = useState(true);
   const showChartPrefedRef = useRef(false);
+  const [mobileCalendarOpen, setMobileCalendarOpen] = useState(false);
   const [showGeofences, setShowGeofences] = useState(false);
   const [geofences, setGeofences] = useState<TraccarGeofence[]>([]);
   const [geofencesLoaded, setGeofencesLoaded] = useState(false);
@@ -358,6 +358,7 @@ export default function ReplayPage() {
 
   // Auto-select today's date when ?date=today is in the URL (runs before restore effect)
   const autoDateRef = useRef(false);
+  const autoPlayRef = useRef(false);
   useEffect(() => {
     if (dateFromUrl === 'today' && deviceId && !autoDateRef.current) {
       autoDateRef.current = true;
@@ -368,6 +369,14 @@ export default function ReplayPage() {
       setSearchParams({ deviceId }, { replace: true });
     }
   }, [dateFromUrl, deviceId, setSearchParams]);
+
+  // Auto-play when route finishes loading from "Replay Today"
+  useEffect(() => {
+    if (autoDateRef.current && route.length > 0 && !autoPlayRef.current) {
+      autoPlayRef.current = true;
+      setPlaying(true);
+    }
+  }, [route.length]);
 
   useEffect(() => {
     if (deviceId) setSearchParams({ deviceId }, { replace: true });
@@ -392,21 +401,24 @@ export default function ReplayPage() {
     });
 
     // Then restore ephemeral replay state from localStorage (route, date, cursor — NOT UI prefs)
-    try {
-      const raw = localStorage.getItem(`replay-state-${deviceId}`);
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-      if (saved.selectedDate) {
-        setSelectedDate(saved.selectedDate);
-        setCalYear(saved.calYear ?? new Date().getFullYear());
-        setCalMonth(saved.calMonth ?? new Date().getMonth());
-        setCursor(saved.cursor ?? 0);
-        setSpeed(saved.speed ?? 1);
-        // basemap/showChartPanel/showData are owned by IndexedDB — don't override from localStorage
-        if (saved.route?.length) setRoute(saved.route);
-        if (saved.stops?.length) setStops(saved.stops);
-      }
-    } catch { /* ignore */ }
+    // Skip restore if we came from "Replay Today" (autoDateRef already set the date)
+    if (!autoDateRef.current) {
+      try {
+        const raw = localStorage.getItem(`replay-state-${deviceId}`);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (saved.selectedDate) {
+          setSelectedDate(saved.selectedDate);
+          setCalYear(saved.calYear ?? new Date().getFullYear());
+          setCalMonth(saved.calMonth ?? new Date().getMonth());
+          setCursor(saved.cursor ?? 0);
+          setSpeed(saved.speed ?? 1);
+          // basemap/showChartPanel/showData are owned by IndexedDB — don't override from localStorage
+          if (saved.route?.length) setRoute(saved.route);
+          if (saved.stops?.length) setStops(saved.stops);
+        }
+      } catch { /* ignore */ }
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceId]);
 
@@ -787,7 +799,8 @@ export default function ReplayPage() {
     }
 
     const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0]!, coords[0]!));
-    map.fitBounds(bounds, { padding: 60, duration: 500 });
+    const isMobile = window.innerWidth < 768;
+    map.fitBounds(bounds, { padding: { top: 60, bottom: isMobile ? 140 : 60, left: 60, right: 60 }, duration: 500 });
   }
 
   // Switch basemap
@@ -882,12 +895,16 @@ export default function ReplayPage() {
     markerRef.current.setLngLat([lng, lat]);
     try {
       const canvas = map.getCanvas();
+      const isMobile = window.innerWidth < 768;
       const margin = 120;
+      const bottomMargin = isMobile ? 180 : 120;
       const pt = map.project([lng, lat]);
       const w = canvas.width;
       const h = canvas.height;
-      if (pt.x < margin || pt.x > w - margin || pt.y < margin || pt.y > h - margin) {
-        map.panTo([lng, lat], { duration: 300 });
+      if (pt.x < margin || pt.x > w - margin || pt.y < margin || pt.y > h - bottomMargin) {
+        // Use easeTo with short duration + offset to avoid flashing from interrupted flyTo
+        const offsetY = isMobile ? 80 : 0;
+        map.easeTo({ center: [lng, lat], duration: 100, offset: [0, offsetY] });
       }
     } catch { /* ignore */ }
     const course = Number(p.course);
@@ -948,7 +965,7 @@ export default function ReplayPage() {
   }, [calYear, calMonth]);
 
   return (
-    <div className="flex h-full min-h-[640px] flex-col">
+    <div className="flex h-full min-h-[640px] flex-col pb-safe-lg md:pb-0">
       <div className="flex flex-1 min-h-0">
         {/* Left Sidebar */}
         <aside className="hidden w-[320px] shrink-0 border-r border-border bg-card lg:flex lg:flex-col overflow-hidden">
@@ -975,8 +992,40 @@ export default function ReplayPage() {
         <div className="relative flex min-h-0 flex-1">
           <div ref={mapContainerRef} className="min-h-0 flex-1" />
 
-          {/* Map controls overlay (top-left) */}
-          <div className="absolute left-4 top-4 z-20 flex items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur">
+          {/* Mobile: calendar button below map controls */}
+          <div className="absolute left-2 top-14 z-20 md:hidden">
+            {selectedDate && (
+              <button type="button" onClick={() => setMobileCalendarOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-card/95 px-2.5 py-1.5 text-xs font-medium text-foreground shadow-md backdrop-blur transition-colors hover:bg-accent">
+                <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                <span>{selectedDate.slice(5)}</span>
+              </button>
+            )}
+            {!selectedDate && (
+              <button type="button" onClick={() => setMobileCalendarOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-card/95 px-2.5 py-1.5 text-xs font-medium text-foreground shadow-md backdrop-blur transition-colors hover:bg-accent">
+                <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                <span>{t('selectDate')}</span>
+              </button>
+            )}
+          </div>
+
+          {/* Mobile calendar date picker overlay */}
+          {mobileCalendarOpen && (
+            <MobileDatePicker
+              calYear={calYear}
+              calMonth={calMonth}
+              onPrevMonth={goPrevMonth}
+              onNextMonth={goNextMonth}
+              dailyKm={dailyKm}
+              selectedDate={selectedDate}
+              onDayClick={(day) => { handleDayClick(day); setMobileCalendarOpen(false); }}
+              onClose={() => setMobileCalendarOpen(false)}
+            />
+          )}
+
+          {/* Map controls overlay (top-left) — top-2 on mobile when Topbar hidden, top-4 on desktop */}
+          <div className="absolute left-2 top-2 z-20 flex items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur sm:left-4 sm:top-4">
             <button type="button" onClick={() => setBasemap('road')}
               className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
                 basemap === 'road' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
@@ -1005,7 +1054,7 @@ export default function ReplayPage() {
 
           {/* Error overlay */}
           {error && (
-            <div className="absolute right-4 top-4 z-20 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive shadow-md backdrop-blur">
+            <div className="absolute right-2 top-2 z-20 rounded border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] text-destructive shadow-md backdrop-blur sm:right-4 sm:top-4">
               {error}
             </div>
           )}
@@ -1021,20 +1070,21 @@ export default function ReplayPage() {
         </div>
       </div>
 
-      {/* Bottom controls */}
+      {/* Bottom controls — on mobile: absolute at bottom of map area, above nav */}
       {selectedDate && total > 0 && (
-        <div className="shrink-0 border-t border-border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setPlaying(false); setCursor(0); }} disabled={!total}>
-              <SkipBack className="h-3.5 w-3.5" />
+        <div className="shrink-0 border-t border-border bg-card/95 px-2 py-1.5 shadow-lg backdrop-blur-sm md:px-3 md:py-2 max-md:absolute max-md:bottom-12 max-md:left-0 max-md:right-0 max-md:z-30 max-md:border-t max-md:border-border max-md:pb-safe">
+          <div className="flex items-center gap-1 md:gap-2">
+            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 md:h-7 md:w-7" onClick={() => { setPlaying(false); setCursor(0); }} disabled={!total}>
+              <SkipBack className="h-4 w-4 md:h-3.5 md:w-3.5" />
             </Button>
-            <Button size="sm" className="h-7 w-7 p-0" onClick={() => setPlaying((p) => !p)} disabled={!total || cursor >= total - 1}>
-              {playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+            <Button size="sm" className="h-8 w-8 p-0 md:h-7 md:w-7" onClick={() => setPlaying((p) => !p)} disabled={!total || cursor >= total - 1}>
+              {playing ? <Pause className="h-4 w-4 md:h-3.5 md:w-3.5" /> : <Play className="h-4 w-4 md:h-3.5 md:w-3.5" />}
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setPlaying(false); setCursor(total ? total - 1 : 0); }} disabled={!total}>
-              <SkipForward className="h-3.5 w-3.5" />
+            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 md:h-7 md:w-7" onClick={() => { setPlaying(false); setCursor(total ? total - 1 : 0); }} disabled={!total}>
+              <SkipForward className="h-4 w-4 md:h-3.5 md:w-3.5" />
             </Button>
-            <div className="flex items-center gap-0.5 rounded border border-input bg-background p-0.5">
+            {/* Speed — show full selector on desktop, current speed badge on mobile */}
+            <div className="hidden md:flex items-center gap-0.5 rounded border border-input bg-background p-0.5">
               {SPEEDS.map((s) => (
                 <button key={s} type="button" onClick={() => setSpeed(s)}
                   className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${speed === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -1042,15 +1092,19 @@ export default function ReplayPage() {
                 </button>
               ))}
             </div>
-            <span className="text-[11px] tabular-nums text-muted-foreground">
-              {total ? `${cursor + 1} / ${total}` : '—'}
+            <span className="rounded border border-input bg-background px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground md:hidden">
+              {speed}×
             </span>
-            <span className="text-[11px] text-muted-foreground ml-auto">{selectedDate}</span>
-            <Button size="sm" variant={showChartPanel ? 'default' : 'outline'} className="h-7 gap-1 px-2 text-[10px] font-semibold"
+            <span className="text-[10px] tabular-nums text-muted-foreground md:text-[11px]">
+              {total ? `${cursor + 1}/${total}` : '—'}
+            </span>
+            {/* Desktop: date + chart/data toggles */}
+            <span className="hidden text-[11px] text-muted-foreground md:inline ml-auto">{selectedDate}</span>
+            <Button size="sm" variant={showChartPanel ? 'default' : 'outline'} className="hidden h-7 gap-1 px-2 text-[10px] font-semibold md:inline-flex"
               onClick={() => setShowChartPanel((v) => !v)}>
               <BarChart3 className="h-3 w-3" /> {t('chart')}
             </Button>
-            <Button size="sm" variant={showData ? 'default' : 'outline'} className="h-7 gap-1 px-2 text-[10px] font-semibold"
+            <Button size="sm" variant={showData ? 'default' : 'outline'} className="hidden h-7 gap-1 px-2 text-[10px] font-semibold md:inline-flex"
               onClick={() => setShowData((v) => !v)}>
               <Table2 className="h-3 w-3" /> {t('data')}
             </Button>
@@ -1059,11 +1113,11 @@ export default function ReplayPage() {
           {/* Range slider */}
           <input type="range" min={0} max={Math.max(0, total - 1)} value={cursor}
             onChange={(e) => { setPlaying(false); setCursor(Number(e.target.value)); }}
-            disabled={!total} className="mt-1 h-1 w-full accent-primary" />
+            disabled={!total} className="mt-1 h-1.5 w-full accent-primary md:h-1" />
 
-          {/* Current point info */}
+          {/* Current point info — desktop only */}
           {current && (
-            <div className="mt-1 flex gap-3 text-[10px] text-muted-foreground">
+            <div className="mt-1 hidden gap-3 text-[10px] text-muted-foreground md:flex">
               <span><span className="uppercase">{t('time')}</span> <span className="text-foreground">{formatDate(current.fixTime || current.deviceTime)}</span></span>
               <span><span className="uppercase">{t('speed')}</span> <span className="text-foreground tabular-nums">{Math.round((Number(current.speed) || 0) * 1.852)} {t('unitKmh')}</span></span>
               <span className="hidden sm:inline"><span className="uppercase">{t('coords')}</span> <span className="font-mono text-foreground">{Number(current.latitude).toFixed(4)},{Number(current.longitude).toFixed(4)}</span></span>
@@ -1073,26 +1127,107 @@ export default function ReplayPage() {
         </div>
       )}
 
-      {/* Bottom Chart Panel */}
+      {/* Bottom Chart Panel — hidden on mobile */}
       {selectedDate && total > 0 && showChartPanel && (
-        <div className="h-[200px] shrink-0 border-t border-border">
+        <div className="hidden h-[200px] shrink-0 border-t border-border md:block">
           <ReplayBottomPanel route={route} deviceName={deviceName} selectedDate={selectedDate} cursor={cursor} />
         </div>
       )}
 
-      {/* Data Panel (route/stops table) */}
+      {/* Data Panel (route/stops table) — hidden on mobile */}
       {selectedDate && total > 0 && showData && (
-        <div className="h-[300px] shrink-0 border-t border-border">
+        <div className="hidden h-[300px] shrink-0 border-t border-border md:block">
           <DataPanel route={route} stops={stops} cursor={cursor} deviceName={deviceName} selectedDate={selectedDate} onSeek={(i) => { setCursor(i); setPlaying(false); }} />
         </div>
       )}
 
-      {/* Stops only (no route points) */}
+      {/* Stops only (no route points) — hidden on mobile */}
       {selectedDate && total === 0 && stops.length > 0 && (
-        <div className="h-[300px] shrink-0 border-t border-border">
+        <div className="hidden h-[300px] shrink-0 border-t border-border md:block">
           <DataPanel route={route} stops={stops} cursor={cursor} deviceName={deviceName} selectedDate={selectedDate} />
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Mobile date picker overlay ── */
+function daysInMonth(year: number, month: number) {
+  return new Date(year, month + 1, 0).getDate();
+}
+
+function MobileDatePicker({ calYear, calMonth, onPrevMonth, onNextMonth, dailyKm, selectedDate, onDayClick, onClose }: {
+  calYear: number;
+  calMonth: number;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+  dailyKm: Record<string, number>;
+  selectedDate: string | null;
+  onDayClick: (day: number) => void;
+  onClose: () => void;
+}) {
+  const { t } = useT();
+  const today = new Date();
+  const dim = daysInMonth(calYear, calMonth);
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+  const days: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) days.push(null);
+  for (let i = 1; i <= dim; i++) days.push(i);
+
+  return (
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 md:hidden" onClick={onClose}>
+      <div className="mx-4 w-full max-w-xs rounded-xl border border-border bg-card p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="mb-3 flex items-center justify-between">
+          <button type="button" onClick={onPrevMonth} className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-semibold">
+            {t(MONTHS[calMonth])} {calYear}
+          </span>
+          <button type="button" onClick={onNextMonth} className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Weekday headers */}
+        <div className="mb-1 grid grid-cols-7 text-center text-[10px] font-medium uppercase text-muted-foreground">
+          {['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((d) => (
+            <span key={d}>{t(d)}</span>
+          ))}
+        </div>
+
+        {/* Days grid */}
+        <div className="grid grid-cols-7 gap-0.5">
+          {days.map((day, i) => {
+            if (day == null) return <div key={`empty-${i}`} />;
+            const dk = dayKey(calYear, calMonth, day);
+            const isToday = calYear === today.getFullYear() && calMonth === today.getMonth() && day === today.getDate();
+            const isSelected = dk === selectedDate;
+            const km = dailyKm[dk];
+            const inFuture = new Date(calYear, calMonth, day) > today;
+            return (
+              <button key={dk} type="button" disabled={inFuture}
+                onClick={() => onDayClick(day)}
+                className={cn(
+                  'flex flex-col items-center rounded-lg py-1 text-xs font-medium transition-colors',
+                  isSelected ? 'bg-primary text-primary-foreground' : isToday ? 'border border-primary/40 text-foreground' : 'text-muted-foreground hover:bg-accent',
+                  inFuture && 'opacity-20 pointer-events-none',
+                )}
+              >
+                <span>{day}</span>
+                {km !== undefined && (
+                  <span className={cn('text-[8px] leading-none', isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground/50')}>
+                    {km >= 1000 ? `${(km / 1000).toFixed(0)}k` : km}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

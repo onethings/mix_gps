@@ -133,10 +133,11 @@ export default function ReportPage() {
   if (!fetcher) return <EmptyState title={t('unknownReportType')} />;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 md:space-y-6">
       <PageHeader
         title={t(type || '') || type || ''}
         description={t('reportApiDesc')}
+        className="max-md:hidden"
         actions={
           <>
             <ExportButton disabled={!rows?.length}

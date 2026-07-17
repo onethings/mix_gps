@@ -51,7 +51,7 @@ export default function ReportsIndexPage() {
   const groups = ['driving', 'events', 'system'] as const;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 md:space-y-8">
       <PageHeader title={t('reportsTitle')} description={t('reportsDesc')} />
 
       {groups.map((group) => {
@@ -66,7 +66,7 @@ export default function ReportsIndexPage() {
               </span>
               <span className="h-px flex-1 bg-border" />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {groupItems.map((item) => {
                 const Icon = item.icon;
                 return (

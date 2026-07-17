@@ -66,7 +66,7 @@ export default function LogisticsPage() {
 
   const stats = useMemo(() => ({ total: orders.length, pending: orders.filter(o => o.status === 'pending').length, inTransit: orders.filter(o => o.status === 'in-transit').length, delivered: orders.filter(o => o.status === 'delivered').length }), [orders]);
 
-  return (<div className="space-y-5">
+  return (<div className="space-y-3 md:space-y-5">
     <PageHeader title={t('logisticsTitle')} description={t('logisticsDesc')}
       actions={<Button size="sm" onClick={() => openForm()}><Plus className="h-4 w-4" /> {t('newOrder')}</Button>} />
 
@@ -80,14 +80,14 @@ export default function LogisticsPage() {
         </div>
       </CardContent></Card>
 
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 md:gap-4 md:grid-cols-4">
       <Card><CardContent className="flex items-center gap-4 p-5"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><PackageIcon /></div><div><div className="text-xs font-medium uppercase text-muted-foreground">{t('orders')}</div><div className="text-2xl font-semibold">{stats.total}</div></div></CardContent></Card>
       <Card><CardContent className="flex items-center gap-4 p-5"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600"><Clock className="h-5 w-5" /></div><div><div className="text-xs font-medium uppercase text-muted-foreground">{t('pending')}</div><div className="text-2xl font-semibold">{stats.pending}</div></div></CardContent></Card>
       <Card><CardContent className="flex items-center gap-4 p-5"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600"><Truck className="h-5 w-5" /></div><div><div className="text-xs font-medium uppercase text-muted-foreground">{t('inTransit')}</div><div className="text-2xl font-semibold">{stats.inTransit}</div></div></CardContent></Card>
       <Card><CardContent className="flex items-center gap-4 p-5"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-500/10 text-green-600"><CheckCircle2 className="h-5 w-5" /></div><div><div className="text-xs font-medium uppercase text-muted-foreground">{t('delivered')}</div><div className="text-2xl font-semibold">{stats.delivered}</div></div></CardContent></Card>
     </div>
 
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid grid-cols-1 gap-2 md:gap-4 md:grid-cols-2 xl:grid-cols-3">
       {orders.map(o => (<Card key={o.id}><CardContent className="p-4">
         <div className="flex items-center justify-between"><span className="font-mono text-xs text-muted-foreground">{o.orderNumber}</span>
           <span className={cn('rounded px-2 py-0.5 text-xs font-medium', o.status === 'delivered' && 'bg-green-100 text-green-700', o.status === 'in-transit' && 'bg-purple-100 text-purple-700', o.status === 'pending' && 'bg-amber-100 text-amber-700', o.status === 'cancelled' && 'bg-red-100 text-red-700', o.status === 'assigned' && 'bg-blue-100 text-blue-700')}>{o.status}</span></div>

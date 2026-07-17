@@ -390,8 +390,8 @@ export default function CombinedReportPage() {
   }, [selectedEvent, deviceGroups]);
 
   return (
-    <div className="space-y-5">
-      <PageHeader title={t('combined')} description={t('reportApiDesc')} />
+    <div className="space-y-3 md:space-y-5">
+      <PageHeader title={t('combined')} description={t('reportApiDesc')} className="max-md:hidden" />
 
       {/* ── Filter bar ── */}
       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3">

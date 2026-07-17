@@ -37,7 +37,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <PageHeader
         title={t('fleetOverview')}
         description={t('operationsAtGlance')}
@@ -48,24 +48,25 @@ export default function DashboardPage() {
             <Link to="/tracking">{t('openLiveMap')}</Link>
           </Button>
         }
+        className="max-md:hidden"
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-        <KpiCard label={t('totalVehicles')} value={kpis.totalVehicles} icon={Truck} />
-        <KpiCard label={t('activeVehicles')} value={kpis.activeVehicles} icon={Activity} tone="success" />
-        <KpiCard label={t('idleVehicles')} value={kpis.idleVehicles} icon={Clock} tone="warning" />
-        <KpiCard label={t('alertsToday')} value={kpis.alertsToday} icon={BellRing} tone="destructive" />
-        <KpiCard label={t('avgUtilization')} value={`${kpis.avgUtilization}%`} icon={Wrench} />
+      {/* KPI Cards — reduce visible KPIs on mobile to avoid crunch */}
+      <div className="grid grid-cols-2 gap-2 md:gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <KpiCard label={t('totalVehicles')} value={kpis.totalVehicles} icon={Truck} className="max-md:hidden" />
+        <KpiCard label={t('activeVehicles')} value={kpis.activeVehicles} icon={Activity} tone="success" className="max-md:hidden" />
+        <KpiCard label={t('idleVehicles')} value={kpis.idleVehicles} icon={Clock} tone="warning" className="max-md:hidden" />
+        <KpiCard label={t('alertsToday')} value={kpis.alertsToday} icon={BellRing} tone="destructive" className="hidden md:block" />
+        <KpiCard label={t('avgUtilization')} value={`${kpis.avgUtilization}%`} icon={Wrench} className="hidden xl:block" />
       </div>
 
       {/* Global map is always visible as background — Alerts + Quick Actions */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+      <div className="grid grid-cols-1 gap-3 md:gap-5 lg:grid-cols-3">
+        <Card className="max-md:hidden lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 md:pb-4">
             <div>
               <CardTitle>{t('liveTracking')}</CardTitle>
-              <CardDescription>{t('realtimePositions')}</CardDescription>
+              <CardDescription className="hidden md:block">{t('realtimePositions')}</CardDescription>
             </div>
             <Button size="sm" asChild>
               <Link to="/tracking">
@@ -114,10 +115,10 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 md:pb-4">
             <div>
               <CardTitle>{t('alerts')}</CardTitle>
-              <CardDescription>{t('needsAttention')}</CardDescription>
+              <CardDescription className="hidden md:block">{t('needsAttention')}</CardDescription>
             </div>
             <button
               onClick={() => setAlertSettingsOpen(true)}
@@ -140,10 +141,10 @@ export default function DashboardPage() {
 
       {/* Vehicle Status Table */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 md:pb-4">
           <div>
             <CardTitle>{t('fleetStatus')}</CardTitle>
-            <CardDescription>{t('allVehiclesLive')}</CardDescription>
+            <CardDescription className="hidden md:block">{t('allVehiclesLive')}</CardDescription>
           </div>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/tracking">{t('viewAll')}</Link>
@@ -154,11 +155,11 @@ export default function DashboardPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs font-medium uppercase text-muted-foreground">
-                  <th className="px-4 py-3 sm:px-6">{t('vehicle')}</th>
-                  <th className="px-4 py-3 sm:px-6">{t('status')}</th>
-                  <th className="px-4 py-3 sm:px-6">{t('speed')}</th>
-                  <th className="hidden px-4 py-3 sm:table-cell md:px-6">{t('driver')}</th>
-                  <th className="hidden px-4 py-3 sm:table-cell md:px-6">{t('lastUpdate')}</th>
+                  <th className="px-3 py-2 sm:px-6 sm:py-3">{t('vehicle')}</th>
+                  <th className="px-3 py-2 sm:px-6 sm:py-3">{t('status')}</th>
+                  <th className="px-3 py-2 sm:px-6 sm:py-3">{t('speed')}</th>
+                  <th className="hidden px-3 py-2 sm:table-cell md:px-6 sm:py-3">{t('driver')}</th>
+                  <th className="hidden px-3 py-2 sm:table-cell md:px-6 sm:py-3">{t('lastUpdate')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,7 +176,7 @@ export default function DashboardPage() {
                         !isAlert && 'hover:bg-muted/30',
                       )}
                     >
-                      <td className="px-4 py-3 font-medium sm:px-6">
+                      <td className="px-3 py-2 font-medium sm:px-6 sm:py-3">
                         <span className="inline-flex items-center gap-1.5">
                           {isAlert && (
                             <AlertTriangle className="h-4 w-4 shrink-0 text-red-500" />
@@ -183,16 +184,16 @@ export default function DashboardPage() {
                           {v.name}
                         </span>
                       </td>
-                      <td className="px-4 py-3 sm:px-6"><StatusBadge status={v.status} /></td>
-                      <td className="px-4 py-3 tabular-nums sm:px-6">{v.speed} {t('unitKmh')}</td>
-                      <td className="hidden px-4 py-3 sm:table-cell md:px-6">
+                      <td className="px-3 py-2 sm:px-6 sm:py-3"><StatusBadge status={v.status} /></td>
+                      <td className="px-3 py-2 tabular-nums sm:px-6 sm:py-3">{v.speed} {t('unitKmh')}</td>
+                      <td className="hidden px-3 py-2 sm:table-cell md:px-6 sm:py-3">
                         {hasNoDriver ? (
                           <span className="text-muted-foreground/40">—</span>
                         ) : (
                           <span className="text-muted-foreground">{v.driver}</span>
                         )}
                       </td>
-                      <td className="hidden px-4 py-3 text-xs text-muted-foreground sm:table-cell md:px-6">
+                      <td className="hidden px-3 py-2 text-xs text-muted-foreground sm:table-cell md:px-6 sm:py-3">
                         {formatRelativeTime(v.lastUpdate, locale, t)}
                       </td>
                     </tr>

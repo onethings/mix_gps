@@ -328,7 +328,7 @@ export default function VehicleProfilePage() {
   };
 
   if (!v) {
-    return (<div className="space-y-4">
+    return (<div className="space-y-2 md:space-y-4">
       <Button variant="ghost" size="sm" asChild className="w-fit -ml-2"><Link to="/devices"><ArrowLeft className="h-4 w-4" /> {t('devices')}</Link></Button>
       <EmptyState title={t('vehicleNotFound')} description={t('vehicleNotFoundDesc')} />
     </div>);
@@ -337,7 +337,7 @@ export default function VehicleProfilePage() {
   const latOk = v.lat != null && v.lng != null;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 md:space-y-5">
       <Button variant="ghost" size="sm" asChild className="w-fit -ml-2"><Link to="/devices"><ArrowLeft className="h-4 w-4" /> {t('devices')}</Link></Button>
 
       <PageHeader title={`${v.name} · ${v.model}`} description={`${v.plate} · ${v.group}`}
@@ -364,7 +364,7 @@ export default function VehicleProfilePage() {
         </TabsList>
 
         <TabsContent value="overview">
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-2 lg:gap-4 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader><CardTitle>{t('telemetry')}</CardTitle><CardDescription>{t('mostRecentReadings')}</CardDescription></CardHeader>
               <CardContent className="grid grid-cols-2 gap-3 md:grid-cols-3">

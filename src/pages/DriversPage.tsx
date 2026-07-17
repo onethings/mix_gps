@@ -55,7 +55,7 @@ export default function DriversPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 md:space-y-5">
       {loadError && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{loadError}</div>}
       <PageHeader title={t('driversTitle')} description={loading ? t('loading') : `${drivers.length} ${t('driversCount')}`}
         actions={<Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}><Plus className="h-4 w-4" /> {t('addDriver')}</Button>} />

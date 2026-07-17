@@ -59,7 +59,7 @@ export default function EventsPage() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-3 md:space-y-6">
       <PageHeader
         title={t('events')}
         description={t('systemEventsTimeline')}

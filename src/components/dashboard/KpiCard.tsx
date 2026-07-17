@@ -7,6 +7,7 @@ interface KpiCardProps {
   value: number | string;
   icon: LucideIcon;
   tone?: 'default' | 'success' | 'warning' | 'destructive';
+  className?: string;
 }
 
 const TONE_CLASSES = {
@@ -16,9 +17,9 @@ const TONE_CLASSES = {
   destructive: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 };
 
-export default function KpiCard({ label, value, icon: Icon, tone = 'default' }: KpiCardProps) {
+export default function KpiCard({ label, value, icon: Icon, tone = 'default', className }: KpiCardProps) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+    <div className={cn('rounded-xl border border-border bg-card p-4 shadow-sm', className)}>
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground">{label}</p>

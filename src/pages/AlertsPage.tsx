@@ -38,7 +38,7 @@ export default function AlertsPage() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3 md:space-y-5">
       <PageHeader title={t('alertsTitle')} description={t('alertsDesc')}
         actions={
           <div className="flex items-center gap-1 rounded-md bg-muted p-1">
@@ -80,11 +80,10 @@ export default function AlertsPage() {
                       </div>
                     </div>
                     {a.status === 'open' && (
-                      <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" asChild><Link to={`/event/${a.id}`}>Event</Link></Button>
+                      <div className="flex flex-wrap gap-1 md:gap-2">
+                        <Button variant="outline" size="sm" asChild><Link to={`/event/${a.id}`}>{t('event')}</Link></Button>
                         {a.positionId != null && (
-                          <><Button variant="outline" size="sm" asChild><Link to={`/position/${a.positionId}`}>Position</Link></Button>
-                            <Button variant="outline" size="sm" asChild><Link to={`/network/${a.positionId}`}>Network</Link></Button></>
+                          <Button variant="outline" size="sm" asChild><Link to={`/position/${a.positionId}`}>{t('position')}</Link></Button>
                         )}
                         <Button size="sm" onClick={() => resolve(a.id)}>{t('dismiss')}</Button>
                       </div>

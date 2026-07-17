@@ -54,8 +54,8 @@ export default function LogsReportPage() {
   }, [rows, q, devices]);
 
   return (
-    <div className="space-y-5">
-      <PageHeader title={t('logs')} description={t('deviceCommunicationLogs')} />
+    <div className="space-y-3 md:space-y-5">
+      <PageHeader title={t('logs')} description={t('deviceCommunicationLogs')} className="max-md:hidden" />
       <ReportFilter loading={loading} onShow={handleShow}>
         <ExportButton disabled={!filtered.length}
           csv={{

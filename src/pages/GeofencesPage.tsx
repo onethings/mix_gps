@@ -352,7 +352,7 @@ export default function GeofencesPage() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto max-w-6xl space-y-3 md:space-y-6">
       <PageHeader
         title={t('geofences')}
         description={t('geofencesMapDesc') + ' — ' + t('clickZoneOnMap')}
@@ -415,7 +415,7 @@ export default function GeofencesPage() {
       )}
 
       {/* Geofence cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-2 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((g, i) => {
           const isSelected = selectedId === g.id;
           const color = (g.attributes?.color as string) || COLORS[i % COLORS.length];

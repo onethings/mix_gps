@@ -8,6 +8,7 @@ interface MapContextValue {
   mapHandleRef: React.MutableRefObject<{
     fitAllVehicles: () => void;
     clearMeasurement: () => void;
+    flyToVehicle: (lat: number, lng: number, zoom?: number) => void;
     _measureTotalKm?: number;
   } | null>;
 }
@@ -16,7 +17,7 @@ const MapContext = createContext<MapContextValue | null>(null);
 
 export function MapProvider({ children }: { children: ReactNode }) {
   const [selectedVehicleId, setSelectedVehicleId] = useState<number | null>(null);
-  const mapHandleRef = useRef<{ fitAllVehicles: () => void; clearMeasurement: () => void } | null>(null);
+  const mapHandleRef = useRef<{ fitAllVehicles: () => void; clearMeasurement: () => void; flyToVehicle: (lat: number, lng: number, zoom?: number) => void } | null>(null);
 
   const handleSetSelected = useCallback((id: number | null) => {
     setSelectedVehicleId(id);

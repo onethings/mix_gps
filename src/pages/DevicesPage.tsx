@@ -176,7 +176,7 @@ export default function DevicesPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="mx-auto max-w-7xl space-y-3 md:space-y-5">
       {liveError && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {liveError.message || t('failedToLoad')}
@@ -190,19 +190,19 @@ export default function DevicesPage() {
         actions={
           <>
             <Button variant="outline" size="sm" type="button" onClick={() => setShareOpen(true)}>
-              <Share2 className="h-4 w-4" /> {t('share')}
+              <Share2 className="h-4 w-4" /> <span className="hidden sm:inline">{t('share')}</span>
             </Button>
             <Button variant="outline" size="sm" type="button" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-              <Upload className="h-4 w-4" /> {importing ? t('importing') || 'Importing…' : t('import')}
+              <Upload className="h-4 w-4" /> <span className="hidden sm:inline">{importing ? t('importing') || 'Importing…' : t('import')}</span>
             </Button>
-            <Button variant="ghost" size="sm" type="button" onClick={downloadSampleCsv} title={t('downloadSampleCsv')}>
+            <Button variant="ghost" size="sm" type="button" onClick={downloadSampleCsv} title={t('downloadSampleCsv')} className="hidden sm:inline-flex">
               <Download className="h-4 w-4" /> {t('sampleCsv')}
             </Button>
-            <Button variant="outline" size="sm" type="button" onClick={exportDevices}>
+            <Button variant="outline" size="sm" type="button" onClick={exportDevices} className="hidden sm:inline-flex">
               <Download className="h-4 w-4" /> {t('export')}
             </Button>
             <Button size="sm" onClick={() => { setEditing(null); setOpen(true); }}>
-              <Plus className="h-4 w-4" /> {t('addVehicle')}
+              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">{t('addVehicle')}</span>
             </Button>
           </>
         }
@@ -240,18 +240,18 @@ export default function DevicesPage() {
         </Card>
       )}
 
-      {/* ── Fleet stats cards ── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+      {/* ── Fleet stats cards — hide less important stats on mobile ── */}
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-7">
         {[
-          { label: t('totalVehicles'), value: stats.total, color: '' },
-          { label: t('online'), value: stats.online, color: 'text-green-600' },
-          { label: t('offline'), value: stats.offline, color: 'text-muted-foreground' },
-          { label: t('moving'), value: stats.moving, color: 'text-blue-600' },
-          { label: t('idle'), value: stats.idle, color: 'text-amber-600' },
-          { label: t('stopped'), value: stats.stopped, color: 'text-muted-foreground' },
-          { label: t('alert'), value: stats.alert, color: 'text-destructive' },
+          { label: t('totalVehicles'), value: stats.total, color: '', hide: '' },
+          { label: t('online'), value: stats.online, color: 'text-green-600', hide: '' },
+          { label: t('offline'), value: stats.offline, color: 'text-muted-foreground', hide: 'hidden sm:block' },
+          { label: t('moving'), value: stats.moving, color: 'text-blue-600', hide: '' },
+          { label: t('idle'), value: stats.idle, color: 'text-amber-600', hide: 'hidden sm:block' },
+          { label: t('stopped'), value: stats.stopped, color: 'text-muted-foreground', hide: 'hidden lg:block' },
+          { label: t('alert'), value: stats.alert, color: 'text-destructive', hide: 'hidden lg:block' },
         ].map((s) => (
-          <Card key={s.label}>
+          <Card key={s.label} className={s.hide}> 
             <CardContent className="p-3 text-center">
               <div className={`text-lg font-bold tabular-nums ${s.color}`}>{s.value}</div>
               <div className="text-[10px] font-medium uppercase text-muted-foreground">{s.label}</div>
@@ -284,16 +284,16 @@ export default function DevicesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('vehicle')}</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('status')}</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell">{t('driver')}</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">{t('group')}</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">{t('fuel')}</th>
-                  <th className="hidden px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell">{t('odometer')}</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">{t('imei')}</th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell">{t('signal')}</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('lastUpdate')}</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('management')}</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:px-4 md:py-3">{t('vehicle')}</th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:px-4 md:py-3">{t('status')}</th>
+                  <th className="hidden px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell md:px-4 md:py-3">{t('driver')}</th>
+                  <th className="hidden px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell md:px-4 md:py-3">{t('group')}</th>
+                  <th className="hidden px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell md:px-4 md:py-3">{t('fuel')}</th>
+                  <th className="hidden px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell md:px-4 md:py-3">{t('odometer')}</th>
+                  <th className="hidden px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell md:px-4 md:py-3">{t('imei')}</th>
+                  <th className="hidden px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell md:px-4 md:py-3">{t('signal')}</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground md:px-4 md:py-3">{t('lastUpdate')}</th>
+                  <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground md:px-4 md:py-3">{t('management')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -307,7 +307,7 @@ export default function DevicesPage() {
                   return (
                     <tr key={v.id} className="transition-colors hover:bg-muted/30">
                       {/* Vehicle name + model/plate + firmware */}
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 md:px-4 md:py-3">
                         <div className="flex items-center gap-3">
                           <div className={cn(
                             'flex h-9 w-9 items-center justify-center rounded-lg',
@@ -348,7 +348,7 @@ export default function DevicesPage() {
                       </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-2 md:px-4 md:py-3">
                         <StatusBadge status={v.status} />
                         {batt != null && (
                           <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -359,15 +359,15 @@ export default function DevicesPage() {
                       </td>
 
                       {/* Driver */}
-                      <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">{v.driver || '—'}</td>
+                      <td className="hidden px-3 py-2 text-muted-foreground sm:table-cell md:px-4 md:py-3">{v.driver || '—'}</td>
 
                       {/* Group */}
-                      <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">
+                      <td className="hidden px-3 py-2 text-muted-foreground md:table-cell md:px-4 md:py-3">
                         {v.group ? <Badge variant="outline" className="text-[10px]">{v.group}</Badge> : '—'}
                       </td>
 
                       {/* Fuel */}
-                      <td className="hidden px-4 py-3 lg:table-cell">
+                      <td className="hidden px-3 py-2 lg:table-cell md:px-4 md:py-3">
                         {typeof v.fuel === 'number' ? (
                           <div className="flex items-center gap-2">
                             <Progress value={v.fuel} className="w-14" />
@@ -377,17 +377,17 @@ export default function DevicesPage() {
                       </td>
 
                       {/* Odometer */}
-                      <td className="hidden px-4 py-3 text-right tabular-nums lg:table-cell">
+                      <td className="hidden px-3 py-2 text-right tabular-nums lg:table-cell md:px-4 md:py-3">
                         {v.odometer != null ? `${Number(v.odometer).toLocaleString()} ${t('km')}` : '—'}
                       </td>
 
                       {/* IMEI */}
-                      <td className="hidden px-4 py-3 font-mono text-xs text-muted-foreground xl:table-cell">
+                      <td className="hidden px-3 py-2 font-mono text-xs text-muted-foreground xl:table-cell md:px-4 md:py-3">
                         {d?.uniqueId || '—'}
                       </td>
 
                       {/* Signal */}
-                      <td className="hidden px-4 py-3 xl:table-cell">
+                      <td className="hidden px-3 py-2 xl:table-cell md:px-4 md:py-3">
                         {signal != null ? (
                           <div className="flex items-center gap-1.5">
                             <Signal className={cn(
@@ -404,8 +404,8 @@ export default function DevicesPage() {
                       </td>
 
                       {/* Last Update */}
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="px-3 py-2 text-right md:px-4 md:py-3">
+                        <div className="flex items-center justify-end gap-1 md:gap-1.5">
                           <CalendarDays className="hidden h-3 w-3 text-muted-foreground sm:block" />
                           <span className="text-xs text-muted-foreground whitespace-nowrap">
                             {v.lastUpdate ? formatDate(v.lastUpdate) : '—'}
@@ -414,11 +414,12 @@ export default function DevicesPage() {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-4 py-3 text-right">
+                      <td className="px-3 py-2 text-right md:px-4 md:py-3">
                         <div className="flex items-center justify-end gap-0.5">
-                          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" type="button" asChild>
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 md:h-auto md:w-auto md:px-2" type="button" asChild title={t('open')}>
                             <Link to={`/devices/${v.id}`}>
-                              {t('open')} <ExternalLink className="ml-1 h-3 w-3" />
+                              <ExternalLink className="h-4 w-4 md:mr-1 md:h-3 md:w-3" />
+                              <span className="hidden md:inline">{t('open')}</span>
                             </Link>
                           </Button>
                           <Button size="icon" variant="ghost" className="h-8 w-8" type="button"

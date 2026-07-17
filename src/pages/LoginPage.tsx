@@ -88,8 +88,8 @@ export default function LoginPage() {
                 <LogoIcon />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-white">{t('appTitle')}</h1>
-            <p className="mt-1 text-sm text-white/60">{t('signIn')}</p>
+            <h1 className="text-xl font-bold text-white md:text-2xl">{t('appTitle')}</h1>
+            <p className="hidden mt-1 text-sm text-white/60 md:block">{t('signIn')}</p>
           </div>
 
           {/* Error message */}

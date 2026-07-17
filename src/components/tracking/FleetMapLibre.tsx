@@ -111,6 +111,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Map<number, maplibregl.Marker>>(new Map());
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const popupDismissedRef = useRef(false);
   const geoSourceRef = useRef<string | null>(null);
   const measureLineRef = useRef<maplibregl.Marker[]>([]);
   const measurePointsRef = useRef<{ lng: number; lat: number }[]>([]);
@@ -125,6 +126,11 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   useImperativeHandle(ref, () => ({
     fitAllVehicles: () => fitBounds(mapRef.current, vehicles, fitPadding),
     clearMeasurement: () => clearMeasure(),
+    flyToVehicle: (lat: number, lng: number, zoom = 18) => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.flyTo({ center: [lng, lat], zoom, duration: 400 });
+    },
     get _measureTotalKm() { return measureTotalKmRef.current; },
   }));
 
@@ -140,6 +146,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     if (!map || !validCoord(vehicle.lat, vehicle.lng)) return;
     if (popupRef.current) popupRef.current.remove();
 
+    const isMobile = window.innerWidth < 768;
     const settings = loadPopupSettings();
     const statusColors: Record<string, string> = {
       moving: '#3b82f6', idle: '#f59e0b', stopped: '#6b7280', offline: '#6b7280', alert: '#ef4444', maintenance: '#8b5cf6',
@@ -149,21 +156,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       ? new Date(vehicle.lastUpdate).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
       : '—';
 
-    const rows: string[] = [];
-    const addRow = (key: string, label: string, valueHtml: string) => {
-      const hidden = settings[key] === false ? ' style="display:none"' : '';
-      rows.push(`<tr data-key="${key}"${hidden}><td style="padding:2px 4px;color:#6b7280;width:78px;white-space:nowrap">${label}</td><td style="padding:2px 4px;font-weight:500;color:#111">${valueHtml}</td></tr>`);
-    };
-
-    addRow('speed', t('speed'), `${escapeHtml(vehicle.speed)} ${t('unitKmh')}`);
-    addRow('ignition', t('ignition'), vehicle.ignition ? '<span style="color:#22c55e">ON</span>' : '<span style="color:#6b7280">OFF</span>');
-    addRow('updated', t('updated'), dateStr);
-    addRow('address', t('address'), `<span style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle">${escapeHtml(vehicle.address || '—')}</span>`);
-    addRow('driver', t('driver'), escapeHtml(vehicle.driver || '—'));
-    addRow('odometer', t('odometer'), `${vehicle.odometer ? Number(vehicle.odometer).toLocaleString() : '—'} ${t('unitKm')}`);
-
     const todayMileageId = `mileage-${vehicle.id}-${Date.now()}`;
-    rows.push(`<tr data-key="todayMileage"${settings.todayMileage !== false ? '' : ' style="display:none"'}><td style="padding:2px 4px;color:#6b7280;width:78px;white-space:nowrap">${t('today')}</td><td style="padding:2px 4px;font-weight:500;color:#111"><span id="${todayMileageId}">—</span> ${t('unitKm')}</td></tr>`);
 
     const settingsId = `popup-settings-${vehicle.id}-${Date.now()}`;
     const panelId = `popup-panel-${vehicle.id}-${Date.now()}`;
@@ -196,37 +189,56 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       </div>
     `;
 
+    /* ── Compact inline data rows ── */
+    const dataRows: string[] = [];
+    const addData = (key: string, label: string, valueHtml: string) => {
+      const hidden = settings[key] === false ? ' style="display:none"' : '';
+      dataRows.push(`<span data-key="${key}"${hidden} style="background:#f3f4f6;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6"><span style="color:#6b7280">${label}</span> <b style="color:#111">${valueHtml}</b></span>`);
+    };
+    addData('speed', '⚡', `${escapeHtml(vehicle.speed)} ${t('unitKmh')}`);
+    addData('ignition', '🔑', vehicle.ignition ? '<span style="color:#22c55e">ON</span>' : '<span style="color:#6b7280">OFF</span>');
+    addData('updated', '🕐', dateStr);
+    if (!isMobile) {
+      addData('address', '📍', escapeHtml(vehicle.address || '—'));
+    }
+    addData('driver', '👤', escapeHtml(vehicle.driver || '—'));
+    addData('odometer', '📊', `${vehicle.odometer ? Number(vehicle.odometer).toLocaleString() : '—'} ${t('unitKm')}`);
+
+    const todayMileageRender = `<span data-key="todayMileage"${settings.todayMileage !== false ? '' : ' style="display:none"'} style="background:#f3f4f6;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6"><span style="color:#6b7280">📅</span> <b style="color:#111"><span id="${todayMileageId}">—</span> ${t('unitKm')}</b></span>`;
+
     const html = `
-      <div style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.5;min-width:210px;max-width:280px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #e5e7eb">
-          <span style="width:8px;height:8px;border-radius:50%;background:${sc};flex-shrink:0"></span>
-          <span style="font-weight:600;font-size:13px;color:#111;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(vehicle.name)}</span>
+      <div style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.4;min-width:180px;max-width:${isMobile ? '200px' : '280px'}">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid #e5e7eb">
+          <span style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0"></span>
+          <span style="font-weight:600;font-size:12px;color:#111;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(vehicle.name)}</span>
           ${settingsHtml}
-          <span style="font-size:10px;padding:1px 6px;border-radius:4px;background:${sc}22;color:${sc};font-weight:500;text-transform:capitalize">${escapeHtml(vehicle.status)}</span>
+          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${sc}22;color:${sc};font-weight:600;text-transform:capitalize">${escapeHtml(vehicle.status)}</span>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:11px">
-          ${rows.join('')}
-        </table>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">
+          ${dataRows.join('')}
+          ${todayMileageRender}
+        </div>
         <div data-key="replayLink"${settings.replayLink !== false ? '' : ' style="display:none"'}>
-          <div style="margin-top:6px;padding-top:6px;border-top:1px solid #e5e7eb">
-            <a href="javascript:void(0)" onclick="window.__openReplayTab('${vehicle.id}')" style="display:flex;align-items:center;gap:4px;font-size:11px;color:#3b82f6;text-decoration:none;font-weight:500;padding:4px 0;cursor:pointer"
-              onmouseenter="this.style.color='#2563eb'" onmouseleave="this.style.color='#3b82f6'">
-              <span style="font-size:12px">▶</span> ${t('replayToday')}
-            </a>
-          </div>
+          <a href="javascript:void(0)" onclick="window.__openReplayTab('${vehicle.id}')" style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#3b82f6;text-decoration:none;font-weight:500;padding:3px 0;border-top:1px solid #e5e7eb;cursor:pointer">▶ ${t('replayToday')}</a>
         </div>
       </div>
     `;
 
-    popupRef.current = new maplibregl.Popup({
+    const popup = new maplibregl.Popup({
       offset: [0, -10],
       closeButton: true,
       closeOnClick: false,
-      maxWidth: '300px',
+      maxWidth: isMobile ? '200px' : '300px',
     })
       .setLngLat([vehicle.lng!, vehicle.lat!])
       .setHTML(html)
       .addTo(map);
+
+    // Remember when user dismisses popup (X button) — don't re-show on arrow nav
+    // IMPORTANT: reset after removal above so old popup's close event doesn't pollute state
+    popupDismissedRef.current = false;
+    popup.on('close', () => { popupDismissedRef.current = true; });
+    popupRef.current = popup;
 
     // Fetch today's mileage asynchronously — try replay cache first, then API
     if (settings.todayMileage !== false) {
@@ -417,6 +429,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
           .addTo(map);
 
         el.addEventListener('click', () => {
+          popupDismissedRef.current = false;
           onSelectVehicle(v.id);
           showPopup(v);
         });
@@ -444,6 +457,9 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     // Skip if same as before (avoid re-showing on marker re-sync)
     if (selectedId === prevSelectedRef.current) return;
     prevSelectedRef.current = selectedId;
+
+    // Don't re-show popup on arrow nav if user previously closed it
+    if (popupDismissedRef.current) return;
 
     const vehicle = vehicles.find((v) => v.id === selectedId);
     if (vehicle) showPopup(vehicle);
@@ -502,7 +518,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     if (!map || !mapReady || selectedId == null) return;
     const vehicle = vehicles.find((v) => v.id === selectedId);
     if (!vehicle || !validCoord(vehicle.lat, vehicle.lng)) return;
-    map.flyTo({ center: [vehicle.lng!, vehicle.lat!], zoom: 15, duration: 600 });
+    map.flyTo({ center: [vehicle.lng!, vehicle.lat!], zoom: 18, duration: 600 });
   }, [selectedId, mapReady]);
 
   // Add measurement click handler to map
