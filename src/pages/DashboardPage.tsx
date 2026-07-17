@@ -1,9 +1,10 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Truck, Activity, Clock, BellRing, Wrench, ExternalLink, Map, AlertTriangle } from 'lucide-react';
+import { Truck, Activity, Clock, BellRing, Wrench, ExternalLink, Map, AlertTriangle, Settings } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import KpiCard from '@/components/dashboard/KpiCard';
 import AlertsPanel from '@/components/dashboard/AlertsPanel';
+import AlertSettingsDialog from '@/components/dashboard/AlertSettingsDialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/common/StatusBadge';
@@ -17,6 +18,8 @@ export default function DashboardPage() {
   const { user } = useSession();
   const { vehicles, alerts, connected } = useLiveData();
   const { t, locale } = useT();
+  const [alertSettingsOpen, setAlertSettingsOpen] = useState(false);
+  const [alertSettingsKey, setAlertSettingsKey] = useState(0);
 
   const kpis = useMemo(
     () => computeDashboardKpis(vehicles, alerts, []),
@@ -111,13 +114,27 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-4">
-            <CardTitle>{t('alerts')}</CardTitle>
-            <CardDescription>{t('needsAttention')}</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div>
+              <CardTitle>{t('alerts')}</CardTitle>
+              <CardDescription>{t('needsAttention')}</CardDescription>
+            </div>
+            <button
+              onClick={() => setAlertSettingsOpen(true)}
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              title="Alert settings"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
           </CardHeader>
           <CardContent>
-            <AlertsPanel alerts={alerts} />
+            <AlertsPanel alerts={alerts} key={alertSettingsKey} />
           </CardContent>
+          <AlertSettingsDialog
+            open={alertSettingsOpen}
+            onOpenChange={setAlertSettingsOpen}
+            onSettingsChange={() => setAlertSettingsKey((k) => k + 1)}
+          />
         </Card>
       </div>
 
