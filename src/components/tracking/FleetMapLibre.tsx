@@ -72,6 +72,7 @@ function geofenceToFeature(g: TraccarGeofence, index: number): GeoJSON.Feature |
 export interface FleetMapLibreHandle {
   fitAllVehicles: () => void;
   clearMeasurement: () => void;
+  flyToVehicle: (lat: number, lng: number, zoom?: number) => void;
   _measureTotalKm?: number;
 }
 

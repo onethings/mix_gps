@@ -3,7 +3,7 @@ import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler } from '
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
-import FleetMapLibre from '@/components/tracking/FleetMapLibre';
+import FleetMapLibre, { type FleetMapLibreHandle } from '@/components/tracking/FleetMapLibre';
 import type { Vehicle, TraccarGeofence } from '@/types';
 
 function validLatLng(lat: number | null | undefined, lng: number | null | undefined): boolean {
@@ -33,7 +33,7 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
   const [geofencesLoaded, setGeofencesLoaded] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [measureKm, setMeasureKm] = useState(0);
-  const mapRef = useRef<{ fitAllVehicles: () => void; clearMeasurement: () => void; _measureTotalKm?: number }>(null);
+  const mapRef = useRef<FleetMapLibreHandle>(null);
 
   const noPositionCount = useMemo(() => vehicles.filter((v) => !validLatLng(v.lat, v.lng)).length, [vehicles]);
   const anyPosition = useMemo(() => vehicles.some((v) => validLatLng(v.lat, v.lng)), [vehicles]);
