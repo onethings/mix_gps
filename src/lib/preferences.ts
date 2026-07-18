@@ -21,6 +21,8 @@ export interface LiveTrackingPrefs {
   showVehicleList?: boolean;
   lastVehicleId?: number | null;
   lastZoom?: number;
+  /** Whether the user dismissed the popup on the last selected vehicle */
+  popupDismissed?: boolean;
 }
 
 /** Replay page preferences (per device) — basemap only */

@@ -92,6 +92,10 @@ interface FleetMapLibreProps {
   initialZoom?: number;
   onZoomChange?: (zoom: number) => void;
   zoomPrefResolved?: boolean;
+  /** Initial popup dismissed state loaded from IndexedDB */
+  initialPopupDismissed?: boolean;
+  /** Called when user opens/closes the popup */
+  onPopupDismissedChange?: (dismissed: boolean) => void;
 }
 
 const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(function FleetMapLibre(
@@ -111,6 +115,8 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     initialZoom,
     onZoomChange,
     zoomPrefResolved,
+    initialPopupDismissed,
+    onPopupDismissedChange,
   },
   ref,
 ) {
@@ -119,6 +125,10 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   const markersRef = useRef<Map<number, maplibregl.Marker>>(new Map());
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const popupDismissedRef = useRef(false);
+  // Initialize popupDismissedRef from persisted preference on mount
+  if (initialPopupDismissed !== undefined) {
+    popupDismissedRef.current = initialPopupDismissed;
+  }
   const geoSourceRef = useRef<string | null>(null);
   const measureLineRef = useRef<maplibregl.Marker[]>([]);
   const measurePointsRef = useRef<{ lng: number; lat: number }[]>([]);
@@ -128,10 +138,12 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
   const [mapReady, setMapReady] = useState(false);
+  const [mapVisible, setMapVisible] = useState(false);
+  const mapVisibleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useT();
 
   useImperativeHandle(ref, () => ({
-    fitAllVehicles: () => fitBounds(mapRef.current, vehicles, fitPadding),
+    fitAllVehicles: () => fitBounds(mapRef.current, vehicles, fitPadding, {}),
     clearMeasurement: () => clearMeasure(),
     flyToVehicle: (lat: number, lng: number, zoom = 18) => {
       const map = mapRef.current;
@@ -244,7 +256,10 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     // Remember when user dismisses popup (X button) — don't re-show on arrow nav
     // IMPORTANT: reset after removal above so old popup's close event doesn't pollute state
     popupDismissedRef.current = false;
-    popup.on('close', () => { popupDismissedRef.current = true; });
+    popup.on('close', () => {
+      popupDismissedRef.current = true;
+      onPopupDismissedChange?.(true);
+    });
     popupRef.current = popup;
 
     // Fetch today's mileage asynchronously — try replay cache first, then API
@@ -398,10 +413,11 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   }
 
   // Sync markers — only for structural changes (add/remove), appearance changes happen inline
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
+    // Wait until IndexedDB prefs are loaded (zoom + popupDismissed)
+    if (!zoomPrefResolved) return;
 
     const currentIds = new Set(markersRef.current.keys());
     const vehicleIds = new Set(vehicles.filter((v) => validCoord(v.lat, v.lng)).map((v) => v.id));
@@ -451,6 +467,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
 
         el.addEventListener('click', () => {
           popupDismissedRef.current = false;
+          onPopupDismissedChange?.(false);
           onSelectVehicle(v.id);
           showPopup(v);
         });
@@ -458,12 +475,22 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       }
     });
 
-    // Fit bounds on first load
-    if (!fitDoneRef.current && vehicles.length > 0) {
-      fitBounds(map, vehicles, fitPadding);
-      fitDoneRef.current = true;
+    // Fit bounds on first load, or on mobile when no vehicle is selected
+    // Uses duration:0 so the map is already at correct position when revealed
+    if (vehicles.length > 0 && (selectedId == null || !fitDoneRef.current)) {
+      if (selectedId == null) {
+        // No vehicle selected → show all vehicles with saved zoom
+        fitBounds(map, vehicles, fitPadding, { duration: 0 });
+        if (initialZoom != null) {
+          map.jumpTo({ zoom: initialZoom, duration: 0 });
+        }
+      }
+      if (!fitDoneRef.current) {
+        fitDoneRef.current = true;
+      }
+      setMapVisible(true);
     }
-  }, [vehicles, selectedId, onSelectVehicle, fitPadding, mapReady]);
+  }, [vehicles, selectedId, onSelectVehicle, fitPadding, mapReady, zoomPrefResolved]);
 
   // Show popup when vehicle is selected from sidebar (or close when deselected)
   useEffect(() => {
@@ -475,6 +502,9 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       prevSelectedRef.current = null;
       return;
     }
+    // Wait until zoom/popup preferences are resolved (loaded from IndexedDB)
+    if (!zoomPrefResolved) return;
+
     // Skip if same as before (avoid re-showing on marker re-sync)
     if (selectedId === prevSelectedRef.current) return;
     prevSelectedRef.current = selectedId;
@@ -483,8 +513,11 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     if (popupDismissedRef.current) return;
 
     const vehicle = vehicles.find((v) => v.id === selectedId);
-    if (vehicle) showPopup(vehicle);
-  }, [selectedId, vehicles]);
+    if (vehicle) {
+      showPopup(vehicle);
+      onPopupDismissedChange?.(false);
+    }
+  }, [selectedId, vehicles, zoomPrefResolved]);
 
   // Fit bounds when vehicles change significantly
   useEffect(() => {
@@ -533,17 +566,6 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     });
   }, [showGeofences, geofences]);
 
-  /* ── Apply initialZoom when it arrives after map is ready ── */
-  const prevInitialZoomRef = useRef<number | undefined>(undefined);
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-    if (initialZoom != null && initialZoom !== prevInitialZoomRef.current) {
-      prevInitialZoomRef.current = initialZoom;
-      map.jumpTo({ zoom: initialZoom });
-    }
-  }, [initialZoom, mapReady]);
-
   /* ── Fly to selected vehicle — preserve current zoom ── */
   useEffect(() => {
     const map = mapRef.current;
@@ -586,17 +608,26 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     return () => { map.off('click', handleClick); };
   }, [measuring]);
 
-  return <div ref={containerRef} className={`h-full w-full ${className}`} />;
+  // Fallback: show map after 3s even if fitBounds never triggered (no vehicles/slow data)
+  useEffect(() => {
+    if (mapVisible) return;
+    mapVisibleTimerRef.current = setTimeout(() => setMapVisible(true), 3000);
+    return () => { if (mapVisibleTimerRef.current) clearTimeout(mapVisibleTimerRef.current); };
+  }, [mapVisible]);
+
+  return (
+    <div ref={containerRef} className={`h-full w-full ${className} ${!mapVisible ? 'opacity-0' : ''}`} />
+  );
 });
 
-function fitBounds(map: maplibregl.Map | null, vehicles: Vehicle[], padding: number) {
+function fitBounds(map: maplibregl.Map | null, vehicles: Vehicle[], padding: number, extraOptions: Record<string, unknown> = {}) {
   if (!map) return;
   const withCoords = vehicles.filter((v) => validCoord(v.lat, v.lng));
   if (withCoords.length === 0) return;
 
   const bounds = new maplibregl.LngLatBounds();
   withCoords.forEach((v) => bounds.extend([v.lng!, v.lat!]));
-  map.fitBounds(bounds, { padding, maxZoom: 14 });
+  map.fitBounds(bounds, { padding, maxZoom: 14, ...extraOptions });
 }
 
 export default FleetMapLibre;

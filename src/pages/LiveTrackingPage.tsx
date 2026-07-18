@@ -10,16 +10,15 @@ import { getLiveTrackingPrefs, setLiveTrackingPrefs } from '@/lib/preferences';
 
 export default function LiveTrackingPage() {
   const { vehicles, loading } = useLiveData();
-  const { selectedVehicleId, setSelectedVehicleId, mapHandleRef } = useMapContext();
+  const { selectedVehicleId, setSelectedVehicleId } = useMapContext();
   const { t } = useT();
   const [showBottomPanel, setShowBottomPanel] = useState(true);
   const [showVehicleList, setShowVehicleList] = useState(() => window.innerWidth >= 768);
-  const prefsLoadedRef = useRef(false);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
   const pendingVehicleIdRef = useRef<number | null>(null);
 
   // Load persisted preferences once on mount
   useEffect(() => {
-    if (prefsLoadedRef.current) return;
     getLiveTrackingPrefs().then((prefs) => {
       if (prefs.showBottomPanel !== undefined) {
         setShowBottomPanel(prefs.showBottomPanel);
@@ -30,37 +29,37 @@ export default function LiveTrackingPage() {
       if (prefs.lastVehicleId != null) {
         pendingVehicleIdRef.current = prefs.lastVehicleId;
       }
-      prefsLoadedRef.current = true;
+      setPrefsLoaded(true);
     });
   }, []);
 
   // Persist showBottomPanel whenever it changes
   useEffect(() => {
-    if (!prefsLoadedRef.current) return;
+    if (!prefsLoaded) return;
     getLiveTrackingPrefs().then((existing) => {
       setLiveTrackingPrefs({ ...existing, showBottomPanel });
     });
-  }, [showBottomPanel]);
+  }, [showBottomPanel, prefsLoaded]);
 
   // Persist showVehicleList whenever it changes
   useEffect(() => {
-    if (!prefsLoadedRef.current) return;
+    if (!prefsLoaded) return;
     getLiveTrackingPrefs().then((existing) => {
       setLiveTrackingPrefs({ ...existing, showVehicleList });
     });
-  }, [showVehicleList]);
+  }, [showVehicleList, prefsLoaded]);
 
   // Persist last selected vehicle
   useEffect(() => {
-    if (!prefsLoadedRef.current || selectedVehicleId == null) return;
+    if (!prefsLoaded || selectedVehicleId == null) return;
     getLiveTrackingPrefs().then((existing) => {
       setLiveTrackingPrefs({ ...existing, lastVehicleId: selectedVehicleId });
     });
-  }, [selectedVehicleId]);
+  }, [selectedVehicleId, prefsLoaded]);
 
-  // Auto-select vehicle or fit all on initial load
-  const initialFitDoneRef = useRef(false);
+  // Auto-select vehicle from cache, or leave null (FleetMapLibre shows all on mobile)
   useEffect(() => {
+    if (!prefsLoaded) return;
     if (!vehicles.length) { setSelectedVehicleId(null); return; }
     // Only auto-select if nothing is selected yet
     if (selectedVehicleId == null) {
@@ -68,21 +67,14 @@ export default function LiveTrackingPage() {
       pendingVehicleIdRef.current = null;
       if (pendingId != null && vehicles.some((v) => v.id === pendingId)) {
         setSelectedVehicleId(pendingId);
-      } else {
-        // On mobile, show all vehicles instead of selecting first
-        if (window.innerWidth < 768 && !initialFitDoneRef.current) {
-          initialFitDoneRef.current = true;
-          // Small delay to let map finish initializing
-          requestAnimationFrame(() => {
-            mapHandleRef.current?.fitAllVehicles();
-          });
-        } else if (window.innerWidth >= 768) {
-          setSelectedVehicleId(vehicles[0]?.id ?? null);
-        }
+      } else if (window.innerWidth >= 768) {
+        // Desktop: select first vehicle
+        setSelectedVehicleId(vehicles[0]?.id ?? null);
       }
+      // Mobile with no cache: leave null → FleetMapLibre shows all vehicles
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vehicles]);
+  }, [vehicles, prefsLoaded]);
 
   if (loading && !vehicles.length) {
     return (
@@ -192,19 +184,28 @@ function VehicleNav({ vehicles, selectedId, onSelect }: {
   onSelect: (id: number | null) => void;
 }) {
   const idx = selectedId != null ? vehicles.findIndex((v) => v.id === selectedId) : -1;
-  const hasPrev = idx > 0;
-  const hasNext = idx >= 0 && idx < vehicles.length - 1;
+  const hasSelection = selectedId != null;
+  const hasPrev = hasSelection ? idx > 0 : vehicles.length > 0;
+  const hasNext = hasSelection ? idx >= 0 && idx < vehicles.length - 1 : vehicles.length > 0;
 
   const goPrev = () => {
-    if (!hasPrev) return;
-    const prev = vehicles[idx - 1];
-    onSelect(prev.id);
+    if (hasSelection) {
+      if (!hasPrev) return;
+      onSelect(vehicles[idx - 1].id);
+    } else {
+      // No selection → go to last vehicle
+      onSelect(vehicles[vehicles.length - 1].id);
+    }
   };
 
   const goNext = () => {
-    if (!hasNext) return;
-    const next = vehicles[idx + 1];
-    onSelect(next.id);
+    if (hasSelection) {
+      if (!hasNext) return;
+      onSelect(vehicles[idx + 1].id);
+    } else {
+      // No selection → go to first vehicle
+      onSelect(vehicles[0].id);
+    }
   };
 
   return (
@@ -219,7 +220,7 @@ function VehicleNav({ vehicles, selectedId, onSelect }: {
         <ChevronLeft className="h-6 w-6" />
       </button>
       <div className="rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary shadow-sm border border-primary/20">
-        {selectedId != null ? `${idx + 1} / ${vehicles.length}` : `${vehicles.length}`}
+        {selectedId != null ? `${idx + 1} / ${vehicles.length}` : `⚡ ${vehicles.length}`}
       </div>
       <button
         type="button"

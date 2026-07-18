@@ -40,9 +40,10 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
   const [measureKm, setMeasureKm] = useState(0);
   const [savedZoom, setSavedZoom] = useState<number | undefined>(undefined);
   const [zoomPrefResolved, setZoomPrefResolved] = useState(false);
+  const [popupDismissed, setPopupDismissed] = useState<boolean | undefined>(undefined);
   const zoomPrefLoadedRef = useRef(false);
 
-  // Load saved zoom from IndexedDB on mount
+  // Load saved zoom + popupDismissed from IndexedDB on mount
   useEffect(() => {
     if (zoomPrefLoadedRef.current) return;
     zoomPrefLoadedRef.current = true;
@@ -50,20 +51,19 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
       if (prefs.lastZoom != null) {
         setSavedZoom(prefs.lastZoom);
       }
+      if (prefs.popupDismissed != null) {
+        setPopupDismissed(prefs.popupDismissed);
+      }
       setZoomPrefResolved(true);
     });
   }, []);
 
-  // Persist zoom changes to IndexedDB (debounced via ref to avoid excessive writes)
-  const zoomSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Persist zoom changes to IndexedDB immediately
   const handleZoomChange = useCallback((zoom: number) => {
     setSavedZoom(zoom);
-    if (zoomSaveTimerRef.current) clearTimeout(zoomSaveTimerRef.current);
-    zoomSaveTimerRef.current = setTimeout(() => {
-      getLiveTrackingPrefs().then((existing) => {
-        setLiveTrackingPrefs({ ...existing, lastZoom: zoom });
-      });
-    }, 500);
+    getLiveTrackingPrefs().then((existing) => {
+      setLiveTrackingPrefs({ ...existing, lastZoom: zoom });
+    });
   }, []);
 
   const noPositionCount = useMemo(() => vehicles.filter((v) => !validLatLng(v.lat, v.lng)).length, [vehicles]);
@@ -100,6 +100,14 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
     setSelectedVehicleId(id);
   }, [setSelectedVehicleId]);
 
+  // Persist popup dismissed state to IndexedDB
+  const handlePopupDismissedChange = useCallback((dismissed: boolean) => {
+    setPopupDismissed(dismissed);
+    getLiveTrackingPrefs().then((existing) => {
+      setLiveTrackingPrefs({ ...existing, popupDismissed: dismissed });
+    });
+  }, []);
+
   return (
     <div className="absolute inset-0">
       <FleetMapLibre
@@ -119,6 +127,8 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
         initialZoom={savedZoom}
         zoomPrefResolved={zoomPrefResolved}
         onZoomChange={handleZoomChange}
+        initialPopupDismissed={popupDismissed}
+        onPopupDismissedChange={handlePopupDismissedChange}
         className="absolute inset-0"
       />
 
