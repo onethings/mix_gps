@@ -482,7 +482,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
         // No vehicle selected → show all vehicles with saved zoom
         fitBounds(map, vehicles, fitPadding, { duration: 0 });
         if (initialZoom != null) {
-          map.jumpTo({ zoom: initialZoom, duration: 0 });
+          map.jumpTo({ zoom: initialZoom });
         }
       }
       if (!fitDoneRef.current) {
