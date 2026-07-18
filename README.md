@@ -565,6 +565,10 @@ This project is licensed under the MIT License. See the [LICENSE](./LICENSE) fil
 
 ---
 
+Mobile Version Principle *** 18/Jul/2026
+-Less click
+-Monitor Page are, memory cache last zoom, last vehicle click, last click popup(x or v), for close user experience, next time open will be go to last user zoom, last user click vehicle number, last popup status (close or open). use left right arror to click next or previous vehicle. clean and simple less click are mobile goal. more less click more satifastics.
+
 ---
 
 # Mix GPS — 開源車隊追蹤平台
@@ -1122,3 +1126,12 @@ mix_ts_open/
 - [shadcn/ui](https://ui.shadcn.com/)
 - [Vite](https://vitejs.dev/)
 - [Cloudflare Pages](https://pages.cloudflare.com/)
+-----
+
+
+----
+行動版設計原則 - 18/Jul/2026
+
+- 減少點擊次數
+
+- 監控頁面，內存快取上次縮放、上次車輛點擊、上次點擊彈出視窗（關閉或關閉）等信息，以優化用戶體驗。下次開啟頁面時，頁面將跳到上次縮放、上次車輛點擊、上次彈出視窗狀態（關閉或開啟）的位置。使用左右箭頭點擊上一輛車或下一輛車。簡潔明了、點擊次數少是行動版的目標。點擊次數越少，使用者體驗越好。
