@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
@@ -6,6 +6,7 @@ import { I18nContext } from '@/lib/i18n';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useMapContext } from '@/context/MapContext';
 import FleetMapLibre from '@/components/tracking/FleetMapLibre';
+import { getLiveTrackingPrefs, setLiveTrackingPrefs } from '@/lib/preferences';
 import type { TraccarGeofence } from '@/types';
 
 function validLatLng(lat: number | null | undefined, lng: number | null | undefined): boolean {
@@ -37,6 +38,33 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
   const [geofencesLoaded, setGeofencesLoaded] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [measureKm, setMeasureKm] = useState(0);
+  const [savedZoom, setSavedZoom] = useState<number | undefined>(undefined);
+  const [zoomPrefResolved, setZoomPrefResolved] = useState(false);
+  const zoomPrefLoadedRef = useRef(false);
+
+  // Load saved zoom from IndexedDB on mount
+  useEffect(() => {
+    if (zoomPrefLoadedRef.current) return;
+    zoomPrefLoadedRef.current = true;
+    getLiveTrackingPrefs().then((prefs) => {
+      if (prefs.lastZoom != null) {
+        setSavedZoom(prefs.lastZoom);
+      }
+      setZoomPrefResolved(true);
+    });
+  }, []);
+
+  // Persist zoom changes to IndexedDB (debounced via ref to avoid excessive writes)
+  const zoomSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleZoomChange = useCallback((zoom: number) => {
+    setSavedZoom(zoom);
+    if (zoomSaveTimerRef.current) clearTimeout(zoomSaveTimerRef.current);
+    zoomSaveTimerRef.current = setTimeout(() => {
+      getLiveTrackingPrefs().then((existing) => {
+        setLiveTrackingPrefs({ ...existing, lastZoom: zoom });
+      });
+    }, 500);
+  }, []);
 
   const noPositionCount = useMemo(() => vehicles.filter((v) => !validLatLng(v.lat, v.lng)).length, [vehicles]);
 
@@ -88,6 +116,9 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
         geofences={geofences}
         measuring={measuring}
         onMeasuringChange={setMeasuring}
+        initialZoom={savedZoom}
+        zoomPrefResolved={zoomPrefResolved}
+        onZoomChange={handleZoomChange}
         className="absolute inset-0"
       />
 

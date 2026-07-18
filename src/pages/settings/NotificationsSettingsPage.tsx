@@ -108,7 +108,7 @@ export default function NotificationsSettingsPage() {
                   {items.map((n) => (
                     <tr key={n.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3">{n.description || '—'}</td>
-                      <td className="px-4 py-3 text-xs">{n.type}</td>
+                      <td className="px-4 py-3 text-xs">{t('eventType_' + n.type) || n.type}</td>
                       <td className="px-4 py-3 text-center">
                         {n.always ? <Badge variant="success" className="text-[10px]">{t('yes')}</Badge> : <span className="text-muted-foreground">{t('no')}</span>}
                       </td>

@@ -7,7 +7,6 @@ import { useLiveData } from '@/context/LiveDataContext';
 import { useMapContext } from '@/context/MapContext';
 import { useT } from '@/lib/i18n';
 import { getLiveTrackingPrefs, setLiveTrackingPrefs } from '@/lib/preferences';
-import { getGlobalMap } from '@/lib/globalMap';
 
 export default function LiveTrackingPage() {
   const { vehicles, loading } = useLiveData();
@@ -59,7 +58,8 @@ export default function LiveTrackingPage() {
     });
   }, [selectedVehicleId]);
 
-  // Auto-select first vehicle on initial load
+  // Auto-select vehicle or fit all on initial load
+  const initialFitDoneRef = useRef(false);
   useEffect(() => {
     if (!vehicles.length) { setSelectedVehicleId(null); return; }
     // Only auto-select if nothing is selected yet
@@ -69,7 +69,16 @@ export default function LiveTrackingPage() {
       if (pendingId != null && vehicles.some((v) => v.id === pendingId)) {
         setSelectedVehicleId(pendingId);
       } else {
-        setSelectedVehicleId(vehicles[0]?.id ?? null);
+        // On mobile, show all vehicles instead of selecting first
+        if (window.innerWidth < 768 && !initialFitDoneRef.current) {
+          initialFitDoneRef.current = true;
+          // Small delay to let map finish initializing
+          requestAnimationFrame(() => {
+            mapHandleRef.current?.fitAllVehicles();
+          });
+        } else if (window.innerWidth >= 768) {
+          setSelectedVehicleId(vehicles[0]?.id ?? null);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,9 +162,9 @@ export default function LiveTrackingPage() {
         )}
       </button>
 
-      {/* Bottom panel */}
+      {/* Bottom panel — hidden on mobile */}
       {showBottomPanel && (
-        <div className="h-[180px] shrink-0 md:h-[220px] lg:h-[260px] border-t border-border bg-card/95 backdrop-blur-md pointer-events-auto">
+        <div className="hidden md:block h-[180px] shrink-0 md:h-[220px] lg:h-[260px] border-t border-border bg-card/95 backdrop-blur-md pointer-events-auto">
           <LiveTrackingBottomPanel
             vehicles={vehicles}
             selectedId={selectedVehicleId}
@@ -196,11 +205,6 @@ function VehicleNav({ vehicles, selectedId, onSelect }: {
     if (!hasNext) return;
     const next = vehicles[idx + 1];
     onSelect(next.id);
-    // Zoom to level 20 on next vehicle
-    if (next.lat != null && next.lng != null) {
-      const map = getGlobalMap();
-      if (map) map.flyTo({ center: [next.lng, next.lat], zoom: 18, duration: 400 });
-    }
   };
 
   return (

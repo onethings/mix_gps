@@ -100,63 +100,112 @@ export default function DevicesSettingsPage() {
           ) : items.length === 0 ? (
             <div className="p-4 text-sm text-muted-foreground">{t('noData')}</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/50 text-muted-foreground text-xs uppercase tracking-wider">
-                    <th className="px-4 py-2 text-left font-medium">{t('name')}</th>
-                    <th className="px-4 py-2 text-left font-medium">{t('deviceIdentifier')}</th>
-                    <th className="px-4 py-2 text-left font-medium">{t('group')}</th>
-                    <th className="px-4 py-2 text-left font-medium">{t('phone')}</th>
-                    <th className="px-4 py-2 text-center font-medium">{t('status')}</th>
-                    <th className="px-4 py-2 text-center font-medium w-20">{t('actions')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {items.map((d) => (
-                    <tr key={d.id} className="hover:bg-muted/30">
-                      <td className="px-4 py-3 font-medium">{d.name}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{d.uniqueId}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{d.groupId || '—'}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{d.phone || '—'}</td>
-                      <td className="px-4 py-3 text-center">{statusBadge(d.status)}</td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button className="rounded p-1 hover:bg-accent" title={t('edit')} onClick={() => navigate(`/settings/device/${d.id}`)}>
-                            <Edit className="h-3.5 w-3.5" />
-                          </button>
-                          {!deviceReadonly && (
-                            <button className="rounded p-1 hover:bg-accent text-destructive" title={t('delete')} onClick={() => handleRemove(d.id)}>
-                              <Trash2 className="h-3.5 w-3.5" />
+            <>
+              {/* ── Desktop table ── */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50 text-muted-foreground text-xs uppercase tracking-wider">
+                      <th className="px-4 py-2 text-left font-medium">{t('name')}</th>
+                      <th className="px-4 py-2 text-left font-medium">{t('deviceIdentifier')}</th>
+                      <th className="px-4 py-2 text-left font-medium">{t('group')}</th>
+                      <th className="px-4 py-2 text-left font-medium">{t('phone')}</th>
+                      <th className="px-4 py-2 text-center font-medium">{t('status')}</th>
+                      <th className="px-4 py-2 text-center font-medium w-20">{t('actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {items.map((d) => (
+                      <tr key={d.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-3 font-medium">{d.name}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground font-mono">{d.uniqueId}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{d.groupId || '—'}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{d.phone || '—'}</td>
+                        <td className="px-4 py-3 text-center">{statusBadge(d.status)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button className="rounded p-1 hover:bg-accent" title={t('edit')} onClick={() => navigate(`/settings/device/${d.id}`)}>
+                              <Edit className="h-3.5 w-3.5" />
                             </button>
+                            {!deviceReadonly && (
+                              <button className="rounded p-1 hover:bg-accent text-destructive" title={t('delete')} onClick={() => handleRemove(d.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            <button className="rounded p-1 hover:bg-accent" title={t('sharedConnections')} onClick={() => navigate(`/settings/entity/device/${d.id}/connections`)}>
+                              <Link2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={6} className="px-4 py-2">
+                        <div className="flex items-center justify-between">
+                          <Button variant="ghost" size="sm" className="text-xs">
+                            <FileDown className="h-3.5 w-3.5 mr-1" />{t('export')}
+                          </Button>
+                          {manager && (
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                              <span>{t('all')}</span>
+                              <input type="checkbox" checked={showAll} onChange={(e) => { setShowAll(e.target.checked); reload(); }} className="rounded border-input" />
+                            </label>
                           )}
-                          <button className="rounded p-1 hover:bg-accent" title={t('sharedConnections')} onClick={() => navigate(`/settings/entity/device/${d.id}/connections`)}>
-                            <Link2 className="h-3.5 w-3.5" />
-                          </button>
                         </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan={6} className="px-4 py-2">
-                      <div className="flex items-center justify-between">
-                        <Button variant="ghost" size="sm" className="text-xs">
-                          <FileDown className="h-3.5 w-3.5 mr-1" />{t('export')}
-                        </Button>
-                        {manager && (
-                          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                            <span>{t('all')}</span>
-                            <input type="checkbox" checked={showAll} onChange={(e) => { setShowAll(e.target.checked); reload(); }} className="rounded border-input" />
-                          </label>
-                        )}
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* ── Mobile cards ── */}
+              <div className="divide-y divide-border md:hidden">
+                {items.map((d) => (
+                  <div key={d.id} className="px-4 py-3 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{d.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono mt-0.5">{d.uniqueId}</p>
                       </div>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                      <div className="flex items-center gap-1 ml-2 shrink-0">
+                        {statusBadge(d.status)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      {d.phone && <span>{d.phone}</span>}
+                      {d.groupId != null && <span>{t('group')}: {d.groupId}</span>}
+                    </div>
+                    <div className="flex items-center gap-1 pt-0.5">
+                      <button className="rounded p-1.5 hover:bg-accent" title={t('edit')} onClick={() => navigate(`/settings/device/${d.id}`)}>
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      {!deviceReadonly && (
+                        <button className="rounded p-1.5 hover:bg-accent text-destructive" title={t('delete')} onClick={() => handleRemove(d.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                      <button className="rounded p-1.5 hover:bg-accent" title={t('sharedConnections')} onClick={() => navigate(`/settings/entity/device/${d.id}/connections`)}>
+                        <Link2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {/* Export + showAll controls for mobile */}
+                <div className="px-4 py-2 flex items-center justify-between">
+                  <Button variant="ghost" size="sm" className="text-xs">
+                    <FileDown className="h-3.5 w-3.5 mr-1" />{t('export')}
+                  </Button>
+                  {manager && (
+                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                      <span>{t('all')}</span>
+                      <input type="checkbox" checked={showAll} onChange={(e) => { setShowAll(e.target.checked); reload(); }} className="rounded border-input" />
+                    </label>
+                  )}
+                </div>
+              </div>
+            </>
           )}
           {hasMore && <div ref={sentinelRef} className="h-4" />}
         </CardContent>

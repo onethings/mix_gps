@@ -15,6 +15,48 @@ const PAGE_SIZE = 20;
 
 const PREFIX = (prefix: string, value: string) => prefix + value.charAt(0).toUpperCase() + value.slice(1);
 
+/* ── Command type label map ── */
+const COMMAND_TYPE_LABELS: Record<string, string> = {
+  custom: 'commandCustom',
+  positionPeriodic: 'commandPositionPeriodic',
+  setTimezone: 'commandSetTimezone',
+  sendSms: 'commandSendSms',
+  message: 'commandMessage',
+  sendUssd: 'commandSendUssd',
+  sosNumber: 'commandSosNumber',
+  silenceTime: 'commandSilenceTime',
+  setPhonebook: 'commandSetPhonebook',
+  voiceMessage: 'commandVoiceMessage',
+  outputControl: 'commandOutputControl',
+  voiceMonitoring: 'commandVoiceMonitoring',
+  setAgps: 'commandSetAgps',
+  setIndicator: 'commandSetIndicator',
+  configuration: 'commandConfiguration',
+  setConnection: 'commandSetConnection',
+  setOdometer: 'commandSetOdometer',
+  modePowerSaving: 'commandModePowerSaving',
+  modeDeepSleep: 'commandModeDeepSleep',
+  alarmGeofence: 'commandAlarmGeofence',
+  alarmBattery: 'commandAlarmBattery',
+  alarmSos: 'commandAlarmSos',
+  alarmRemove: 'commandAlarmRemove',
+  alarmClock: 'commandAlarmClock',
+  alarmSpeed: 'commandAlarmSpeed',
+  alarmFall: 'commandAlarmFall',
+  alarmVibration: 'commandAlarmVibration',
+  engineStop: 'commandEngineStop',
+  engineResume: 'commandEngineResume',
+  blockIgnition: 'commandBlockIgnition',
+  unblockIgnition: 'commandUnblockIgnition',
+  doorLock: 'commandDoorLock',
+  doorUnlock: 'commandDoorUnlock',
+};
+
+const commandTypeLabel = (type: string): string => {
+  const key = COMMAND_TYPE_LABELS[type];
+  return key || type;
+};
+
 export default function CommandsSettingsPage() {
   const { t } = useT();
   const { showSuccess, showError } = useFlash();
@@ -102,7 +144,7 @@ export default function CommandsSettingsPage() {
                   {items.map((c) => (
                     <tr key={c.id} className="hover:bg-muted/30">
                       <td className="px-4 py-3">{c.description || '—'}</td>
-                      <td className="px-4 py-3 text-xs font-mono">{c.type}</td>
+                      <td className="px-4 py-3 text-xs">{t(commandTypeLabel(c.type))}</td>
                       <td className="px-4 py-3 text-center">
                         {c.textChannel ? <Badge variant="success" className="text-[10px]">{t('yes')}</Badge> : <span className="text-muted-foreground">{t('no')}</span>}
                       </td>

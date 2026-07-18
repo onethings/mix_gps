@@ -20,6 +20,7 @@ export interface LiveTrackingPrefs {
   showBottomPanel?: boolean;
   showVehicleList?: boolean;
   lastVehicleId?: number | null;
+  lastZoom?: number;
 }
 
 /** Replay page preferences (per device) — basemap only */

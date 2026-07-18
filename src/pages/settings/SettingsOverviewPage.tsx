@@ -44,16 +44,16 @@ export default function SettingsOverviewPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
+      {/* Header — hidden on mobile */}
+      <div className="max-md:hidden">
         <h1 className="text-2xl font-semibold tracking-tight">{t('settings')}</h1>
         <p className="text-sm text-muted-foreground mt-1">
           {t('preferencesDesc')}
         </p>
       </div>
 
-      {/* Status cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* Status cards — hidden on mobile */}
+      <div className="max-md:hidden grid gap-4 sm:grid-cols-2">
         {/* User account card */}
         <Card className="overflow-hidden">
           <CardContent className="p-5">
@@ -100,7 +100,7 @@ export default function SettingsOverviewPage() {
 
       {/* Settings grid */}
       <div>
-        <h2 className="text-sm font-semibold mb-3">{t('allSettings')}</h2>
+        <h2 className="max-md:hidden text-sm font-semibold mb-3">{t('allSettings')}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {QUICK_LINKS.map((link) => (
             <button
@@ -110,6 +110,7 @@ export default function SettingsOverviewPage() {
               className={cn(
                 'group flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left',
                 'transition-all hover:border-primary/30 hover:shadow-sm hover:bg-accent/30',
+                (link.key === 'preferences' || link.key === 'computedAttributes' || link.key === 'connections' || link.key === 'permissions') && 'max-md:hidden',
               )}
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary transition-colors">

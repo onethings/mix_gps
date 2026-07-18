@@ -13,8 +13,8 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { path: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
   { path: '/tracking', key: 'monitor', icon: Map },
+  { path: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
   { path: '/reports', key: 'report', icon: BarChart3 },
   { path: '/settings', key: 'settings', icon: Settings },
 ];

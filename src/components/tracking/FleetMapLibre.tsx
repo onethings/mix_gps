@@ -89,6 +89,9 @@ interface FleetMapLibreProps {
   geofences?: TraccarGeofence[];
   measuring?: boolean;
   onMeasuringChange?: (m: boolean) => void;
+  initialZoom?: number;
+  onZoomChange?: (zoom: number) => void;
+  zoomPrefResolved?: boolean;
 }
 
 const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(function FleetMapLibre(
@@ -105,6 +108,9 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     geofences = [],
     measuring = false,
     onMeasuringChange,
+    initialZoom,
+    onZoomChange,
+    zoomPrefResolved,
   },
   ref,
 ) {
@@ -312,12 +318,26 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
 
     map.on('load', () => {
       mapRef.current = map;
+      // Restore saved zoom after map loads
+      if (initialZoom != null) {
+        map.jumpTo({ zoom: initialZoom });
+      }
       setMapReady(true);
+    });
+
+    // Listen for zoom changes to persist
+    map.on('zoomend', () => {
+      if (onZoomChange) {
+        onZoomChange(map.getZoom());
+      }
     });
 
     // Fallback: if map loads very fast, load event may have already fired
     if (map.loaded()) {
       mapRef.current = map;
+      if (initialZoom != null) {
+        map.jumpTo({ zoom: initialZoom });
+      }
       setMapReady(true);
     } else {
       // Store map ref early so it can be used in cleanup
@@ -513,14 +533,28 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     });
   }, [showGeofences, geofences]);
 
-  /* ── Fly to selected vehicle on user click ── */
+  /* ── Apply initialZoom when it arrives after map is ready ── */
+  const prevInitialZoomRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    if (initialZoom != null && initialZoom !== prevInitialZoomRef.current) {
+      prevInitialZoomRef.current = initialZoom;
+      map.jumpTo({ zoom: initialZoom });
+    }
+  }, [initialZoom, mapReady]);
+
+  /* ── Fly to selected vehicle — preserve current zoom ── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || selectedId == null) return;
+    // Wait until zoom pref has been resolved (loaded from IndexedDB or confirmed absent)
+    if (!zoomPrefResolved) return;
     const vehicle = vehicles.find((v) => v.id === selectedId);
     if (!vehicle || !validCoord(vehicle.lat, vehicle.lng)) return;
-    map.flyTo({ center: [vehicle.lng!, vehicle.lat!], zoom: 18, duration: 600 });
-  }, [selectedId, mapReady]);
+    const currentZoom = map.getZoom();
+    map.flyTo({ center: [vehicle.lng!, vehicle.lat!], zoom: currentZoom, duration: 600 });
+  }, [selectedId, mapReady, zoomPrefResolved]);
 
   // Add measurement click handler to map
   useEffect(() => {

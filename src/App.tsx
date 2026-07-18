@@ -75,6 +75,12 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return children;
 }
 
+/** 手機端登入後預設跳轉到地圖頁，桌機端維持 dashboard */
+function DefaultRedirect() {
+  const isMobile = window.innerWidth < 768;
+  return <Navigate to={isMobile ? '/tracking' : '/dashboard'} replace />;
+}
+
 function AppRoutes() {
   const { user, ready } = useSession();
 
@@ -88,7 +94,7 @@ function AppRoutes() {
         <Route path="/shared" element={<SharedViewPage />} />
         <Route
           path="/login"
-          element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
+          element={user ? <DefaultRedirect /> : <LoginPage />}
         />
         <Route
           element={
@@ -97,7 +103,7 @@ function AppRoutes() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<DefaultRedirect />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/tracking" element={<LiveTrackingPage />} />
           <Route path="/alerts" element={<AlertsPage />} />
@@ -169,7 +175,7 @@ function AppRoutes() {
             <Route path="entity/:kind/:id" element={<SettingsJsonEntityPage />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<DefaultRedirect />} />
         </Route>
       </Routes>
     </Suspense>
