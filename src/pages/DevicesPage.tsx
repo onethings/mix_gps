@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Download, Pencil, Plus, Search, Settings, Share2, Trash2, Upload,
+  Download, Link2, Pencil, Plus, Search, Settings, Share2, Trash2, Upload,
   Smartphone, Battery, Signal, Cpu, ExternalLink, CalendarDays,
 } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
@@ -420,6 +420,11 @@ export default function DevicesPage() {
                             <Link to={`/devices/${v.id}`}>
                               <ExternalLink className="h-4 w-4 md:mr-1 md:h-3 md:w-3" />
                               <span className="hidden md:inline">{t('open')}</span>
+                            </Link>
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" type="button" asChild title={t('sharedConnections')}>
+                            <Link to={`/settings/entity/device/${v.id}/connections`}>
+                              <Link2 className="h-4 w-4" />
                             </Link>
                           </Button>
                           <Button size="icon" variant="ghost" className="h-8 w-8" type="button"

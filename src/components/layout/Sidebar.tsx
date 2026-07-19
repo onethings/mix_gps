@@ -18,17 +18,13 @@ interface NavItemConfig {
 
 // ── Report sidebar items ──
 const REPORT_NAV: NavItemConfig[] = [
-  { to: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
-  { to: '/reports', key: 'reports', icon: BarChart3 },
   { to: '/reports/trips', key: 'trips', icon: Route },
   { to: '/fuel', key: 'fuel', icon: Fuel },
-  { to: '/maintenance', key: 'maintenance', icon: Wrench },
   { to: '/logistics', key: 'logistics', icon: Package },
   { to: '/alerts', key: 'alerts', icon: Bell },
   { to: '/events', key: 'events', icon: Activity },
   { to: '/orders', key: 'orders', icon: ClipboardList },
   { to: '/replay', key: 'replay', icon: History },
-  { to: '/geofences', key: 'geofences', icon: Fence },
   { to: '/route-planning', key: 'routePlans', icon: MapPin },
 ];
 
@@ -83,7 +79,7 @@ export default function Sidebar() {
   const { pathname } = useLocation();
   const basePath = '/' + (pathname.split('/')[1] || '');
 
-  const REPORT_PATHS = new Set(['/reports','/trips','/fuel','/maintenance','/logistics','/alerts','/events','/orders','/replay','/geofences','/route-planning','/dashboard']);
+  const REPORT_PATHS = new Set(['/reports','/trips','/fuel','/logistics','/alerts','/events','/orders','/replay','/route-planning']);
   const MGMT_PATHS = new Set(['/devices','/drivers','/settings']);
 
   const isReport = REPORT_PATHS.has(basePath);

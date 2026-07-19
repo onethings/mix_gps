@@ -11,8 +11,8 @@ import GlobalMapLayer from './GlobalMapLayer';
 import MobileNav from './MobileNav';
 import BottomNav from './BottomNav';
 
-const REPORT_PATHS = ['/reports','/fuel','/maintenance','/logistics','/alerts','/events','/orders','/geofences','/route-planning'];  // /reports/trips is covered by '/reports'
-const MGMT_PATHS = ['/devices','/drivers','/settings'];
+const REPORT_PATHS = ['/reports','/fuel','/logistics','/alerts','/events','/orders','/route-planning'];  // /reports/trips is covered by '/reports'
+const MGMT_PATHS = ['/devices','/drivers','/settings','/geofences','/maintenance'];
 const SIDEBAR_PATHS = new Set([...REPORT_PATHS, ...MGMT_PATHS]);
 
 /** Pages that use the full-screen map as background */
@@ -79,7 +79,7 @@ function ShellContent() {
             isMapPage ? 'bg-transparent' : 'bg-background',
             'pb-safe-lg md:pb-0', // bottom nav spacing on mobile
           )}>
-            <div className={cn(isMapPage ? 'h-full' : 'mx-auto w-full max-w-7xl')}>
+            <div className={cn(isMapPage || basePath === '/replay' ? 'h-full' : 'mx-auto w-full max-w-7xl')}>
               <Outlet />
             </div>
           </main>

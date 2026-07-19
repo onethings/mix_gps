@@ -56,6 +56,9 @@ const MaintenanceEditorPage = lazy(() => import('./pages/settings/MaintenanceEdi
 const PermissionsSettingsPage = lazy(() => import('./pages/settings/PermissionsSettingsPage'));
 const AnnouncementSettingsPage = lazy(() => import('./pages/settings/AnnouncementSettingsPage'));
 const ConnectionsHubPage = lazy(() => import('./pages/settings/ConnectionsHubPage'));
+const DeviceConnectionsPage = lazy(() => import('./pages/settings/DeviceConnectionsPage'));
+const GroupConnectionsPage = lazy(() => import('./pages/settings/GroupConnectionsPage'));
+const UserConnectionsPage = lazy(() => import('./pages/settings/UserConnectionsPage'));
 const SettingsJsonEntityPage = lazy(() => import('./pages/settings/SettingsJsonEntityPage'));
 
 const TripsPage = lazy(() => import('./pages/TripsPage'));
@@ -172,6 +175,9 @@ function AppRoutes() {
             <Route path="permissions" element={<PermissionsSettingsPage />} />
             <Route path="announcement" element={<AnnouncementSettingsPage />} />
             <Route path="connections" element={<ConnectionsHubPage />} />
+            <Route path="entity/device/:id/connections" element={<DeviceConnectionsPage />} />
+            <Route path="entity/group/:id/connections" element={<GroupConnectionsPage />} />
+            <Route path="entity/user/:id/connections" element={<UserConnectionsPage />} />
             <Route path="entity/:kind/:id" element={<SettingsJsonEntityPage />} />
           </Route>
 
