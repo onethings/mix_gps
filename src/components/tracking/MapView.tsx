@@ -1,8 +1,9 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler, Search } from 'lucide-react';
+import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler, Route, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
+import { getLiveTrackingPrefs, setLiveTrackingPrefs } from '@/lib/preferences';
 import FleetMapLibre, { type FleetMapLibreHandle } from '@/components/tracking/FleetMapLibre';
 import type { Vehicle, TraccarGeofence } from '@/types';
 
@@ -41,6 +42,8 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
   const [geofencesLoaded, setGeofencesLoaded] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [measureKm, setMeasureKm] = useState(0);
+  const [showRoute, setShowRoute] = useState(false);
+  const [routePrefLoaded, setRoutePrefLoaded] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<NominatimFeature[]>([]);
@@ -89,6 +92,25 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [searchOpen]);
+
+  /* Load showRoute preference from IndexedDB on mount */
+  useEffect(() => {
+    getLiveTrackingPrefs().then((prefs) => {
+      if (prefs.showRoute != null) setShowRoute(prefs.showRoute);
+      setRoutePrefLoaded(true);
+    });
+  }, []);
+
+  const handleToggleRoute = useCallback(() => {
+    setShowRoute((prev) => {
+      const next = !prev;
+      // Persist to IndexedDB
+      getLiveTrackingPrefs().then((prefs) =>
+        setLiveTrackingPrefs({ ...prefs, showRoute: next })
+      );
+      return next;
+    });
+  }, []);
 
   const handleSearchSelect = useCallback((feature: NominatimFeature) => {
     const [minX, minY, maxX, maxY] = feature.bbox;
@@ -143,6 +165,7 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
         geofences={geofences}
         measuring={measuring}
         onMeasuringChange={setMeasuring}
+        showRoute={showRoute}
         className="absolute inset-0"
       />
 
@@ -216,6 +239,12 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
               measuring ? 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30' : 'text-muted-foreground hover:bg-accent')}
             title={measuring ? t('stopMeasuring') : t('measureDistance')}>
             <Ruler className="h-3.5 w-3.5" /> {t('ruler')}
+          </button>
+          <button type="button" onClick={handleToggleRoute}
+            className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+              showRoute ? 'bg-primary/15 text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-accent')}
+            title={showRoute ? t('hideRoute') : t('showRoute')}>
+            <Route className="h-3.5 w-3.5" /> {t('routeToggle')}
           </button>
         </div>
 

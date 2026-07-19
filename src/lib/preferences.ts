@@ -23,6 +23,8 @@ export interface LiveTrackingPrefs {
   lastZoom?: number;
   /** Whether the user dismissed the popup on the last selected vehicle */
   popupDismissed?: boolean;
+  /** Whether to show the day's route trail when selecting a vehicle */
+  showRoute?: boolean;
 }
 
 /** Replay page preferences (per device) — basemap only */

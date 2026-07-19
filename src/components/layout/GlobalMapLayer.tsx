@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler } from 'lucide-react';
+import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler, Route } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { I18nContext } from '@/lib/i18n';
@@ -38,6 +38,8 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
   const [geofencesLoaded, setGeofencesLoaded] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [measureKm, setMeasureKm] = useState(0);
+  const [showRoute, setShowRoute] = useState(false);
+  const [routePrefLoaded, setRoutePrefLoaded] = useState(false);
   const [savedZoom, setSavedZoom] = useState<number | undefined>(undefined);
   const [zoomPrefResolved, setZoomPrefResolved] = useState(false);
   const [popupDismissed, setPopupDismissed] = useState<boolean | undefined>(undefined);
@@ -100,6 +102,24 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
     setSelectedVehicleId(id);
   }, [setSelectedVehicleId]);
 
+  // Load showRoute preference from IndexedDB
+  useEffect(() => {
+    getLiveTrackingPrefs().then((prefs) => {
+      if (prefs.showRoute != null) setShowRoute(prefs.showRoute);
+      setRoutePrefLoaded(true);
+    });
+  }, []);
+
+  const handleToggleRoute = useCallback(() => {
+    setShowRoute((prev) => {
+      const next = !prev;
+      getLiveTrackingPrefs().then((prefs) =>
+        setLiveTrackingPrefs({ ...prefs, showRoute: next })
+      );
+      return next;
+    });
+  }, []);
+
   // Persist popup dismissed state to IndexedDB
   const handlePopupDismissedChange = useCallback((dismissed: boolean) => {
     setPopupDismissed(dismissed);
@@ -124,6 +144,7 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
         geofences={geofences}
         measuring={measuring}
         onMeasuringChange={setMeasuring}
+        showRoute={showRoute}
         initialZoom={savedZoom}
         zoomPrefResolved={zoomPrefResolved}
         onZoomChange={handleZoomChange}
@@ -165,6 +186,12 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
                 measuring ? 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30' : 'text-muted-foreground hover:bg-accent')}
               title={measuring ? t('stopMeasuring') : t('measureDistance')}>
               <Ruler className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('ruler')}</span>
+            </button>
+            <button type="button" onClick={handleToggleRoute}
+              className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
+                showRoute ? 'bg-primary/15 text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-accent')}
+              title={showRoute ? t('hideRoute') : t('showRoute')}>
+              <Route className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('routeToggle')}</span>
             </button>
           </div>
 

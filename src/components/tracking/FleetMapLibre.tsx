@@ -99,6 +99,8 @@ interface FleetMapLibreProps {
   initialPopupDismissed?: boolean;
   /** Called when user opens/closes the popup */
   onPopupDismissedChange?: (dismissed: boolean) => void;
+  /** Whether to show the day's route trail for the selected vehicle */
+  showRoute?: boolean;
 }
 
 const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(function FleetMapLibre(
@@ -121,6 +123,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     initialPopupDismissed,
     onPopupDismissedChange,
     onMapClick,
+    showRoute = false,
   },
   ref,
 ) {
@@ -619,7 +622,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     };
   }, [mapReady, vehicles]);
 
-  /* ── Live route trail for selected vehicle ── */
+  /* ── Live route trail for selected vehicle (cached in IndexedDB) ── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
@@ -641,40 +644,70 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       } as any);
     }
 
-    // Fetch recent positions for selected vehicle
-    if (selectedId == null) {
+    // If route toggle is off or no vehicle selected, clear and bail
+    if (!showRoute || selectedId == null) {
       (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: [] });
       return;
     }
 
     let cancelled = false;
+    const cacheKey = `route-${selectedId}`;
+
+    const applyToMap = (positions: any[]) => {
+      if (cancelled || !map.getSource(srcId)) return;
+      const coords = (positions || [])
+        .filter((p: any) => p.latitude != null && p.longitude != null)
+        .sort((a: any, b: any) => (a.fixTime || a.serverTime || '').localeCompare(b.fixTime || b.serverTime || ''))
+        .map((p: any) => [p.longitude, p.latitude] as [number, number]);
+      if (coords.length < 2) {
+        (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: [] });
+        return;
+      }
+      (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: coords },
+          properties: {},
+        }],
+      });
+    };
+
     (async () => {
+      // 1) Show cached data immediately (if available)
+      const cached = await cacheGet<{ positions: any[]; latestFixTime: string }>('routes', cacheKey);
+      if (cancelled) return;
+      if (cached && cached.positions.length > 0) {
+        applyToMap(cached.positions);
+      }
+
+      // 2) Smart refresh: skip API call if vehicle hasn't moved since last cache
+      const vehicle = vehicles.find((v) => v.id === selectedId);
+      const vehicleLatestTime = vehicle?.lastUpdate;
+      if (cached && vehicleLatestTime && cached.latestFixTime && vehicleLatestTime <= cached.latestFixTime) {
+        return; // Nothing new — keep showing cached data
+      }
+
+      // 3) Fetch fresh data
       try {
         const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
         const to = new Date().toISOString();
         const data = await api.positions.list({ deviceId: selectedId, from, to }) as any[];
-        if (cancelled || !map.getSource(srcId)) return;
-        const coords = (data || [])
-          .filter((p: any) => p.latitude != null && p.longitude != null)
-          .sort((a: any, b: any) => (a.fixTime || a.serverTime || '').localeCompare(b.fixTime || b.serverTime || ''))
-          .map((p: any) => [p.longitude, p.latitude] as [number, number]);
-        if (coords.length < 2) {
-          (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: [] });
-          return;
-        }
-        (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({
-          type: 'FeatureCollection',
-          features: [{
-            type: 'Feature',
-            geometry: { type: 'LineString', coordinates: coords },
-            properties: {},
-          }],
-        });
+        if (cancelled) return;
+        applyToMap(data);
+        // Store both positions and latest timestamp for smarter expiry next time
+        const latestFixTime =
+          (data || [])
+            .map((p: any) => p.fixTime || p.serverTime || '')
+            .filter(Boolean)
+            .sort()
+            .reverse()[0] || vehicleLatestTime || '';
+        cacheSet('routes', cacheKey, { positions: data, latestFixTime }).catch(() => {});
       } catch { /* ignore */ }
     })();
 
     return () => { cancelled = true; };
-  }, [mapReady, selectedId, vehicles]);
+  }, [mapReady, selectedId, showRoute]);
 
   /* ── POI Layer (KML overlay from user settings) ── */
   const { user } = useSession();
