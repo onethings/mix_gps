@@ -14,6 +14,7 @@ const STORES: Record<string, { keyPath: string; ttl: number }> = {
   maintenance: { keyPath: 'id', ttl: 60 * 60 * 1000 },
   general: { keyPath: 'id', ttl: DEFAULT_TTL_MS },
   routes: { keyPath: 'id', ttl: 60 * 60 * 1000 },
+  geocode: { keyPath: 'id', ttl: 30 * 24 * 60 * 60 * 1000 },
 };
 
 let dbPromise: Promise<IDBDatabase | null> | null = null;

@@ -18,7 +18,7 @@ const SIDEBAR_PATHS = new Set([...REPORT_PATHS, ...MGMT_PATHS]);
 /** Pages that use the full-screen map as background */
 const MAP_PATHS = new Set(['/tracking']);
 /** Pages that hide topbar on mobile (full-screen content like map/replay) */
-const HIDE_TOPBAR_PATHS = new Set(['/tracking', '/replay', '/reports', '/dashboard', '/settings', '/geofences']);
+const HIDE_TOPBAR_PATHS = new Set(['/tracking', '/replay', '/reports', '/dashboard', '/settings', '/geofences', '/devices']);
 
 const APP_TITLE = 'Kevin GPS';
 

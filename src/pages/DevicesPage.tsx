@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Download, Link2, Pencil, Plus, Search, Settings, Share2, Trash2, Upload,
-  Smartphone, Battery, Signal, Cpu, ExternalLink, CalendarDays,
+  Smartphone, Battery, Signal, Cpu, ExternalLink, CalendarDays, Info,
 } from 'lucide-react';
 import PageHeader from '@/components/common/PageHeader';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -279,7 +279,7 @@ export default function DevicesPage() {
           description={vehicles.length === 0 ? t('signInToSee') : ''}
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm max-md:hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -445,7 +445,7 @@ export default function DevicesPage() {
           </div>
 
           {/* Footer stats */}
-          <div className="flex items-center justify-between border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
+          <div className="hidden md:flex items-center justify-between border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               {filtered.length} / {vehicles.length} {t('devices')}
             </span>
@@ -457,6 +457,109 @@ export default function DevicesPage() {
           </div>
         </div>
       )}
+
+      {/* ── Mobile cards ── */}
+      <div className="space-y-3 md:hidden">
+        {filtered.map((v) => {
+          const d = deviceMap[v.id];
+          const batt = d ? batteryLevel(d) : null;
+          const signal = d ? signalStrength(d) : null;
+          const iconType = (d?.category || '').toLowerCase().trim();
+          const validIcons = ['car','truck','bus','van','taxi','motocycle','bicycle','scooter','pickup','trailer','tractor','crane','camper','plane','helicopter','ship','boat','train','tram','person','animal'];
+          const statusPrefix = v.status === 'moving' ? 'moving' : v.status === 'idle' ? 'idle' : v.status === 'alert' ? 'moving' : 'parking';
+          const iconSrc = validIcons.includes(iconType) ? `/markers/${statusPrefix}_${iconType}.svg` : null;
+          return (
+          <Card key={v.id} className="overflow-hidden">
+            <CardContent className="p-0">
+              {/* Header: icon + name + status */}
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
+                {iconSrc ? (
+                  <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg bg-muted">
+                    <img src={iconSrc} alt="" className="w-8 h-8 object-contain" />
+                  </div>
+                ) : (
+                  <div className={cn(
+                    'w-10 h-10 shrink-0 flex items-center justify-center rounded-lg',
+                    v.status === 'moving' ? 'bg-blue-500/10' :
+                    v.status === 'alert' ? 'bg-destructive/10' :
+                    v.status === 'idle' ? 'bg-amber-500/10' : 'bg-muted',
+                  )}>
+                    <Smartphone className={cn(
+                      'h-5 w-5',
+                      v.status === 'moving' ? 'text-blue-500' :
+                      v.status === 'alert' ? 'text-destructive' :
+                      v.status === 'idle' ? 'text-amber-500' : 'text-muted-foreground',
+                    )} />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <Link to={`/devices/${v.id}`} className="text-sm font-semibold text-foreground hover:text-primary transition-colors truncate block">
+                    {v.name}
+                  </Link>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {v.model}{v.plate ? ` · ${v.plate}` : ''}
+                  </p>
+                </div>
+                <StatusBadge status={v.status} />
+              </div>
+
+              {/* Info rows */}
+              <div className="px-4 py-2.5 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{t('driver')}</span>
+                  <span className="font-medium truncate ml-2">{v.driver || '—'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{t('odometer')}</span>
+                  <span className="font-medium tabular-nums">{v.odometer != null ? `${Number(v.odometer).toLocaleString()} ${t('km')}` : '—'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{t('fuel')}</span>
+                  <span className="font-medium">{typeof v.fuel === 'number' ? (
+                    <span className="flex items-center gap-1.5">
+                      <Progress value={v.fuel} className="w-14 h-1.5" />
+                      <span>{v.fuel}%</span>
+                    </span>
+                  ) : '—'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{t('lastUpdate')}</span>
+                  <span className="font-medium text-muted-foreground">{v.lastUpdate ? formatDate(v.lastUpdate) : '—'}</span>
+                </div>
+                {signal != null && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{t('signal')}</span>
+                    <span className="flex items-center gap-1">
+                      <Signal className={cn('h-3 w-3', signal > 70 ? 'text-green-500' : signal > 30 ? 'text-amber-500' : 'text-red-500')} />
+                      <span className="font-mono text-xs">{signal}%</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-0.5 border-t border-border px-3 py-1.5">
+                <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" type="button" asChild title={t('open')}>
+                  <Link to={`/devices/${v.id}`}><Info className="h-3.5 w-3.5 mr-1" />{t('open')}</Link>
+                </Button>
+                <div className="flex-1" />
+                <Button size="icon" variant="ghost" className="h-8 w-8" type="button" asChild title={t('sharedConnections')}>
+                  <Link to={`/settings/entity/device/${v.id}/connections`}><Link2 className="h-4 w-4" /></Link>
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8" type="button"
+                  onClick={() => { setEditing(v); setOpen(true); }} title={t('edit')}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" type="button"
+                  onClick={() => { setDeleteId(v.id); setDeleteName(v.name); }} title={t('delete')}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          );
+        })}
+      </div>
 
       {/* ── Delete confirmation ── */}
       <ConfirmDialog

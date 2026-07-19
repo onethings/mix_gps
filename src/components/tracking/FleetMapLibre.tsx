@@ -132,6 +132,8 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   const markersRef = useRef<Map<number, maplibregl.Marker>>(new Map());
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const popupDismissedRef = useRef(false);
+  const vehiclesRef = useRef(vehicles);
+  vehiclesRef.current = vehicles;
   // Initialize popupDismissedRef from persisted preference on mount
   if (initialPopupDismissed !== undefined) {
     popupDismissedRef.current = initialPopupDismissed;
@@ -148,6 +150,13 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   const [mapVisible, setMapVisible] = useState(false);
   const mapVisibleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useT();
+
+  // Accumulator editor state
+  const [accEditOpen, setAccEditOpen] = useState(false);
+  const [accSaving, setAccSaving] = useState(false);
+  const [editHours, setEditHours] = useState('');
+  const [editDistance, setEditDistance] = useState('');
+  const [accVehicleId, setAccVehicleId] = useState<number | null>(null);
 
   useImperativeHandle(ref, () => ({
     fitAllVehicles: () => fitBounds(mapRef.current, vehicles, fitPadding, {}),
@@ -195,7 +204,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     // Map POPUP_FIELDS keys to translation labels
     const fieldLabels: Record<string, string> = {
       speed: t('speed'), ignition: t('ignition'), updated: t('updated'),
-      address: t('address'), driver: t('driver'), odometer: t('odometer'),
+      address: t('address'), driver: t('driver'), accumulators: t('sharedDeviceAccumulators'),
       todayMileage: t('today'), replayLink: t('replayLink'),
     };
 
@@ -233,7 +242,37 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       addData('address', '📍', escapeHtml(vehicle.address || '—'));
     }
     addData('driver', '👤', escapeHtml(vehicle.driver || '—'));
-    addData('odometer', '📊', `${vehicle.odometer ? Number(vehicle.odometer).toLocaleString() : '—'} ${t('unitKm')}`);
+
+    // Consolidated engine hours & odometer row (with inline gear edit)
+    const rawHours = vehicle._raw?.position?.attributes?.hours;
+    const rawDist = vehicle._raw?.position?.attributes?.totalDistance;
+    const rawOdo = vehicle.odometer;
+    let hoursDisplay = '—';
+    if (rawHours != null) {
+      let n = Number(rawHours);
+      if (Number.isFinite(n)) {
+        n = n / 3600000;
+        hoursDisplay = n.toFixed(1);
+      }
+    }
+    // Use odometer (already in km, from vehicle) as primary distance; fallback to totalDistance
+    let distDisplay = '—';
+    if (rawOdo != null && Number.isFinite(Number(rawOdo))) {
+      distDisplay = Number(rawOdo).toLocaleString();
+    } else if (rawDist != null) {
+      const n = Number(rawDist);
+      if (Number.isFinite(n)) distDisplay = Math.round(n / 1000).toLocaleString();
+    }
+    const accEditId = `acc-edit-${vehicle.id}-${Date.now()}`;
+    const hiddenAttr = settings.accumulators === false ? ' style="display:none"' : '';
+    const accHtml = `
+      <span data-key="accumulators"${hiddenAttr} style="background:#f3f4f6;border-radius:4px;padding:2px 7px;white-space:nowrap;font-size:10px;line-height:1.6">
+        <span style="color:#6b7280">⏱</span> <b style="color:#111;margin-right:3px">${hoursDisplay}</b><span style="color:#6b7280">h</span>
+        <span style="color:#d1d5db;margin:0 2px">|</span>
+        <span style="color:#6b7280">📏</span> <b style="color:#111;margin-right:3px">${distDisplay}</b><span style="color:#6b7280">km</span>
+        <span id="${accEditId}" style="cursor:pointer;margin-left:1px;color:#9ca3af" onclick="window.__openAccumulatorEditor(${vehicle.id})">⚙</span>
+      </span>`;
+    dataRows.push(accHtml);
 
     const todayMileageRender = `<span data-key="todayMileage"${settings.todayMileage !== false ? '' : ' style="display:none"'} style="background:#f3f4f6;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6"><span style="color:#6b7280">📅</span> <b style="color:#111"><span id="${todayMileageId}">—</span> ${t('unitKm')}</b></span>`;
 
@@ -249,8 +288,9 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
           ${dataRows.join('')}
           ${todayMileageRender}
         </div>
-        <div data-key="replayLink"${settings.replayLink !== false ? '' : ' style="display:none"'}>
-          <a href="javascript:void(0)" onclick="window.__openReplayTab('${vehicle.id}')" style="display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#3b82f6;text-decoration:none;font-weight:500;padding:3px 0;border-top:1px solid #e5e7eb;cursor:pointer">▶ ${t('replayToday')}</a>
+        <div data-key="replayLink"${settings.replayLink !== false ? '' : ' style="display:none"'} style="display:flex;gap:8px;border-top:1px solid #e5e7eb;padding:3px 0">
+          <a href="javascript:void(0)" onclick="window.__openDeviceProfile(${vehicle.id})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#3b82f6;text-decoration:none;font-weight:500;cursor:pointer">🔍 ${t('details')}</a>
+          <a href="javascript:void(0)" onclick="window.__openReplayTab('${vehicle.id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#3b82f6;text-decoration:none;font-weight:500;cursor:pointer">▶ ${t('replayToday')}</a>
         </div>
       </div>
     `;
@@ -319,12 +359,38 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     }
   }
 
-  // Expose global function so raw HTML popup can trigger tab-based navigation without full page reload
+  // Expose global functions so raw HTML popup can trigger React actions
   useEffect(() => {
     (window as any).__openReplayTab = (deviceId: string) => {
       navigateRef.current(`/replay?deviceId=${deviceId}&date=today`);
     };
-    return () => { delete (window as any).__openReplayTab; };
+    (window as any).__openDeviceProfile = (deviceId: number) => {
+      navigateRef.current(`/devices/${deviceId}`);
+    };
+    (window as any).__openAccumulatorEditor = (deviceId: number) => {
+      setAccVehicleId(deviceId);
+      const vehicle = vehiclesRef.current.find((v) => v.id === deviceId);
+      const attr = vehicle?._raw?.position?.attributes || {};
+      const rawHours = attr.hours;
+      const rawDist = attr.totalDistance;
+      if (rawHours != null) {
+        let n = Number(rawHours);
+        if (!Number.isFinite(n)) { setEditHours('0'); } else {
+          n = n / 3600000;
+          setEditHours(n.toFixed(1));
+        }
+      } else { setEditHours('0'); }
+      if (rawDist != null) {
+        const n = Number(rawDist);
+        setEditDistance(Number.isFinite(n) ? (n / 1000).toFixed(1) : '0');
+      } else { setEditDistance('0'); }
+      setAccEditOpen(true);
+    };
+    return () => {
+      delete (window as any).__openReplayTab;
+      delete (window as any).__openDeviceProfile;
+      delete (window as any).__openAccumulatorEditor;
+    };
   }, []);
 
   // Initialize map
@@ -830,7 +896,58 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   }, [mapVisible]);
 
   return (
-    <div ref={containerRef} className={`h-full w-full ${className} ${!mapVisible ? 'opacity-0' : ''}`} />
+    <>
+      <div ref={containerRef} className={`h-full w-full ${className} ${!mapVisible ? 'opacity-0' : ''}`} />
+
+      {/* Accumulator editor modal */}
+      {accEditOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60" onClick={() => setAccEditOpen(false)}>
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold mb-4">{t('posField_editAccumulators')}</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">{t('posField_editHours')}</label>
+                <input type="number" step="0.1" value={editHours}
+                  onChange={(e) => setEditHours(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">{t('posField_editDistance')}</label>
+                <input type="number" step="0.1" value={editDistance}
+                  onChange={(e) => setEditDistance(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-primary" />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setAccEditOpen(false)}
+                className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                {t('posField_cancel')}
+              </button>
+              <button onClick={async () => {
+                if (accVehicleId == null) return;
+                setAccSaving(true);
+                try {
+                  const payload: Record<string, unknown> = { deviceId: accVehicleId };
+                  const parsedH = parseFloat(editHours);
+                  const parsedD = parseFloat(editDistance);
+                  payload.hours = Number.isFinite(parsedH) ? parsedH * 3600000 : 0;
+                  payload.totalDistance = Number.isFinite(parsedD) ? parsedD * 1000 : 0;
+                  await api.devices.putAccumulators(accVehicleId, payload);
+                  setAccEditOpen(false);
+                } catch (e) {
+                  console.error('Failed to save accumulators', e);
+                } finally {
+                  setAccSaving(false);
+                }
+              }} disabled={accSaving}
+                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
+                {accSaving ? t('saving') : t('posField_save')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 });
 

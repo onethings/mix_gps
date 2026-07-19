@@ -120,7 +120,12 @@ export default function DeviceEditorPage() {
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">{t('category')}</label>
-            <Input value={category} onChange={(e) => setCategory(e.target.value)} placeholder={t('vehicleFormOptional')} />
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className={fieldClass}>
+              <option value="">{t('iconTypeDefault')}</option>
+              {['car','truck','bus','van','taxi','motocycle','bicycle','scooter','pickup','trailer','tractor','crane','camper','plane','helicopter','ship','boat','train','tram','person','animal'].map((ic) => (
+                <option key={ic} value={ic}>{t(`iconType_${ic}` as any)}</option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">{t('group')}</label>

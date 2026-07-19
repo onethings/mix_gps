@@ -13,7 +13,7 @@ export const POPUP_FIELDS: PopupFieldSetting[] = [
   { key: 'updated', label: 'Updated', default: true },
   { key: 'address', label: 'Address', default: true },
   { key: 'driver', label: 'Driver', default: false },
-  { key: 'odometer', label: 'Odometer', default: true },
+  { key: 'accumulators', label: 'Engine Hours & Odometer', default: true },
   { key: 'todayMileage', label: 'Today Mileage', default: true },
   { key: 'replayLink', label: 'Replay Link', default: true },
 ];
