@@ -8,6 +8,8 @@ import { ErrorBoundary } from './components/common/ErrorBoundary';
 import SessionExpiredListener from './components/common/SessionExpiredListener';
 import FlashToast from './components/common/FlashToast';
 import NavigationBootstrap from './components/common/NavigationBootstrap';
+import CachingController from './components/common/CachingController';
+import UpdateController from './components/common/UpdateController';
 
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const LiveTrackingPage = lazy(() => import('./pages/LiveTrackingPage'));
@@ -27,6 +29,8 @@ const ChartReportPage = lazy(() => import('./pages/reports/ChartReportPage'));
 const RouteReportPage = lazy(() => import('./pages/reports/RouteReportPage'));
 const LogsReportPage = lazy(() => import('./pages/reports/LogsReportPage'));
 const ScheduledReportPage = lazy(() => import('./pages/reports/ScheduledReportPage'));
+const StatisticsReportPage = lazy(() => import('./pages/reports/StatisticsReportPage'));
+const AuditReportPage = lazy(() => import('./pages/reports/AuditReportPage'));
 const DevicesPage = lazy(() => import('./pages/DevicesPage'));
 const GeofencesPage = lazy(() => import('./pages/GeofencesPage'));
 const OrdersPage = lazy(() => import('./pages/OrdersPage'));
@@ -53,6 +57,7 @@ const AttributeEditorPage = lazy(() => import('./pages/settings/AttributeEditorP
 const DriverEditorPage = lazy(() => import('./pages/settings/DriverEditorPage'));
 const GroupEditorPage = lazy(() => import('./pages/settings/GroupEditorPage'));
 const MaintenanceEditorPage = lazy(() => import('./pages/settings/MaintenanceEditorPage'));
+const AccumulatorsPage = lazy(() => import('./pages/settings/AccumulatorsPage'));
 const PermissionsSettingsPage = lazy(() => import('./pages/settings/PermissionsSettingsPage'));
 const AnnouncementSettingsPage = lazy(() => import('./pages/settings/AnnouncementSettingsPage'));
 const ConnectionsHubPage = lazy(() => import('./pages/settings/ConnectionsHubPage'));
@@ -68,6 +73,14 @@ const MaintenancePage = lazy(() => import('./pages/MaintenancePage'));
 const LogisticsPage = lazy(() => import('./pages/LogisticsPage'));
 const RoutePlanningPage = lazy(() => import('./pages/RoutePlanningPage'));
 const SharedViewPage = lazy(() => import('./pages/SharedViewPage'));
+const StreamPage = lazy(() => import('./pages/StreamPage'));
+const PositionPage = lazy(() => import('./pages/PositionPage'));
+const NetworkPage = lazy(() => import('./pages/NetworkPage'));
+const EventPageDetail = lazy(() => import('./pages/EventPage'));
+const EmulatorPage = lazy(() => import('./pages/EmulatorPage'));
+const CommandSendPage = lazy(() => import('./pages/CommandSendPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
@@ -95,6 +108,8 @@ function AppRoutes() {
     <Suspense fallback={<LoadingScreen />}>
       <Routes>
         <Route path="/shared" element={<SharedViewPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route
           path="/login"
           element={user ? <DefaultRedirect /> : <LoginPage />}
@@ -120,6 +135,9 @@ function AppRoutes() {
           <Route path="/logistics" element={<LogisticsPage />} />
           <Route path="/route-planning" element={<RoutePlanningPage />} />
           <Route path="/replay" element={<ReplayPage />} />
+          <Route path="/stream" element={<StreamPage />} />
+          <Route path="/emulator" element={<EmulatorPage />} />
+          <Route path="/commands/send/:id" element={<CommandSendPage />} />
 
           <Route element={<ReportsShell />}>
             <Route path="reports">
@@ -134,12 +152,17 @@ function AppRoutes() {
               <Route path="route" element={<RouteReportPage />} />
               <Route path="logs" element={<LogsReportPage />} />
               <Route path="scheduled" element={<ScheduledReportPage />} />
+              <Route path="statistics" element={<StatisticsReportPage />} />
+              <Route path="audit" element={<AuditReportPage />} />
               <Route path=":type" element={<ReportPage />} />
             </Route>
           </Route>
           <Route path="/geofences" element={<GeofencesPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/events" element={<EventsPage />} />
+          <Route path="/position/:id" element={<PositionPage />} />
+          <Route path="/network/:positionId" element={<NetworkPage />} />
+          <Route path="/event/:id" element={<EventPageDetail />} />
 
           <Route path="/settings" element={<SettingsLayout />}>
             <Route index element={<SettingsOverviewPage />} />
@@ -169,7 +192,8 @@ function AppRoutes() {
             <Route path="maintenances" element={<MaintenanceSettingsPage />} />
             <Route path="maintenance/new" element={<MaintenanceEditorPage />} />
             <Route path="maintenance/:id" element={<MaintenanceEditorPage />} />
-            <Route path="attributes" element={<ComputedAttributesSettingsPage />} />
+            <Route path="accumulators/:deviceId" element={<AccumulatorsPage />} />
+            <Route path="attributes", element={<ComputedAttributesSettingsPage />} />
             <Route path="attribute/new" element={<AttributeEditorPage />} />
             <Route path="attribute/:id" element={<AttributeEditorPage />} />
             <Route path="permissions" element={<PermissionsSettingsPage />} />
@@ -193,6 +217,8 @@ export default function App() {
     <>
       <NavigationBootstrap />
       <SessionExpiredListener />
+      <CachingController />
+      <UpdateController />
       <FlashToast />
       <ErrorBoundary>
         <AppRoutes />

@@ -1,10 +1,18 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
-import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler } from 'lucide-react';
+import { Map as MapIcon, Satellite, Crosshair, Shield, ShieldOff, Ruler, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import FleetMapLibre, { type FleetMapLibreHandle } from '@/components/tracking/FleetMapLibre';
 import type { Vehicle, TraccarGeofence } from '@/types';
+
+interface NominatimFeature {
+  place_id: number;
+  display_name: string;
+  bbox: [string, string, string, string];
+  lat: string;
+  lon: string;
+}
 
 function validLatLng(lat: number | null | undefined, lng: number | null | undefined): boolean {
   if (lat == null || lng == null) return false;
@@ -33,6 +41,11 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
   const [geofencesLoaded, setGeofencesLoaded] = useState(false);
   const [measuring, setMeasuring] = useState(false);
   const [measureKm, setMeasureKm] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<NominatimFeature[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<FleetMapLibreHandle>(null);
 
   const noPositionCount = useMemo(() => vehicles.filter((v) => !validLatLng(v.lat, v.lng)).length, [vehicles]);
@@ -43,6 +56,50 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
     vehicles.forEach((v) => { if (counts[v.status] != null) counts[v.status] += 1; });
     return { ...counts, total: vehicles.length };
   }, [vehicles]);
+
+  /* Geocoder: debounced Nominatim search */
+  useEffect(() => {
+    if (!searchQuery.trim()) { setSearchResults([]); setSearchLoading(false); return; }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=geojson&addressdetails=1&limit=8`;
+        const res = await fetch(url, { signal: controller.signal });
+        const data = await res.json();
+        setSearchResults(data.features?.map((f: any) => ({
+          place_id: f.properties.place_id,
+          display_name: f.properties.display_name,
+          bbox: f.bbox,
+          lat: String(f.geometry.coordinates[1]),
+          lon: String(f.geometry.coordinates[0]),
+        })) || []);
+      } catch { /* AbortError is expected */ }
+      finally { setSearchLoading(false); }
+    }, 350);
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [searchQuery]);
+
+  /* Close search dropdown on outside click */
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [searchOpen]);
+
+  const handleSearchSelect = useCallback((feature: NominatimFeature) => {
+    const [minX, minY, maxX, maxY] = feature.bbox;
+    mapRef.current?.flyToBounds(
+      [[parseFloat(minX), parseFloat(minY)], [parseFloat(maxX), parseFloat(maxY)]],
+      { padding: 60 }
+    );
+    setSearchOpen(false);
+    setSearchQuery('');
+    setSearchResults([]);
+  }, []);
 
   useEffect(() => {
     if (!measuring) { setMeasureKm(0); return; }
@@ -108,6 +165,45 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
             title={t('fitAllVehicles')}>
             <Crosshair className="h-3.5 w-3.5" /> {t('all')}
           </button>
+          {/* Geocoder search */}
+          <div ref={searchRef} className="relative">
+            <button type="button" onClick={() => setSearchOpen((v) => !v)}
+              className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
+                searchOpen ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-accent')}
+              title={t('sharedSearch')}>
+              <Search className="h-3.5 w-3.5" />
+            </button>
+            {searchOpen && (
+              <div className="absolute left-0 top-full mt-1 z-30 w-72 rounded-lg border bg-popover shadow-lg">
+                <div className="p-2">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t('sharedSearch')}
+                    className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-xs outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="max-h-60 overflow-y-auto border-t">
+                  {searchLoading ? (
+                    <div className="px-3 py-4 text-center text-xs text-muted-foreground">{t('loading')}…</div>
+                  ) : searchResults.length > 0 ? (
+                    searchResults.map((f) => (
+                      <button key={f.place_id} type="button"
+                        className="block w-full px-3 py-2 text-left text-xs hover:bg-accent transition-colors border-b border-border/50 last:border-0"
+                        onClick={() => handleSearchSelect(f)}
+                      >
+                        <span className="line-clamp-2">{f.display_name}</span>
+                      </button>
+                    ))
+                  ) : searchQuery.trim() && !searchLoading ? (
+                    <div className="px-3 py-4 text-center text-xs text-muted-foreground">{t('noData')}</div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
           <button type="button" onClick={handleToggleGeofences}
             className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
               showGeofences ? 'bg-primary/15 text-primary hover:bg-primary/20' : 'text-muted-foreground hover:bg-accent')}
@@ -154,6 +250,26 @@ export default function MapView({ vehicles, selectedId, onSelect }: MapViewProps
             );
           })}
         </div>
+
+        {/* Speed legend bar */}
+        {anyPosition && (() => {
+          const speeds = vehicles.filter((v) => v.speed != null).map((v) => v.speed * 1.852);
+          if (!speeds.length) return null;
+          const min = Math.round(Math.min(...speeds));
+          const max = Math.round(Math.max(...speeds));
+          if (min === max) return null;
+          const gradientStops = ['#00bfff','#00ff7f','#ffff00','#ff8c00','#ff4500','#dc143c'];
+          return (
+            <div className="flex items-center gap-2 rounded-md border border-border bg-card/90 px-3 py-1.5 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
+              <span className="font-medium text-foreground">{t('speed')}</span>
+              <span>{min}</span>
+              <div className="h-2 w-20 rounded-sm" style={{
+                background: `linear-gradient(to right, ${gradientStops.join(', ')})`,
+              }} />
+              <span>{max} km/h</span>
+            </div>
+          );
+        })()}
 
         {/* No-coordinates warning — moved here instead of blocking top controls */}
         {noPositionCount > 0 && (

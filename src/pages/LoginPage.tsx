@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { QrCode } from 'lucide-react';
 import { useSession } from '@/context/SessionContext';
 import { useT, LANGUAGES } from '@/lib/i18n';
 import LanguageSwitcher from '@/components/common/LanguageSwitcher';
+import QrCodeDialog from '@/components/common/QrCodeDialog';
 
 function LogoIcon() {
   return (
@@ -28,6 +30,7 @@ export default function LoginPage() {
   const [codeEnabled, setCodeEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [qrOpen, setQrOpen] = useState(false);
   const { t, locale, dir } = useT();
 
   const submit = async (e) => {
@@ -63,10 +66,16 @@ export default function LoginPage() {
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/50" />
 
-      {/* Language selector — top right, like gps51 */}
-      <div className="absolute right-4 top-4 z-20">
+      {/* Language selector + QR button — top right */}
+      <div className="absolute right-4 top-4 z-20 flex items-center gap-2">
+        <button type="button" onClick={() => setQrOpen(true)}
+          className="flex items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs text-white/80 hover:bg-white/20 transition-colors">
+          <QrCode className="h-3.5 w-3.5" />
+          QR
+        </button>
         <LanguageSwitcher className="[&>button]:border-white/20 [&>button]:bg-white/10 [&>button]:text-white/80 [&>button]:hover:bg-white/20" />
       </div>
+      <QrCodeDialog open={qrOpen} onClose={() => setQrOpen(false)} />
 
       {/* Login card — centered, glass-morphism, inspired by gps51 login style */}
       <div className="relative z-10 w-full max-w-md px-4">
@@ -166,6 +175,17 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Links */}
+          <div className="mt-4 flex items-center justify-center gap-4 text-xs">
+            <Link to="/register" className="text-white/50 hover:text-white/80 transition-colors">
+              {t('loginRegister')}
+            </Link>
+            <span className="text-white/20">|</span>
+            <Link to="/reset-password" className="text-white/50 hover:text-white/80 transition-colors">
+              {t('forgotPassword')}
+            </Link>
+          </div>
 
           {/* Footer */}
           <div className="mt-6 text-center text-xs text-white/40">

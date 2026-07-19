@@ -217,6 +217,115 @@ export function wktToGeoJson(wkt: string | null | undefined): GeoJSON.Feature | 
  * Traccar WKT uses "lat lng" order.
  * Uses 48 points for a smooth circle.
  */
+/**
+ * Generate a GeoJSON polygon feature for a circle.
+ * Returns coordinates in [lng, lat] order (MapLibre-compatible).
+ */
+export function circleToGeoJson(center: [number, number], radiusMeters: number, segments = 48): GeoJSON.Feature {
+  if (!validCoord(center) || !Number.isFinite(radiusMeters) || radiusMeters <= 0) {
+    return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [[]] }, properties: {} };
+  }
+  const [lng, lat] = center;
+  const coords: [number, number][] = [];
+  const latRad = (lat * Math.PI) / 180;
+  const lngPerM = (1 / (111320 * Math.cos(latRad))) || 0.00000899;
+  const latPerM = 1 / 110540;
+
+  for (let i = 0; i <= segments; i++) {
+    const angle = (i / segments) * 2 * Math.PI;
+    const dlng = Math.cos(angle) * radiusMeters * lngPerM;
+    const dlat = Math.sin(angle) * radiusMeters * latPerM;
+    coords.push([lng + dlng, lat + dlat]);
+  }
+  return {
+    type: 'Feature',
+    geometry: { type: 'Polygon', coordinates: [coords] },
+    properties: {},
+  };
+}
+
+/**
+ * Simplified KML to GeoJSON converter.
+ * Parses Placemark elements with Point, LineString, and Polygon geometries.
+ */
+export function kmlToGeoJson(kmlText: string): GeoJSON.FeatureCollection {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(kmlText, 'text/xml');
+  const placemarks = doc.querySelectorAll('Placemark');
+  const features: GeoJSON.Feature[] = [];
+
+  placemarks.forEach((pm) => {
+    const name = pm.querySelector('name')?.textContent || '';
+    const desc = pm.querySelector('description')?.textContent || '';
+    const properties: Record<string, unknown> = { name, description: desc };
+
+    // Extract style colors
+    const styleUrl = pm.querySelector('styleUrl')?.textContent?.replace('#', '');
+    if (styleUrl) {
+      const style = doc.getElementById(styleUrl) || doc.querySelector(`Style[id="${styleUrl}"]`);
+      if (style) {
+        const polyColor = style.querySelector('PolyStyle color')?.textContent;
+        const lineColor = style.querySelector('LineStyle color')?.textContent;
+        if (polyColor) properties.fill = kmlColorToHex(polyColor);
+        if (lineColor) properties.stroke = kmlColorToHex(lineColor);
+      }
+    }
+
+    const geometry = parseKmlGeometry(pm);
+    if (geometry) {
+      features.push({ type: 'Feature', geometry, properties });
+    }
+  });
+
+  return { type: 'FeatureCollection', features };
+}
+
+function parseKmlGeometry(element: Element): GeoJSON.Geometry | null {
+  const point = element.querySelector('Point');
+  if (point) {
+    const coords = parseKmlCoord(point.querySelector('coordinates')?.textContent);
+    return coords ? { type: 'Point', coordinates: coords } : null;
+  }
+  const line = element.querySelector('LineString');
+  if (line) {
+    const coords = parseKmlCoords(line.querySelector('coordinates')?.textContent);
+    return coords ? { type: 'LineString', coordinates: coords } : null;
+  }
+  const polygon = element.querySelector('Polygon');
+  if (polygon) {
+    const outer = polygon.querySelector('outerBoundaryIs coordinates')?.textContent;
+    const inner = polygon.querySelectorAll('innerBoundaryIs coordinates');
+    if (!outer) return null;
+    const rings: [number, number][][] = [parseKmlCoords(outer)];
+    inner.forEach((ring) => rings.push(parseKmlCoords(ring.textContent)));
+    return { type: 'Polygon', coordinates: rings };
+  }
+  return null;
+}
+
+function parseKmlCoord(text?: string | null): [number, number] | null {
+  if (!text) return null;
+  const parts = text.trim().split(/\s*,\s*/);
+  if (parts.length < 2) return null;
+  return [parseFloat(parts[0]), parseFloat(parts[1])];
+}
+
+function parseKmlCoords(text?: string | null): [number, number][] {
+  if (!text) return [];
+  return text.trim().split(/\s+/).map((pair) => {
+    const parts = pair.split(',');
+    if (parts.length < 2) return null;
+    return [parseFloat(parts[0]), parseFloat(parts[1])] as [number, number];
+  }).filter((c): c is [number, number] => c !== null);
+}
+
+function kmlColorToHex(kmlColor: string): string {
+  // KML color is aabbggrr (alpha, blue, green, red)
+  const match = kmlColor.match(/^([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/);
+  if (!match) return '#3b82f6';
+  return `#${match[4]}${match[3]}${match[2]}`;
+}
+
 export function circleToWkt(center: [number, number], radiusMeters: number): string {
   if (!validCoord(center) || !Number.isFinite(radiusMeters) || radiusMeters <= 0) return '';
   const [lng, lat] = center;

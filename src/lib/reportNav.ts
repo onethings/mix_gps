@@ -30,5 +30,6 @@ export const REPORT_TABS: any[] = [
   { path: '/replay', labelKey: 'tabReplay', type: 'replay' },
   { path: '/reports/logs', labelKey: 'tabLogs', type: 'static' },
   { path: '/reports/scheduled', labelKey: 'tabScheduled', type: 'static' },
+  { path: '/reports/statistics', labelKey: 'tabStatistics', type: 'static', admin: true },
   { path: '/reports/audit', labelKey: 'tabAudit', type: 'static', admin: true },
 ];

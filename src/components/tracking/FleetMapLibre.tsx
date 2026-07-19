@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { createCarMarkerElement, updateCarMarkerElement } from './carMarkerSvg';
-import { wktToGeoJson } from '@/lib/geo';
+import { wktToGeoJson, circleToGeoJson, kmlToGeoJson } from '@/lib/geo';
 import { api } from '@/lib/api';
 import { cacheGet, cacheSet } from '@/lib/db';
 import { loadPopupSettings, savePopupSetting, POPUP_FIELDS } from '@/lib/popupSettings';
 import { useT } from '@/lib/i18n';
+import { useSession } from '@/context/SessionContext';
 import type { Vehicle, TraccarGeofence } from '@/types';
 
 const STYLE_ROAD = 'https://tiles.openfreemap.org/styles/liberty';
@@ -73,6 +74,7 @@ export interface FleetMapLibreHandle {
   fitAllVehicles: () => void;
   clearMeasurement: () => void;
   flyToVehicle: (lat: number, lng: number, zoom?: number) => void;
+  flyToBounds: (bounds: [[number, number], [number, number]], options?: { padding?: number }) => void;
   _measureTotalKm?: number;
 }
 
@@ -89,6 +91,7 @@ interface FleetMapLibreProps {
   geofences?: TraccarGeofence[];
   measuring?: boolean;
   onMeasuringChange?: (m: boolean) => void;
+  onMapClick?: (lat: number, lng: number) => void;
   initialZoom?: number;
   onZoomChange?: (zoom: number) => void;
   zoomPrefResolved?: boolean;
@@ -149,6 +152,11 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       const map = mapRef.current;
       if (!map) return;
       map.flyTo({ center: [lng, lat], zoom, duration: 400 });
+    },
+    flyToBounds: (bounds: [[number, number], [number, number]], options?: { padding?: number }) => {
+      const map = mapRef.current;
+      if (!map) return;
+      map.fitBounds(bounds, { padding: options?.padding ?? 60, maxZoom: 18, duration: 600 });
     },
     get _measureTotalKm() { return measureTotalKmRef.current; },
   }));
@@ -329,6 +337,13 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
 
     if (showControls) {
       map.addControl(new maplibregl.NavigationControl(), 'top-right');
+      if (showGeolocate) {
+        map.addControl(new maplibregl.GeolocateControl({
+          positionOptions: { enableHighAccuracy: true },
+          trackUserLocation: true,
+        }), 'top-right');
+      }
+      map.addControl(new maplibregl.ScaleControl({ unit: 'metric', maxWidth: 120 }), 'bottom-left');
     }
 
     map.on('load', () => {
@@ -566,6 +581,166 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     });
   }, [showGeofences, geofences]);
 
+  /* ── Accuracy circles ── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const id = 'accuracy-circles';
+    const srcId = 'accuracy-src';
+
+    // Create source & layer on first run
+    if (!map.getSource(srcId)) {
+      map.addSource(srcId, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({
+        id,
+        type: 'fill',
+        source: srcId,
+        paint: {
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.15,
+          'fill-outline-color': '#3b82f6',
+        },
+      } as any);
+    }
+
+    // Build circles for vehicles with accuracy > 0
+    const features = vehicles
+      .filter((v) => v.lat != null && v.lng != null && (v.accuracy ?? 0) > 0)
+      .map((v) => circleToGeoJson([v.lng!, v.lat!], v.accuracy! * 0.5, 24));
+
+    map.getSource(srcId)?.setData({ type: 'FeatureCollection', features });
+
+    return () => {
+      try {
+        if (map.getLayer(id)) map.removeLayer(id);
+        if (map.getSource(srcId)) map.removeSource(srcId);
+      } catch { /* ignore if map already destroyed */ }
+    };
+  }, [mapReady, vehicles]);
+
+  /* ── Live route trail for selected vehicle ── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const id = 'live-route';
+    const srcId = 'live-route-src';
+
+    if (!map.getSource(srcId)) {
+      map.addSource(srcId, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      map.addLayer({
+        id,
+        type: 'line',
+        source: srcId,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 3,
+          'line-opacity': 0.6,
+        },
+      } as any);
+    }
+
+    // Fetch recent positions for selected vehicle
+    if (selectedId == null) {
+      map.getSource(srcId)?.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const from = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const to = new Date().toISOString();
+        const data = await api.positions.list({ deviceId: selectedId, from, to }) as any[];
+        if (cancelled || !map.getSource(srcId)) return;
+        const coords = (data || [])
+          .filter((p: any) => p.latitude != null && p.longitude != null)
+          .sort((a: any, b: any) => (a.fixTime || a.serverTime || '').localeCompare(b.fixTime || b.serverTime || ''))
+          .map((p: any) => [p.longitude, p.latitude] as [number, number]);
+        if (coords.length < 2) {
+          map.getSource(srcId)?.setData({ type: 'FeatureCollection', features: [] });
+          return;
+        }
+        map.getSource(srcId)?.setData({
+          type: 'FeatureCollection',
+          features: [{
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: coords },
+            properties: {},
+          }],
+        });
+      } catch { /* ignore */ }
+    })();
+
+    return () => { cancelled = true; };
+  }, [mapReady, selectedId, vehicles]);
+
+  /* ── POI Layer (KML overlay from user settings) ── */
+  const { user } = useSession();
+  const poiLayerUrl = (user?.attributes as Record<string, string> | undefined)?.poiLayer;
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !poiLayerUrl) return;
+
+    const id = 'poi-src';
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(poiLayerUrl);
+        const text = await res.text();
+        if (cancelled || !map.getSource(id)) return;
+        const data = kmlToGeoJson(text);
+
+        map.getSource(id)?.setData(data);
+      } catch { /* ignore invalid KML URL */ }
+    })();
+
+    return () => { cancelled = true; };
+  }, [mapReady, poiLayerUrl]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    const id = 'poi-src';
+
+    if (!map.getSource(id)) {
+      map.addSource(id, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+
+      map.addLayer({
+        source: id, id: 'poi-fill', type: 'fill',
+        filter: ['==', '$type', 'Polygon'],
+        paint: { 'fill-color': ['coalesce', ['get', 'fill'], '#3b82f6'], 'fill-opacity': 0.3 },
+      } as any);
+      map.addLayer({
+        source: id, id: 'poi-line', type: 'line',
+        paint: { 'line-color': ['coalesce', ['get', 'stroke'], '#3b82f6'], 'line-width': 2 },
+      } as any);
+      map.addLayer({
+        source: id, id: 'poi-point', type: 'circle',
+        filter: ['==', '$type', 'Point'],
+        paint: { 'circle-radius': 5, 'circle-color': ['coalesce', ['get', 'icon-color'], '#3b82f6'] },
+      } as any);
+      map.addLayer({
+        source: id, id: 'poi-label', type: 'symbol',
+        layout: {
+          'text-field': ['coalesce', ['get', 'name'], ''],
+          'text-anchor': 'top', 'text-offset': [0, 1.5],
+          'text-size': 11,
+        },
+        paint: { 'text-halo-color': 'white', 'text-halo-width': 1 },
+      } as any);
+    }
+
+    return () => {
+      ['poi-label', 'poi-point', 'poi-line', 'poi-fill'].forEach((l) => {
+        try { if (map.getLayer(l)) map.removeLayer(l); } catch { /* ignore */ }
+      });
+      try { if (map.getSource(id)) map.removeSource(id); } catch { /* ignore */ }
+    };
+  }, [mapReady]);
+
   /* ── Fly to selected vehicle — preserve current zoom ── */
   useEffect(() => {
     const map = mapRef.current;
@@ -578,35 +753,40 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     map.flyTo({ center: [vehicle.lng!, vehicle.lat!], zoom: currentZoom, duration: 600 });
   }, [selectedId, mapReady, zoomPrefResolved]);
 
-  // Add measurement click handler to map
+  // Handle map clicks (measurement or emulator)
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !measuring) return;
+    if (!map) return;
+    if (!measuring && !onMapClick) return;
 
     const handleClick = (e: maplibregl.MapMouseEvent) => {
       const { lng, lat } = e.lngLat;
+      if (onMapClick) {
+        onMapClick(lat, lng);
+      }
+      if (measuring) {
+        // Add marker
+        const el = document.createElement('div');
+        el.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#f59e0b;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);';
+        const marker = new maplibregl.Marker({ element: el })
+          .setLngLat([lng, lat])
+          .addTo(map);
+        measureLineRef.current.push(marker);
+        measurePointsRef.current.push({ lng, lat });
 
-      // Add marker
-      const el = document.createElement('div');
-      el.style.cssText = 'width:10px;height:10px;border-radius:50%;background:#f59e0b;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4);';
-      const marker = new maplibregl.Marker({ element: el })
-        .setLngLat([lng, lat])
-        .addTo(map);
-      measureLineRef.current.push(marker);
-      measurePointsRef.current.push({ lng, lat });
-
-      // Update total distance
-      const pts = measurePointsRef.current;
-      if (pts.length >= 2) {
-        const last = pts[pts.length - 1]!;
-        const prev = pts[pts.length - 2]!;
-        measureTotalKmRef.current += haversineKm(prev.lng, prev.lat, last.lng, last.lat);
+        // Update total distance
+        const pts = measurePointsRef.current;
+        if (pts.length >= 2) {
+          const last = pts[pts.length - 1]!;
+          const prev = pts[pts.length - 2]!;
+          measureTotalKmRef.current += haversineKm(prev.lng, prev.lat, last.lng, last.lat);
+        }
       }
     };
 
     map.on('click', handleClick);
     return () => { map.off('click', handleClick); };
-  }, [measuring]);
+  }, [measuring, onMapClick]);
 
   // Fallback: show map after 3s even if fitBounds never triggered (no vehicles/slow data)
   useEffect(() => {
