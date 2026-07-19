@@ -193,7 +193,7 @@ function AppRoutes() {
             <Route path="maintenance/new" element={<MaintenanceEditorPage />} />
             <Route path="maintenance/:id" element={<MaintenanceEditorPage />} />
             <Route path="accumulators/:deviceId" element={<AccumulatorsPage />} />
-            <Route path="attributes", element={<ComputedAttributesSettingsPage />} />
+            <Route path="attributes" element={<ComputedAttributesSettingsPage />} />
             <Route path="attribute/new" element={<AttributeEditorPage />} />
             <Route path="attribute/:id" element={<AttributeEditorPage />} />
             <Route path="permissions" element={<PermissionsSettingsPage />} />

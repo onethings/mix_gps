@@ -8,6 +8,10 @@ const STORES: Record<string, { keyPath: string; ttl: number }> = {
   settings: { keyPath: 'id', ttl: 0 },
   devices: { keyPath: 'id', ttl: 60 * 60 * 1000 },
   geofences: { keyPath: 'id', ttl: 60 * 60 * 1000 },
+  groups: { keyPath: 'id', ttl: 60 * 60 * 1000 },
+  drivers: { keyPath: 'id', ttl: 60 * 60 * 1000 },
+  calendars: { keyPath: 'id', ttl: 60 * 60 * 1000 },
+  maintenance: { keyPath: 'id', ttl: 60 * 60 * 1000 },
   general: { keyPath: 'id', ttl: DEFAULT_TTL_MS },
 };
 

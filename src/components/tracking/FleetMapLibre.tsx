@@ -120,6 +120,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     zoomPrefResolved,
     initialPopupDismissed,
     onPopupDismissedChange,
+    onMapClick,
   },
   ref,
 ) {
