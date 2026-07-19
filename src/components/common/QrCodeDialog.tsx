@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Download } from 'lucide-react';
 import { useT } from '@/lib/i18n';
+import QRCode from 'qrcode';
 
 interface QrCodeDialogProps {
   open: boolean;
@@ -9,17 +10,38 @@ interface QrCodeDialogProps {
 
 /**
  * QR code dialog for sharing the server URL / login link.
- * Uses the Google Charts QR Code API (no additional dependencies).
+ * Generates QR codes client-side using the qrcode library (no external API dependency).
  */
 export default function QrCodeDialog({ open, onClose }: QrCodeDialogProps) {
   const { t } = useT();
   const [serverUrl, setServerUrl] = useState(window.location.origin);
   const [queryParams, setQueryParams] = useState('');
-
-  if (!open) return null;
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [qrError, setQrError] = useState(false);
+  const prevUrlRef = useRef('');
 
   const fullUrl = queryParams ? `${serverUrl}?${queryParams}` : serverUrl;
-  const qrUrl = `https://chart.googleapis.com/chart?cht=qr&chs=300x300&chl=${encodeURIComponent(fullUrl)}`;
+
+  // Regenerate QR code whenever the URL changes — MUST be before early return
+  useEffect(() => {
+    if (fullUrl === prevUrlRef.current) return;
+    prevUrlRef.current = fullUrl;
+    setQrError(false);
+    QRCode.toDataURL(fullUrl, {
+      width: 300,
+      margin: 2,
+      color: { dark: '#000000', light: '#ffffff' },
+    })
+      .then((url: string) => {
+        setQrDataUrl(url);
+        setQrError(false);
+      })
+      .catch(() => {
+        setQrError(true);
+      });
+  }, [fullUrl]);
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
@@ -35,18 +57,17 @@ export default function QrCodeDialog({ open, onClose }: QrCodeDialogProps) {
 
         {/* QR Code Image */}
         <div className="mb-4 flex justify-center">
-          <img
-            src={qrUrl}
-            alt="QR Code"
-            className="h-48 w-48 md:h-60 md:w-60"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-            }}
-          />
-          <div className="hidden flex-col items-center justify-center text-sm text-muted-foreground">
-            <p>{t('qrCodeError')}</p>
-          </div>
+          {qrDataUrl && !qrError ? (
+            <img
+              src={qrDataUrl}
+              alt="QR Code"
+              className="h-48 w-48 md:h-60 md:w-60"
+            />
+          ) : (
+            <div className="flex h-48 w-48 md:h-60 md:w-60 flex-col items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+              <p>{t('qrCodeError')}</p>
+            </div>
+          )}
         </div>
 
         {/* Server URL */}
@@ -79,7 +100,7 @@ export default function QrCodeDialog({ open, onClose }: QrCodeDialogProps) {
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" onClick={() => {
             const a = document.createElement('a');
-            a.href = qrUrl;
+            a.href = qrDataUrl;
             a.download = 'qr-code.png';
             a.click();
           }}
