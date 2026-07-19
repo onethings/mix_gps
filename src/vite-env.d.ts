@@ -13,3 +13,12 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare module 'virtual:pwa-register/react' {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  export function useRegisterSW(options?: any): {
+    needRefresh: [boolean, (v: boolean) => void];
+    offlineReady: [boolean, (v: boolean) => void];
+    updateServiceWorker: (reloadPage?: boolean) => Promise<void>;
+  };
+}

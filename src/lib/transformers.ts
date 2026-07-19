@@ -76,6 +76,7 @@ export function toVehicle(device, position) {
     course: position?.course ?? 0,
     address: position?.address || null,
     battery: attr.batteryLevel ?? null,
+    accuracy: position?.accuracy ?? null,
     _raw: { device, position },
   };
 }

@@ -609,7 +609,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       .filter((v) => v.lat != null && v.lng != null && (v.accuracy ?? 0) > 0)
       .map((v) => circleToGeoJson([v.lng!, v.lat!], v.accuracy! * 0.5, 24));
 
-    map.getSource(srcId)?.setData({ type: 'FeatureCollection', features });
+    (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features });
 
     return () => {
       try {
@@ -643,7 +643,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
 
     // Fetch recent positions for selected vehicle
     if (selectedId == null) {
-      map.getSource(srcId)?.setData({ type: 'FeatureCollection', features: [] });
+      (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: [] });
       return;
     }
 
@@ -659,10 +659,10 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
           .sort((a: any, b: any) => (a.fixTime || a.serverTime || '').localeCompare(b.fixTime || b.serverTime || ''))
           .map((p: any) => [p.longitude, p.latitude] as [number, number]);
         if (coords.length < 2) {
-          map.getSource(srcId)?.setData({ type: 'FeatureCollection', features: [] });
+          (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: [] });
           return;
         }
-        map.getSource(srcId)?.setData({
+        (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({
           type: 'FeatureCollection',
           features: [{
             type: 'Feature',
@@ -694,7 +694,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
         if (cancelled || !map.getSource(id)) return;
         const data = kmlToGeoJson(text);
 
-        map.getSource(id)?.setData(data);
+        (map.getSource(id) as maplibregl.GeoJSONSource)?.setData(data);
       } catch { /* ignore invalid KML URL */ }
     })();
 

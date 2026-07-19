@@ -292,6 +292,7 @@ export interface Vehicle {
   course: number;
   address: string | null;
   battery: number | null;
+  accuracy: number | null;
   _raw: { device: TraccarDevice; position: TraccarPosition | null };
 }
 
