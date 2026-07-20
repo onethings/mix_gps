@@ -292,11 +292,11 @@ export const api = {
   },
 
   scheduledReports: {
-    list: () => request('/reports/scheduled'),
-    get: (id: number) => request(`/reports/scheduled/${id}`),
-    create: (payload: any) => request('/reports/scheduled', { method: 'POST', body: JSON.stringify(payload) }),
-    update: (id: number, payload: any) => request(`/reports/scheduled/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-    remove: (id: number) => request(`/reports/scheduled/${id}`, { method: 'DELETE' }),
+    list: () => request('/reports'),
+    get: (id: number) => request(`/reports/${id}`),
+    create: (payload: any) => request('/reports', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id: number, payload: any) => request(`/reports/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    remove: (id: number) => request(`/reports/${id}`, { method: 'DELETE' }),
   },
 
   statistics: {

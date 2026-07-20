@@ -353,7 +353,7 @@ export default function SharedViewPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex w-full items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Navigation className="h-5 w-5 text-primary" />
             <span>{t('appTitle')}</span>

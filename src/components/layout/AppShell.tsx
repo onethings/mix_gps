@@ -79,7 +79,10 @@ function ShellContent() {
             isMapPage ? 'bg-transparent' : 'bg-background',
             'pb-safe-lg md:pb-0', // bottom nav spacing on mobile
           )}>
-            <div className={cn(isMapPage || basePath === '/replay' ? 'h-full' : 'mx-auto w-full max-w-7xl')}>
+            <div className={cn(
+              isMapPage || basePath === '/replay' ? 'h-full' :
+              'mx-auto w-full',
+            )}>
               <Outlet />
             </div>
           </main>

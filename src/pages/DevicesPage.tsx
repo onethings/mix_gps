@@ -176,7 +176,7 @@ export default function DevicesPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-3 md:space-y-5">
+    <div className="mx-auto w-full space-y-3 md:space-y-5">
       {liveError && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {liveError.message || t('failedToLoad')}

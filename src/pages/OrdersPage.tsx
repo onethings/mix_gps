@@ -61,7 +61,7 @@ export default function OrdersPage() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-3 md:space-y-6">
+    <div className="mx-auto w-full space-y-3 md:space-y-6">
       <PageHeader
         title={t('orders')}
         description={t('ordersDesc')}
