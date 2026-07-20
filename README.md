@@ -22,6 +22,7 @@
 - [Build](#build)
 - [Deploy to Cloudflare Pages](#deploy-to-cloudflare-pages)
 - [Deploy Cloudflare Worker Proxy](#deploy-cloudflare-worker-proxy)
+- [WebSocket Architecture](#websocket-architecture)
 - [About demo3.traccar.org Test Server](#about-demo3traccarorg-test-server)
 - [Project Structure](#project-structure)
 - [Vehicle Marker System](#vehicle-marker-system)
@@ -170,13 +171,20 @@ When using the **demo3.traccar.org** public test server, log in with an account 
 > **Important:** `VITE_TRACCAR_URL` only controls where API requests are forwarded to — it does **not** change the URL you visit in the browser.  
 > You should **always access the dev server at `http://localhost:3001`** (or your production URL), **not** the Traccar server URL directly.
 
-> **CORS note for production:** In production (or preview), the browser sends API requests **directly** to your Traccar server, which may be blocked by CORS.  
-> Add the following to your `traccar.xml` on the Traccar server to allow requests from your frontend domain:
+> **🐛 CORS note for production:** In production (or preview), the browser sends API requests **directly** to your Traccar server, which may be blocked by CORS.
+>
+> **Solution — Set `web.origin` in `traccar.xml`:**
 > ```xml
+> <!-- Your frontend domain (the website you deploy this app to) -->
 > <entry key='web.origin'>https://your-frontend-domain.com</entry>
 > ```
-> **Do not use `*`** — it allows any website to read your Traccar data (vehicle locations, routes, etc.).  
-> For development, you can add `http://localhost:3001` as well.
+> This tells Traccar to include `Access-Control-Allow-Origin: https://your-frontend-domain.com` in its API responses.
+>
+> **⚠️ Important:**
+> - `web.origin` must be set to your **frontend URL** (the domain where this React app is deployed), **not** your Traccar server URL
+> - **Never use `*`** — it exposes all vehicle locations, routes, and customer data to any website
+> - For development, you can add `http://localhost:3001` to allow the Vite dev server
+> - See the [Production CORS section](#cors-issue-when-using-a-production-build-no-vite-proxy) below for detailed architecture and advanced setups
 
 ### Env File Reference
 
@@ -363,6 +371,176 @@ async function handleWebSocket(request, target) {
 
 ---
 
+## WebSocket Architecture
+
+Real-time data streaming is a core feature of this project. The WebSocket system connects to Traccar's live socket endpoint to receive instant updates on device positions, status changes, and events without polling.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Browser (React App)                      │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  LiveDataContext (src/context/LiveDataContext.tsx)   │   │
+│  │                                                     │   │
+│  │  ┌────────────┐    ┌──────────────┐                 │   │
+│  │  │ REST fetch │    │ WebSocket    │                 │   │
+│  │  │ (initial)  │    │ (real-time)  │                 │   │
+│  │  └─────┬──────┘    └──────┬───────┘                 │   │
+│  │        │                  │                          │   │
+│  │        ▼                  ▼                          │   │
+│  │  ┌────────────────────────────┐                     │   │
+│  │  │  RAF-based Batch Flusher   │                     │   │
+│  │  │  (merge frames per anim    │                     │   │
+│  │  │   frame for performance)   │                     │   │
+│  │  └────────────┬───────────────┘                     │   │
+│  │               │                                      │   │
+│  │               ▼                                      │   │
+│  │  ┌────────────────────────────┐                     │   │
+│  │  │  React State Updates       │                     │   │
+│  │  │  devices / positions /     │                     │   │
+│  │  │  events / alerts           │                     │   │
+│  │  └────────────────────────────┘                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  30+ Consumer Components                             │   │
+│  │  Dashboard, LiveTracking, Alerts, Events, Devices,   │   │
+│  │  VehicleProfile, Replay, Reports, etc.               │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### WebSocket Client (`src/lib/api/client.ts`)
+
+The `openSocket()` function handles WebSocket connection creation with smart URL resolution:
+
+```ts
+// src/lib/api/client.ts
+export function openSocket(onMessage: (frame: any) => void): WebSocket
+```
+
+**URL Resolution Priority:**
+
+| Mode | Priority | URL | Description |
+|------|----------|-----|-------------|
+| **Dev** | 1 | `ws://localhost:3001/api/socket` | Same-origin via Vite proxy (no `VITE_WS_URL` needed) |
+| **Production** | 1 | `VITE_WS_URL` (env var) | Direct WebSocket URL, bypasses any proxy |
+| **Production** | 2 | Derived from `VITE_TRACCAR_URL` | Replaces `http` → `ws`, appends `/api/socket` |
+| **Production** | 3 | Same-origin fallback | Uses current host (e.g., `wss://myfleet.pages.dev/api/socket`) |
+
+**Authentication:** In production, the `JSESSIONID` cookie is automatically read and appended as a query parameter (`?JSESSIONID=...`) to the WebSocket URL, enabling authenticated sessions.
+
+**Frame Parsing:** Incoming messages are parsed as JSON. Malformed frames are silently skipped.
+
+### Socket Frame Format (`src/types/index.ts`)
+
+```ts
+interface SocketFrame {
+  devices?: TraccarDevice[];    // Device metadata updates
+  positions?: TraccarPosition[]; // Real-time position updates
+  events?: TraccarEvent[];      // Real-time event notifications
+  token?: string;                // Session token (if applicable)
+}
+```
+
+### LiveDataContext (`src/context/LiveDataContext.tsx`)
+
+This React context is the central hub for all live data. It wraps the entire authenticated app tree:
+
+**Provider Location:** `src/main.tsx` — `<LiveDataProvider>` wraps all routes inside the session-guarded layout.
+
+**Lifecycle:**
+
+1. **Initial Load:** When a user logs in, the provider fetches devices and positions via REST API (`Promise.all([api.devices.list(), api.positions.list()])`) for immediate data display.
+2. **WebSocket Connection:** Simultaneously opens a WebSocket for continuous real-time updates.
+3. **Cleanup:** On logout or unmount, the socket is closed, RAF callbacks are cancelled, and all pending refs are cleared.
+4. **Auto-Reconnect:** If the connection drops, it automatically reconnects after a **15-second delay**.
+
+**RAF-Based Batching (Performance Optimization):**
+
+Instead of calling `setState` for every single WebSocket frame (which could be dozens per second), the system uses `requestAnimationFrame` batching:
+
+```
+WebSocket frames ──► pendingDevicesRef (Map)
+                 ──► pendingPositionsRef (Map)
+                 ──► pendingEventsRef (Array)
+                         │
+                    requestAnimationFrame
+                         │
+                         ▼
+                    flushFrameBatch()
+                         │
+                         ▼
+                    setDevices() / setPositions() / setEvents()
+```
+
+- Frames arriving between animation frames are accumulated into refs
+- On each RAF tick, all accumulated data is flushed into React state in a single batch
+- `shallowEqual` comparison avoids unnecessary re-renders when data hasn't changed
+- Events are capped at 100 entries (`MAX_EVENTS = 100`)
+
+**Exposed Context Value:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `vehicles` | `Vehicle[]` | Merged device + position + geocoded address data |
+| `devices` | `TraccarDevice[]` | Raw device list from latest frame |
+| `devicesById` | `Record<number, TraccarDevice>` | Device lookup map (by id) |
+| `positions` | `Record<string, TraccarPosition>` | Latest position per device |
+| `events` | `TraccarEvent[]` | Recent events (newest first, max 100) |
+| `alerts` | `Alert[]` | Transformed events with device names |
+| `connected` | `boolean` | WebSocket connection status |
+| `socketError` | `string \| null` | Connection error description |
+| `loading` | `boolean` | Initial data loading state |
+| `error` | `Error \| null` | Initial fetch error state |
+| `getVehicle(id)` | `Vehicle \| undefined` | Lookup helper for a single vehicle |
+| `refresh()` | `() => Promise<void>` | Manual full data refresh (REST) |
+
+**Geocoding Integration:**
+
+When a new position arrives, the `vehicles` memo automatically checks for cached geocoded addresses. If an address is missing, a reverse geocode request is dispatched via the geocoder module. This ensures vehicle locations show human-readable addresses without blocking the UI.
+
+### Consumers (30+ Components)
+
+The `useLiveData()` hook is used across the entire application:
+
+| Component | Data Used | Purpose |
+|-----------|-----------|---------|
+| `DashboardPage` | `vehicles`, `alerts`, `connected` | KPI cards, fleet status, live connection indicator |
+| `LiveTrackingPage` | `vehicles` | Real-time vehicle positions on MapLibre map |
+| `AlertsPage` | `alerts` | Real-time event alerts with ignore/resolve |
+| `EventsPage` | `vehicles` | Event timeline with live push |
+| `DevicesPage` | `vehicles`, `devices`, `refresh` | Device list with live status |
+| `VehicleProfilePage` | `getVehicle`, `refresh` | Real-time vehicle statistics |
+| `ReplayPage` | `devices`, `vehicles` | Trip replay vehicle selection |
+| `FuelPage` | `devices` | Fuel consumption display |
+| `GeofencesPage` | `vehicles` | Geofence vehicle assignment |
+| `Reports` (10+ pages) | `devices` | Report device selectors |
+| `LogisticsPage` | `vehicles`, `alerts` | Order management with live context |
+| `GlobalMapLayer` | `vehicles` | Background map markers |
+
+### Connection Status UI
+
+The connection status is exposed to the user through:
+
+- **Dashboard:** The "Live Socket" / "Reconnecting…" label next to the connection indicator (`connected` state)
+- **Alerts Page:** Real-time alert events appear as they arrive via WebSocket
+- **Maintenance Page:** Uses `connected` to show connection-dependent UI
+
+### Environment Variables for WebSocket
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_WS_URL` | Direct WebSocket URL for production (bypasses proxy) | Derived from `VITE_TRACCAR_URL` |
+| `VITE_TRACCAR_URL` | Traccar server URL (used to derive WebSocket URL if `VITE_WS_URL` is not set) | `https://demo3.traccar.org` |
+
+> **Note:** In dev mode, the Vite proxy handles WebSocket automatically — no `VITE_WS_URL` needed. In production, if you use a Cloudflare Worker or other reverse proxy, you can set `VITE_WS_URL` to point directly to the Traccar WebSocket endpoint to bypass the proxy.
+
+---
+
 ## About demo3.traccar.org Test Server
 
 ### What is it?
@@ -439,36 +617,162 @@ echo "VITE_TRACCAR_URL=http://localhost:8082" > .env.local
 >
 > This tells Traccar to include the `Access-Control-Allow-Origin` header in its API responses, which authorizes the browser to accept the cross-origin response.
 >
-> **How it works:**
->
-> ```
-> ┌─────────────────────┐         fetch('/api/devices')         ┌──────────────────┐
-> │  Frontend (React)   │ ──── with Origin: https://myfleet... ──▶│ Traccar Server   │
-> │  https://myfleet...  │ ◀──── Access-Control-Allow-Origin ─────│  http://localhost │
-> │  (Cloudflare Pages)  │         : https://myfleet...           │  :8082            │
-> └─────────────────────┘                                        └──────────────────┘
-> ```
->
-> The `web.origin` value in Traccar's config is used as the `Access-Control-Allow-Origin` response header value. Set it to your frontend's exact domain (or `*` during development).
->
-> **⚠️ Limitation: Traccar's `web.origin` only accepts a single origin or `*`.**  
-> The HTTP `Access-Control-Allow-Origin` header itself only supports one specific origin or the wildcard `*` ([MDN: Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin)). If you need **multiple frontend domains** to access the same Traccar server, you have two options:
->
-> **Option A — Use a reverse proxy (nginx, Apache, Caddy)**  
-> Configure your proxy to read the incoming `Origin` header and dynamically set `Access-Control-Allow-Origin` to match it:
-> ```nginx
-> # nginx example — dynamically echoes back the request origin
-> location /api/ {
->     proxy_pass http://localhost:8082;
->     proxy_set_header Host $host;
->     add_header Access-Control-Allow-Origin $http_origin always;
->     add_header Access-Control-Allow-Credentials true;
->     add_header Vary Origin;
-> }
-> ```
->
-> **Option B — Use a Cloudflare Worker (recommended if already on Cloudflare)**  
-> The [Cloudflare Worker proxy](#deploy-cloudflare-worker-proxy) documented above can handle multiple origins by inspecting the request's `Origin` header and responding with the matching value — no Traccar config changes needed.
+> ---
+
+### Production Architecture — Complete Request Flow
+
+Below is the full production architecture showing how the frontend domain and Traccar backend domain work together with `web.origin`:
+
+```
+                          ┌─────────────────────────────────────────┐
+                          │       DNS: myfleet.pages.dev           │
+                          │       (Cloudflare Pages / your host)    │
+                          │                                         │
+                          │  ┌───────────────────────────────────┐  │
+                          │  │  React Frontend (static files)     │  │
+                          │  │  VITE_TRACCAR_URL =               │  │
+                          │  │  https://traccar.example.com       │  │
+                          │  └──────────┬────────────────────────┘  │
+                          └─────────────┼───────────────────────────┘
+                                        │
+                      ┌─────────────────┼──────────────────────┐
+                      │  🔒 Browser CORS check                 │
+                      │  Origin: https://myfleet.pages.dev     │
+                      │     ↓                                  │
+                      │  ✅ Allowed? Only if server responds   │
+                      │     with:                              │
+                      │     Access-Control-Allow-Origin:       │
+                      │       https://myfleet.pages.dev        │
+                      └─────────────────┼──────────────────────┘
+                                        │
+                                        ▼
+                          ┌─────────────────────────────────────────┐
+                          │  Traccar Server                        │
+                          │  https://traccar.example.com:8082      │
+                          │                                         │
+                          │  traccar.xml:                           │
+                          │  <entry key='web.origin'>               │
+                          │    https://myfleet.pages.dev            │
+                          │  </entry>                               │
+                          │                                         │
+                          │  ✔ Responds with:                       │
+                          │    Access-Control-Allow-Origin:         │
+                          │      https://myfleet.pages.dev          │
+                          └─────────────────────────────────────────┘
+```
+
+**Key points:**
+
+| What | Setting | Example |
+|------|---------|---------|
+| **Frontend URL** (this React app) | Deployed to Cloudflare Pages / your host | `https://myfleet.pages.dev` |
+| **Backend URL** (Traccar server) | `VITE_TRACCAR_URL` (in frontend env vars) | `https://traccar.example.com:8082` |
+| **CORS whitelist** | `web.origin` (in Traccar's `traccar.xml`) | `https://myfleet.pages.dev` |
+
+> **⚠️ Common mistake:** Setting `web.origin` to your **Traccar server URL** (`https://traccar.example.com`) instead of your **frontend URL** (`https://myfleet.pages.dev`). Remember: `web.origin` should be the **origin of the website making the requests** (the React frontend), not where the requests are going to.
+
+---
+
+### Setting Up Traccar with a Proper Domain (Not Just IP:Port)
+
+For production, it is **strongly recommended** to give your Traccar server a proper domain name (instead of accessing it by raw IP and port). This avoids mixed-content issues and makes CORS configuration cleaner.
+
+**Option A — Traccar behind a reverse proxy (recommended):**
+
+Use nginx, Caddy, or Apache to proxy Traccar on a subdomain with HTTPS:
+
+```nginx
+# nginx example — Traccar behind reverse proxy with HTTPS
+server {
+    listen 443 ssl;
+    server_name traccar.example.com;  # Your Traccar subdomain
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8082;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket support (for real-time tracking)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+Then set `VITE_TRACCAR_URL=https://traccar.example.com` in your frontend, and `web.origin=https://myfleet.pages.dev` in Traccar's `traccar.xml`.
+
+**Option B — Traccar with direct HTTPS (Traccar v6+ built-in SSL):**
+
+Traccar supports HTTPS natively. Configure in `traccar.xml`:
+
+```xml
+<entry key='web.port'>8443</entry>
+<entry key='web.securePort'>8443</entry>
+<entry key='web.address'>0.0.0.0</entry>
+<entry key='keystore.path'>/path/to/keystore.jks</entry>
+<entry key='keystore.password'>your-password</entry>
+```
+
+Then access Traccar at `https://traccar.example.com:8443` and set `VITE_TRACCAR_URL` accordingly.
+
+---
+
+### WebSocket CORS in Production
+
+Unlike REST API calls, **WebSocket connections are not subject to CORS** in the same way. Browsers do not enforce `Access-Control-Allow-Origin` checks on WebSocket handshakes. However, there are still considerations:
+
+| Concern | Detail |
+|---------|--------|
+| **WebSocket handshake** | The browser sends an `Origin` header during the upgrade. Some servers (including Traccar) may check this. Setting `web.origin` on Traccar also controls which origins can open a WebSocket connection. |
+| **Mixed content (HTTPS → WS)** | If your frontend is served over HTTPS (`https://myfleet.pages.dev`), the browser will **block** insecure WebSocket connections (`ws://traccar.example.com`). You **must** use `wss://` (secure WebSocket). |
+| **WSS with self-signed cert** | If your Traccar server uses a self-signed certificate, the browser will refuse the WebSocket connection. Use a valid SSL certificate (e.g., Let's Encrypt). |
+
+**Recommended WebSocket URL resolution (handled automatically by `openSocket()` in `src/lib/api/client.ts`):**
+
+```
+VITE_TRACCAR_URL = https://traccar.example.com:8082
+          │
+          ▼  (auto-derived)
+WebSocket URL = wss://traccar.example.com:8082/api/socket
+```
+
+If you use a reverse proxy (Option A above), the WebSocket connection goes through the same domain, so it's automatically secure and same-origin:
+
+```
+Frontend:  https://myfleet.pages.dev
+  └── REST API →  https://traccar.example.com/api/devices
+  └── WebSocket → wss://traccar.example.com/api/socket
+                             ↕ (proxy)
+                    Traccar: http://127.0.0.1:8082
+```
+
+---
+
+### Limitation: Traccar's `web.origin` only accepts a single origin or `*`
+
+The HTTP `Access-Control-Allow-Origin` header itself only supports one specific origin or the wildcard `*` ([MDN: Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin)). If you need **multiple frontend domains** to access the same Traccar server, you have two options:
+
+**Option A — Use a reverse proxy (nginx, Apache, Caddy)**  
+Configure your proxy to read the incoming `Origin` header and dynamically set `Access-Control-Allow-Origin` to match it:
+```nginx
+# nginx example — dynamically echoes back the request origin
+location /api/ {
+    proxy_pass http://localhost:8082;
+    proxy_set_header Host $host;
+    add_header Access-Control-Allow-Origin $http_origin always;
+    add_header Access-Control-Allow-Credentials true;
+    add_header Vary Origin;
+}
+```
+
+**Option B — Use a Cloudflare Worker (recommended if already on Cloudflare)**  
+The [Cloudflare Worker proxy](#deploy-cloudflare-worker-proxy) documented above can handle multiple origins by inspecting the request's `Origin` header and responding with the matching value — no Traccar config changes needed.
 
 ---
 
@@ -596,6 +900,7 @@ Mobile Version Principle *** 18/Jul/2026
 - [建置](#建置-1)
 - [部署至 Cloudflare Pages](#部署至-cloudflare-pages-1)
 - [部署 Cloudflare Worker 代理](#部署-cloudflare-worker-代理-1)
+- [WebSocket 架構](#websocket-架構)
 - [關於 demo3.traccar.org 測試伺服器](#關於-demo3traccarorg-測試伺服器-1)
 - [專案結構](#專案結構-1)
 - [車輛標記系統](#車輛標記系統)
@@ -742,6 +1047,21 @@ server: {
 
 > **重要：** `VITE_TRACCAR_URL` 只控制 API 請求要轉發到哪個伺服器，**不會改變**你在瀏覽器存取的網址。  
 > 你**永遠應該存取開發伺服器 `http://localhost:3001`**（或你的正式部署網址），**而不是**直接存取 Traccar 伺服器的網址。
+
+> **🐛 CORS 正式環境注意事項：** 正式環境（或 preview 預覽）中，瀏覽器會直接對你的 Traccar 伺服器發送 API 請求，可能因 CORS 而被阻擋。
+>
+> **解決方法 — 在 `traccar.xml` 設定 `web.origin`：**
+> ```xml
+> <!-- 你的前端網域（此 React App 部署的網站網址） -->
+> <entry key='web.origin'>https://你的前端網域.com</entry>
+> ```
+> 這會讓 Traccar 在 API 回應中加入 `Access-Control-Allow-Origin: https://你的前端網域.com` 標頭。
+>
+> **⚠️ 重要提醒：**
+> - `web.origin` 必須設為你的**前端網址**（React App 部署的網域），**不是** Traccar 伺服器的網址
+> - **絕對不要使用 `*`** — 這會讓任何網站都能讀取你的車輛位置、路線與客戶資料
+> - 開發環境可以加入 `http://localhost:3001` 來允許 Vite dev server
+> - 詳細架構說明請見下方的[正式環境 CORS 章節](#🐛-cors-跨域問題正式部署時)
 
 ### 環境檔案說明
 
@@ -928,6 +1248,175 @@ async function handleWebSocket(request, target) {
 
 ---
 
+## WebSocket 架構
+
+即時資料串流是本專案的核心功能之一。WebSocket 系統連接到 Traccar 的即時通訊端端點，無需輪詢即可即時接收裝置位置、狀態變更和事件更新。
+
+### 運作方式
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     瀏覽器 (React 應用)                       │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  LiveDataContext (src/context/LiveDataContext.tsx)   │   │
+│  │                                                     │   │
+│  │  ┌────────────┐    ┌──────────────┐                 │   │
+│  │  │ REST 初始   │    │ WebSocket    │                 │   │
+│  │  │ 載入       │    │ 即時更新     │                 │   │
+│  │  └─────┬──────┘    └──────┬───────┘                 │   │
+│  │        │                  │                          │   │
+│  │        ▼                  ▼                          │   │
+│  │  ┌────────────────────────────┐                     │   │
+│  │  │  RAF 批次合併               │                     │   │
+│  │  │ (逐畫面幀合併多個封包       │                     │   │
+│  │  │  以提升效能)               │                     │   │
+│  │  └────────────┬───────────────┘                     │   │
+│  │               │                                      │   │
+│  │               ▼                                      │   │
+│  │  ┌────────────────────────────┐                     │   │
+│  │  │  React 狀態更新            │                     │   │
+│  │  │  devices / positions /     │                     │   │
+│  │  │  events / alerts           │                     │   │
+│  │  └────────────────────────────┘                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                          │                                  │
+│                          ▼                                  │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  30+ 消費元件                                        │   │
+│  │  儀表板、即時追蹤、警報、事件、裝置、車輛詳情、       │   │
+│  │  軌跡回放、報表等                                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### WebSocket 客戶端 (`src/lib/api/client.ts`)
+
+`openSocket()` 函數負責建立 WebSocket 連線，並具備智慧 URL 解析邏輯：
+
+```ts
+export function openSocket(onMessage: (frame: any) => void): WebSocket
+```
+
+**URL 解析優先順序：**
+
+| 模式 | 優先級 | URL | 說明 |
+|------|--------|-----|------|
+| **開發** | 1 | `ws://localhost:3001/api/socket` | 透過 Vite proxy 同源連線 |
+| **正式** | 1 | `VITE_WS_URL` (環境變數) | 直接指定 WebSocket URL，繞過任何代理 |
+| **正式** | 2 | 從 `VITE_TRACCAR_URL` 推導 | 將 `http` → `ws`，附加 `/api/socket` |
+| **正式** | 3 | 同源後備 | 使用當前主機 (如 `wss://myfleet.pages.dev/api/socket`) |
+
+**認證機制：** 正式環境中會自動讀取 `JSESSIONID` cookie，並以 query 參數 (`?JSESSIONID=...`) 附加至 WebSocket URL，確保連線已通過認證。
+
+**封包解析：** 收到的訊息以 JSON 解析，格式錯誤的封包會靜默跳過。
+
+### Socket Frame 格式 (`src/types/index.ts`)
+
+```ts
+interface SocketFrame {
+  devices?: TraccarDevice[];    // 裝置中繼資料更新
+  positions?: TraccarPosition[]; // 即時位置更新
+  events?: TraccarEvent[];      // 即時事件通知
+  token?: string;                // Session token
+}
+```
+
+### LiveDataContext (`src/context/LiveDataContext.tsx`)
+
+此 React context 是所有即時資料的中心樞紐，包裹整個已認證的應用程式樹。
+
+**Provider 位置：** `src/main.tsx` — `<LiveDataProvider>` 包裹 session 保護下的所有路由。
+
+**生命週期：**
+
+1. **初始載入：** 使用者登入後，Provider 透過 REST API 以 `Promise.all([api.devices.list(), api.positions.list()])` 平行取得裝置與位置資料，確保頁面能立即顯示資料。
+2. **WebSocket 連線：** 同時開啟 WebSocket 接收持續的即時更新。
+3. **清除：** 登出或卸載時，關閉 socket、取消 RAF 回呼、清除所有待處理的 ref。
+4. **自動重連：** 連線中斷後，會在 **15 秒後**自動重新連線。
+
+**RAF 批次合併（效能最佳化）：**
+
+為避免每個 WebSocket 封包都觸發 React 狀態更新（每秒可能數十次），系統使用 `requestAnimationFrame` 批次處理：
+
+```
+WebSocket frames ──► pendingDevicesRef (Map)
+                 ──► pendingPositionsRef (Map)
+                 ──► pendingEventsRef (Array)
+                         │
+                    requestAnimationFrame
+                         │
+                         ▼
+                    flushFrameBatch()
+                         │
+                         ▼
+                    setDevices() / setPositions() / setEvents()
+```
+
+- 動畫幀間到達的封包會累積在 ref 中
+- 每次 RAF 觸發時，將所有累積的資料批次寫入 React 狀態
+- `shallowEqual` 比較避免未變更的資料觸發不必要的重新渲染
+- 事件上限為 100 筆（`MAX_EVENTS = 100`）
+
+**提供的 Context 屬性：**
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `vehicles` | `Vehicle[]` | 合併裝置、位置與地理編碼地址的完整車輛資料 |
+| `devices` | `TraccarDevice[]` | 最新 frame 中的原始裝置列表 |
+| `devicesById` | `Record<number, TraccarDevice>` | 依 ID 查詢裝置的對照表 |
+| `positions` | `Record<string, TraccarPosition>` | 每台裝置的最新位置 |
+| `events` | `TraccarEvent[]` | 近期事件（最新在前，最多 100 筆） |
+| `alerts` | `Alert[]` | 轉換後的事件（含裝置名稱） |
+| `connected` | `boolean` | WebSocket 連線狀態 |
+| `socketError` | `string \| null` | 連線錯誤描述 |
+| `loading` | `boolean` | 初始資料載入中 |
+| `error` | `Error \| null` | 初始擷取錯誤 |
+| `getVehicle(id)` | `Vehicle \| undefined` | 查詢單一車輛的輔助函式 |
+| `refresh()` | `() => Promise<void>` | 手動完整重新整理資料（REST） |
+
+**地理編碼整合：**
+
+當新位置送達時，`vehicles` 的 memo 會自動檢查是否有快取的地理編碼地址。若缺少地址，會透過地理編碼模組發送反向地理編碼請求，確保車輛位置顯示人類可讀的地址，同時不阻塞 UI。
+
+### 消費者元件（30+ 元件）
+
+`useLiveData()` hook 廣泛用於整個應用程式：
+
+| 元件 | 使用的資料 | 用途 |
+|------|-----------|------|
+| `DashboardPage` | `vehicles`, `alerts`, `connected` | KPI 卡片、車隊狀態、即時連線指示 |
+| `LiveTrackingPage` | `vehicles` | MapLibre 地圖上的即時車輛位置 |
+| `AlertsPage` | `alerts` | 即時事件警報（忽略/已解決） |
+| `EventsPage` | `vehicles` | 事件時間線（即時推送） |
+| `DevicesPage` | `vehicles`, `devices`, `refresh` | 裝置列表（即時狀態） |
+| `VehicleProfilePage` | `getVehicle`, `refresh` | 即時車輛統計 |
+| `ReplayPage` | `devices`, `vehicles` | 軌跡回放車輛選取 |
+| `FuelPage` | `devices` | 油耗顯示 |
+| `GeofencesPage` | `vehicles` | 圍欄車輛指派 |
+| `Reports` (10+ 頁面) | `devices` | 報表裝置選取器 |
+| `LogisticsPage` | `vehicles`, `alerts` | 即時物流管理 |
+| `GlobalMapLayer` | `vehicles` | 背景地圖標記 |
+
+### 連線狀態 UI
+
+連線狀態透過以下方式呈現給使用者：
+
+- **儀表板：** 使用「Live Socket」/「Reconnecting…」標籤顯示連線指示器（依據 `connected` 狀態）
+- **警報頁面：** 即時警報事件透過 WebSocket 送達時立即顯示
+- **維修頁面：** 使用 `connected` 判斷是否顯示與連線相關的 UI
+
+### WebSocket 環境變數
+
+| 變數 | 說明 | 預設值 |
+|------|------|--------|
+| `VITE_WS_URL` | 正式環境的 WebSocket URL（繞過代理） | 從 `VITE_TRACCAR_URL` 推導 |
+| `VITE_TRACCAR_URL` | Traccar 伺服器 URL（若未設定 `VITE_WS_URL` 則用來推導 WebSocket URL） | `https://demo3.traccar.org` |
+
+> **注意：** 開發模式中 Vite proxy 會自動處理 WebSocket，無需設定 `VITE_WS_URL`。正式環境中若使用 Cloudflare Worker 或其他反向代理，可設定 `VITE_WS_URL` 直接指向 Traccar WebSocket 端點以繞過代理。
+
+---
+
 ## 關於 demo3.traccar.org 測試伺服器
 
 ### 這是什麼？
@@ -1004,36 +1493,161 @@ echo "VITE_TRACCAR_URL=http://localhost:8082" > .env.local
 >
 > 這會讓 Traccar 在 API 回應中加入 `Access-Control-Allow-Origin` 標頭，授權瀏覽器接受跨域回應。
 >
-> **運作原理：**
->
-> ```
-> ┌─────────────────────┐         fetch('/api/devices')         ┌──────────────────┐
-> │  前端 (React)        │ ──── 帶 Origin: https://myfleet... ──▶│ Traccar 伺服器   │
-> │  https://myfleet...  │ ◀──── Access-Control-Allow-Origin ─────│  http://localhost │
-> │  (Cloudflare Pages)  │         : https://myfleet...           │  :8082            │
-> └─────────────────────┘                                        └──────────────────┘
-> ```
->
-> `web.origin` 的值會作為 `Access-Control-Allow-Origin` 回應標頭的值。請將其設為你前端的確切網域（開發期間可設為 `*`）。
->
-> **⚠️ 限制：Traccar 的 `web.origin` 只接受單一網域或 `*`。**  
-> HTTP 的 `Access-Control-Allow-Origin` 標頭本身只能指定一個特定來源或萬用字元 `*`（[MDN: Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin)）。如果你需要**多個前端網域**存取同一個 Traccar 伺服器，有兩種做法：
->
-> **方案 A — 使用反向代理（nginx、Apache、Caddy）**  
-> 設定代理伺服器讀取請求的 `Origin` 標頭，並動態設定 `Access-Control-Allow-Origin`：
-> ```nginx
-> # nginx 範例 — 動態回應請求的來源網域
-> location /api/ {
->     proxy_pass http://localhost:8082;
->     proxy_set_header Host $host;
->     add_header Access-Control-Allow-Origin $http_origin always;
->     add_header Access-Control-Allow-Credentials true;
->     add_header Vary Origin;
-> }
-> ```
->
-> **方案 B — 使用 Cloudflare Worker（如果已在 Cloudflare 上，建議採用）**  
-> 前面介紹的 [Cloudflare Worker 代理](#部署-cloudflare-worker-代理-1) 可以處理多個網域，它會檢查請求的 `Origin` 標頭並回傳對應的值 — 不需要修改 Traccar 設定。
+> ---
+
+### 正式環境架構 — 完整的請求流程
+
+以下展示正式環境中前端網域與 Traccar 後端網域如何透過 `web.origin` 協同運作：
+
+```
+                          ┌─────────────────────────────────────────┐
+                          │       DNS: myfleet.pages.dev           │
+                          │       (Cloudflare Pages / 你的托管商)   │
+                          │                                         │
+                          │  ┌───────────────────────────────────┐  │
+                          │  │  React 前端 (靜態檔案)              │  │
+                          │  │  VITE_TRACCAR_URL =               │  │
+                          │  │  https://traccar.example.com       │  │
+                          │  └──────────┬────────────────────────┘  │
+                          └─────────────┼───────────────────────────┘
+                                        │
+                      ┌─────────────────┼──────────────────────┐
+                      │  🔒 瀏覽器 CORS 檢查                    │
+                      │  Origin: https://myfleet.pages.dev     │
+                      │     ↓                                  │
+                      │  ✅ 允許？只有當伺服器回應：             │
+                      │     Access-Control-Allow-Origin:       │
+                      │       https://myfleet.pages.dev        │
+                      └─────────────────┼──────────────────────┘
+                                        │
+                                        ▼
+                          ┌─────────────────────────────────────────┐
+                          │  Traccar 伺服器                        │
+                          │  https://traccar.example.com:8082      │
+                          │                                         │
+                          │  traccar.xml:                           │
+                          │  <entry key='web.origin'>               │
+                          │    https://myfleet.pages.dev            │
+                          │  </entry>                               │
+                          │                                         │
+                          │  ✔ 回應帶有標頭：                        │
+                          │    Access-Control-Allow-Origin:         │
+                          │      https://myfleet.pages.dev          │
+                          └─────────────────────────────────────────┘
+```
+
+**關鍵設定對照表：**
+
+| 項目 | 設定位置 | 範例 |
+|------|---------|------|
+| **前端網址** (此 React App) | 部署到 Cloudflare Pages / 你的托管商 | `https://myfleet.pages.dev` |
+| **後端網址** (Traccar 伺服器) | 前端環境變數 `VITE_TRACCAR_URL` | `https://traccar.example.com:8082` |
+| **CORS 白名單** | Traccar 的 `traccar.xml` 中的 `web.origin` | `https://myfleet.pages.dev` |
+
+> **⚠️ 常見錯誤：** 將 `web.origin` 設為 **Traccar 伺服器網址** (`https://traccar.example.com`)，而不是**前端網址** (`https://myfleet.pages.dev`)。切記：`web.origin` 應該是**發送請求的網站來源**（React 前端），不是請求送達的目的地。
+
+---
+
+### 為 Traccar 伺服器設定正式網域名稱（非 IP:Port）
+
+正式環境**強烈建議**給 Traccar 伺服器一個正式的網域名稱（而非使用原始 IP 和連接埠），以避免混合內容問題，並讓 CORS 設定更清晰。
+
+**方案 A — 透過反向代理提供 Traccar（建議採用）：**
+
+使用 nginx、Caddy 或 Apache 在子網域上以 HTTPS 代理 Traccar：
+
+```nginx
+# nginx 範例 — 使用反向代理 + HTTPS 提供 Traccar
+server {
+    listen 443 ssl;
+    server_name traccar.example.com;  # 你的 Traccar 子網域
+
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8082;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket 支援（即時追蹤功能需要）
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+```
+
+然後在前端設 `VITE_TRACCAR_URL=https://traccar.example.com`，並在 Traccar 的 `traccar.xml` 中設 `web.origin=https://myfleet.pages.dev`。
+
+**方案 B — Traccar 原生 HTTPS（Traccar v6+ 內建 SSL）：**
+
+Traccar 支援原生 HTTPS，在 `traccar.xml` 中設定：
+
+```xml
+<entry key='web.port'>8443</entry>
+<entry key='web.securePort'>8443</entry>
+<entry key='web.address'>0.0.0.0</entry>
+<entry key='keystore.path'>/path/to/keystore.jks</entry>
+<entry key='keystore.password'>your-password</entry>
+```
+
+然後以 `https://traccar.example.com:8443` 存取 Traccar，並將 `VITE_TRACCAR_URL` 設為該網址。
+
+---
+
+### 正式環境的 WebSocket CORS 考量
+
+與 REST API 不同，**WebSocket 連線不受 CORS 限制**。瀏覽器不會在 WebSocket 握手時檢查 `Access-Control-Allow-Origin`，但仍有一些注意事項：
+
+| 議題 | 說明 |
+|------|------|
+| **WebSocket 握手** | 瀏覽器在升級請求中仍會送出 `Origin` 標頭。某些伺服器（包括 Traccar）可能會檢查此標頭。在 Traccar 設定 `web.origin` 也會控制哪些來源可以建立 WebSocket 連線。 |
+| **混合內容 (HTTPS → WS)** | 若前端透過 HTTPS 提供服務（如 `https://myfleet.pages.dev`），瀏覽器會**阻擋**不安全的 WebSocket 連線（`ws://traccar.example.com`）。你**必須**使用 `wss://`（安全 WebSocket）。 |
+| **自簽憑證的 WSS** | 若 Traccar 使用自簽憑證，瀏覽器會拒絕 WebSocket 連線。請使用有效的 SSL 憑證（如 Let's Encrypt）。 |
+
+**WebSocket URL 自動推導（由 `openSocket()` 在 `src/lib/api/client.ts` 自動處理）：**
+
+```
+VITE_TRACCAR_URL = https://traccar.example.com:8082
+          │
+          ▼  (自動推導)
+WebSocket URL = wss://traccar.example.com:8082/api/socket
+```
+
+如果使用反向代理（上述方案 A），WebSocket 連線會通過同一個網域，自然就是安全且同源的：
+
+```
+前端:     https://myfleet.pages.dev
+  └── REST API →  https://traccar.example.com/api/devices
+  └── WebSocket → wss://traccar.example.com/api/socket
+                             ↕ (反向代理)
+                    Traccar: http://127.0.0.1:8082
+```
+
+---
+
+### ⚠️ 限制：Traccar 的 `web.origin` 只接受單一網域或 `*`
+
+HTTP 的 `Access-Control-Allow-Origin` 標頭本身只能指定一個特定來源或萬用字元 `*`（[MDN: Access-Control-Allow-Origin](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Access-Control-Allow-Origin)）。如果你需要**多個前端網域**存取同一個 Traccar 伺服器，有兩種做法：
+
+**方案 A — 使用反向代理（nginx、Apache、Caddy）**  
+設定代理伺服器讀取請求的 `Origin` 標頭，並動態設定 `Access-Control-Allow-Origin`：
+```nginx
+# nginx 範例 — 動態回應請求的來源網域
+location /api/ {
+    proxy_pass http://localhost:8082;
+    proxy_set_header Host $host;
+    add_header Access-Control-Allow-Origin $http_origin always;
+    add_header Access-Control-Allow-Credentials true;
+    add_header Vary Origin;
+}
+```
+
+**方案 B — 使用 Cloudflare Worker（如果已在 Cloudflare 上，建議採用）**  
+前面介紹的 [Cloudflare Worker 代理](#部署-cloudflare-worker-代理-1) 可以處理多個網域，它會檢查請求的 `Origin` 標頭並回傳對應的值 — 不需要修改 Traccar 設定。
 
 ---
 
