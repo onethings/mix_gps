@@ -17,7 +17,7 @@
   },
   "scripts": {
     "dev": "node scripts/generate-sprite.js && node node_modules/vite/bin/vite.js",
-    "build": "node scripts/generate-sprite.js && tsc -b && node node_modules/vite/bin/vite.js build",
+    "build": "node scripts/generate-sprite.js && tsc -b && node node_modules/vite/bin/vite.js build && cp dist/index.html dist/404.html",
     "preview": "node node_modules/vite/bin/vite.js preview",
     "test": "vitest run",
     "test:watch": "vitest",

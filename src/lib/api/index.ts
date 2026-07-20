@@ -19,7 +19,7 @@ export const api = {
     logout: async () => {
       let res: Response;
       try {
-        res = await fetch(`${import('./client').then(m => m.BASE)}/session`, {
+        res = await fetch(`${BASE}/session`, {
           method: 'DELETE',
           credentials: 'include',
           headers: { Accept: 'application/json' },

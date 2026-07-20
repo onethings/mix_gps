@@ -2,7 +2,7 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  VITE_TRACCAR_URL: z.string().url().default('https://demo3.traccar.org'),
+  VITE_TRACCAR_URL: z.string().url().optional().or(z.literal('')).default(''),
   VITE_BASE_PATH: z.string().optional(),
   VITE_SENTRY_DSN: z.string().url().optional(),
   VITE_SENTRY_ENV: z.enum(['development', 'staging', 'production']).optional().default('production'),
