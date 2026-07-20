@@ -45,8 +45,17 @@ export default function LoginPage() {
       if (err.needsTotp) {
         setCodeEnabled(true);
         setError(t('totpHint'));
+      } else if (err.status === 401) {
+        // Always use the translated message for login credential errors
+        setError(t('loginFailed'));
       } else {
-        setError(err.message || t('error'));
+        // For all other errors, sanitize: never show HTML or Java stack traces
+        const m = err.message || '';
+        if (/^\s*(jakarta|java|org\.traccar|org\.apache)\.[a-zA-Z]/.test(m) || m.includes('<!') || m.includes('<html')) {
+          setError(t('unexpectedError'));
+        } else {
+          setError(m);
+        }
       }
     } finally {
       setBusy(false);

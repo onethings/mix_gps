@@ -1131,6 +1131,7 @@ export const nav = {
   "userPassword": "Password",
   "registering": "Creating account…",
   "resetting": "Resetting…",
+  "loginFailed": "Invalid email or password",
   "forgotPassword": "Forgot password?",
   "positionTitle": "Position",
   "positionFields": "Position Fields",
