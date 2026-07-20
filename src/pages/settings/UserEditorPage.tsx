@@ -150,7 +150,7 @@ export default function UserEditorPage() {
   }
 
   return (
-    <div className="space-y-5 pb-8 max-w-xl">
+    <div className="space-y-3 md:space-y-5 pb-8 max-w-xl">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button type="button" onClick={() => navigate(manager ? '/settings/users' : '/settings')} className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent"><ArrowLeft className="h-5 w-5" /></button>

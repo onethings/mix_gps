@@ -570,7 +570,7 @@ export default function CombinedReportPage() {
         </CardHeader>
         <CardContent className="p-0">
           {!showTriggered ? (
-            <div className="p-6"><EmptyState title={t('setFiltersAndShow')} /></div>
+            <div className="p-4 md:p-6"><EmptyState title={t('setFiltersAndShow')} /></div>
           ) : loading ? (
             /* ── TableShimmer (like traccar-web) ── */
             <div className="p-0">
@@ -596,9 +596,9 @@ export default function CombinedReportPage() {
               </Table>
             </div>
           ) : error ? (
-            <div className="p-6 text-center text-sm text-destructive">{error}</div>
+            <div className="p-4 md:p-6 text-center text-sm text-destructive">{error}</div>
           ) : filtered.length === 0 ? (
-            <div className="p-6"><EmptyState title={t('noEventsInRange')} /></div>
+            <div className="p-4 md:p-6"><EmptyState title={t('noEventsInRange')} /></div>
           ) : (
             <Table>
               <TableHeader>

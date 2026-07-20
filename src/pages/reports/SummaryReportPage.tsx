@@ -159,10 +159,10 @@ export default function SummaryReportPage() {
           )}
         </CardHeader>
         <CardContent className="p-0">
-          {!showTriggered ? <div className="p-6"><EmptyState title={t('setFiltersAndShow')} /></div>
-          : loading ? <div className="p-6 text-center text-sm text-muted-foreground">{t('loading')}</div>
-          : error ? <div className="p-6 text-center text-sm text-destructive">{error}</div>
-          : filtered.length === 0 ? <div className="p-6"><EmptyState title={t('noSummaryData')} /></div>
+          {!showTriggered ? <div className="p-4 md:p-6"><EmptyState title={t('setFiltersAndShow')} /></div>
+          : loading ? <div className="p-4 md:p-6 text-center text-sm text-muted-foreground">{t('loading')}</div>
+          : error ? <div className="p-4 md:p-6 text-center text-sm text-destructive">{error}</div>
+          : filtered.length === 0 ? <div className="p-4 md:p-6"><EmptyState title={t('noSummaryData')} /></div>
           : <Table><TableHeader><TableRow>
             {activeColumns.map((c) => <TableHead key={c.key}>{t(c.labelKey)}</TableHead>)}
           </TableRow></TableHeader><TableBody>

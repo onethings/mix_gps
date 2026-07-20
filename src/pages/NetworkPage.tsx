@@ -78,7 +78,7 @@ export default function NetworkPage() {
         ) : !position ? (
           <div className="py-8 text-center text-sm text-muted-foreground">{t('noData')}</div>
         ) : (
-          <div className="mx-auto max-w-2xl space-y-6">
+          <div className="mx-auto max-w-2xl space-y-3 md:space-y-6">
             {/* Position info */}
             <section>
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">

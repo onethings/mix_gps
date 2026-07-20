@@ -192,7 +192,7 @@ export default function StopsReportPage() {
           )}
         </CardHeader>
         <CardContent className="p-0">
-          {!showTriggered ? <div className="p-6"><EmptyState title={t('setFiltersAndShow')} /></div>
+          {!showTriggered ? <div className="p-4 md:p-6"><EmptyState title={t('setFiltersAndShow')} /></div>
           : loading ? (
             <div className="p-0">
               <Table><TableHeader><TableRow>{activeColumns.map((c) => <TableHead key={c.key}>{t(c.labelKey)}</TableHead>)}</TableRow></TableHeader><TableBody>
@@ -201,8 +201,8 @@ export default function StopsReportPage() {
                 ))}
               </TableBody></Table>
             </div>
-          ) : error ? <div className="p-6 text-center text-sm text-destructive">{error}</div>
-          : filtered.length === 0 ? <div className="p-6"><EmptyState title={t('noStopsInRange')} /></div>
+          ) : error ? <div className="p-4 md:p-6 text-center text-sm text-destructive">{error}</div>
+          : filtered.length === 0 ? <div className="p-4 md:p-6"><EmptyState title={t('noStopsInRange')} /></div>
           : <Table><TableHeader><TableRow>
             {activeColumns.map((c) => <TableHead key={c.key}>{t(c.labelKey)}</TableHead>)}
           </TableRow></TableHeader><TableBody>

@@ -98,7 +98,7 @@ export default function AccumulatorsPage() {
         ) : !item ? (
           <div className="py-8 text-center text-sm text-muted-foreground">{t('noData')}</div>
         ) : (
-          <div className="mx-auto max-w-md space-y-6">
+          <div className="mx-auto max-w-md space-y-3 md:space-y-6">
             <div className="rounded-lg border p-4 space-y-4">
               {/* Hours */}
               <div>

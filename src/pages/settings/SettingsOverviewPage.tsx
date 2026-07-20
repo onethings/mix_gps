@@ -43,7 +43,7 @@ export default function SettingsOverviewPage() {
   const serverVersion = (server as unknown as { version?: string })?.version || '—';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 md:space-y-6">
       {/* Header — hidden on mobile */}
       <div className="max-md:hidden">
         <h1 className="text-2xl font-semibold tracking-tight">{t('settings')}</h1>

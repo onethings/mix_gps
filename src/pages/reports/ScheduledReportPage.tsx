@@ -55,8 +55,8 @@ export default function ScheduledReportPage() {
           <CardDescription>{loading ? t('loading') : `${reports.length} ${t('scheduledReports')?.toLowerCase()}`}</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          {loading ? <div className="p-6 text-center text-sm text-muted-foreground">{t('loading')}</div>
-          : reports.length === 0 ? <div className="p-6"><EmptyState title={t('noScheduledReports')} description={t('scheduledReportsCreatedFrom')} /></div>
+          {loading ? <div className="p-4 md:p-6 text-center text-sm text-muted-foreground">{t('loading')}</div>
+          : reports.length === 0 ? <div className="p-4 md:p-6"><EmptyState title={t('noScheduledReports')} description={t('scheduledReportsCreatedFrom')} /></div>
           : <Table><TableHeader><TableRow>
             <TableHead>{t('reportColId')}</TableHead><TableHead>{t('type')}</TableHead><TableHead>{t('description')}</TableHead><TableHead>{t('calendar')}</TableHead><TableHead className="w-16"></TableHead>
           </TableRow></TableHeader><TableBody>

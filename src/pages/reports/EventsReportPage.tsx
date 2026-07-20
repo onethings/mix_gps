@@ -240,7 +240,7 @@ export default function EventsReportPage() {
           )}
         </CardHeader>
         <CardContent className="p-0">
-          {!showTriggered ? <div className="p-6"><EmptyState title={t('setFiltersAndShow')} /></div>
+          {!showTriggered ? <div className="p-4 md:p-6"><EmptyState title={t('setFiltersAndShow')} /></div>
           : loading ? (
             <div className="p-0">
               <Table><TableHeader><TableRow><TableHead className="w-10" /><TableHead>{t('device')}</TableHead><TableHead>{t('reportColEventTime')}</TableHead><TableHead>{t('type')}</TableHead></TableRow></TableHeader><TableBody>
@@ -249,8 +249,8 @@ export default function EventsReportPage() {
                 ))}
               </TableBody></Table>
             </div>
-          ) : error ? <div className="p-6 text-center text-sm text-destructive">{error}</div>
-          : filtered.length === 0 ? <div className="p-6"><EmptyState title={t('noEventsInRange')} /></div>
+          ) : error ? <div className="p-4 md:p-6 text-center text-sm text-destructive">{error}</div>
+          : filtered.length === 0 ? <div className="p-4 md:p-6"><EmptyState title={t('noEventsInRange')} /></div>
           : (
             <Table>
               <TableHeader><TableRow>

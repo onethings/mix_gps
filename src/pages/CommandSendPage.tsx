@@ -119,7 +119,7 @@ export default function CommandSendPage() {
         {loading ? (
           <div className="py-8 text-center text-sm text-muted-foreground">{t('loading')}…</div>
         ) : (
-          <div className="mx-auto max-w-lg space-y-6">
+          <div className="mx-auto max-w-lg space-y-3 md:space-y-6">
             {/* Saved commands */}
             {savedCommands.length > 0 && (
               <section>
