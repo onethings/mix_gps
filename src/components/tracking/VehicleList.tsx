@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, memo } from 'react';
+import { useMemo, useState, useRef, memo, useDeferredValue } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Search, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -125,12 +125,14 @@ const VehicleList = memo(function VehicleList({ vehicles, selectedId, onSelect, 
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<string>('all');
   const parentRef = useRef<HTMLDivElement>(null);
+  // Defer search filtering to avoid blocking keystrokes on large fleets
+  const deferredQ = useDeferredValue(q);
 
   const filtered = useMemo(() => {
     let list = vehicles;
     if (filter !== 'all') list = list.filter((v) => v.status === filter);
-    if (q.trim()) {
-      const query = q.toLowerCase();
+    if (deferredQ.trim()) {
+      const query = deferredQ.toLowerCase();
       list = list.filter(
         (v) =>
           v.name.toLowerCase().includes(query) ||
@@ -139,7 +141,7 @@ const VehicleList = memo(function VehicleList({ vehicles, selectedId, onSelect, 
       );
     }
     return list;
-  }, [vehicles, filter, q]);
+  }, [vehicles, filter, deferredQ]);
 
   const virtualizer = useVirtualizer({
     count: filtered.length,

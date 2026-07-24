@@ -115,7 +115,7 @@ const LiveTrackingBottomPanel = memo(function LiveTrackingBottomPanel({ vehicles
         <table className="w-full border-collapse text-[11px]">
           <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
             <tr className="border-b border-border">
-              {[['sn', 'SN'], ['status', 'Status'], ['name', 'Name'], ['lastUpdate', 'Update'], ['located', 'Located'], ['locType', 'Loc Type'], ['speed', 'Speed'], ['status', 'Status2'], ['address', 'Address']].map(([key, fallback]) => (
+              {[['sn', 'SN'], ['status', 'Status'], ['name', 'Name'], ['lastUpdate', 'Update'], ['located', 'Located'], ['locType', 'Loc Type'], ['speed', 'Speed'], ['address', 'Address']].map(([key, fallback]) => (
                 <th key={fallback} className="whitespace-nowrap px-2.5 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                   {t(key)}
                 </th>
@@ -143,9 +143,6 @@ const LiveTrackingBottomPanel = memo(function LiveTrackingBottomPanel({ vehicles
                 <td className="px-2.5 py-2 text-muted-foreground">{getLocatedStatus(v, t)}</td>
                 <td className="px-2.5 py-2 text-muted-foreground">{getLocType(v, t)}</td>
                 <td className="px-2.5 py-2 font-mono tabular-nums text-foreground">{v.speed}</td>
-                <td className="px-2.5 py-2">
-                  <StatusBadge status={v.status} />
-                </td>
                 <td className="max-w-[200px] truncate px-2.5 py-2 text-muted-foreground" title={v.address || ''}>
                   {v.address || '—'}
                 </td>

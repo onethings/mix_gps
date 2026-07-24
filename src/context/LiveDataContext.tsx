@@ -118,7 +118,7 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
         batch.forEach((merged, id) => {
           const existing = map.get(id);
           map.set(id, merged);
-          if (!hasChanges && existing && !shallowEqual(existing as any, merged as any)) {
+          if (!hasChanges && (!existing || !shallowEqual(existing as any, merged as any))) {
             hasChanges = true;
           }
         });
@@ -136,7 +136,7 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
           const existing = next[id];
           next[id] = p;
           next[String(id)] = p;
-          if (!hasChanges && existing && !shallowEqual(existing as any, p as any)) {
+          if (!hasChanges && (!existing || !shallowEqual(existing as any, p as any))) {
             hasChanges = true;
           }
         });
@@ -189,6 +189,9 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
       return () => clearInterval(interval);
     }
 
+    // Flag to prevent reconnect after effect cleanup closes the socket
+    let reconnectBlocked = false;
+
     const connect = () => {
       const socket = openSocket((frame: any) => {
         // Accumulate into pending refs — React state only updates once per RAF
@@ -222,8 +225,10 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
       });
       socket.addEventListener('close', () => {
         setConnected(false);
-        setSocketError('Connection closed — reconnecting…');
-        reconnectRef.current = setTimeout(connect, 15000);
+        if (!reconnectBlocked) {
+          setSocketError('Connection closed — reconnecting…');
+          reconnectRef.current = setTimeout(connect, 15000);
+        }
       });
       socket.addEventListener('error', () => {
         setSocketError('Live connection error');
@@ -241,7 +246,14 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
       pendingPositionsRef.current = null;
       pendingEventsRef.current = null;
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      reconnectRef.current = null;
+      reconnectBlocked = true;
       socketRef.current?.close();
+      // close event may have set a new reconnect timeout — clear it
+      if (reconnectRef.current) {
+        clearTimeout(reconnectRef.current);
+        reconnectRef.current = null;
+      }
       setConnected(false);
     };
   }, [user, useWebSocket]);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Menu, X, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import VehicleList from '@/components/tracking/VehicleList';
 import LiveTrackingBottomPanel from '@/components/tracking/LiveTrackingBottomPanel';
@@ -10,10 +10,11 @@ import { getLiveTrackingPrefs, setLiveTrackingPrefs } from '@/lib/preferences';
 
 export default function LiveTrackingPage() {
   const { vehicles, loading } = useLiveData();
-  const { selectedVehicleId, setSelectedVehicleId } = useMapContext();
+  const { selectedVehicleId, setSelectedVehicleId, mapHandleRef } = useMapContext();
   const { t } = useT();
   const [showBottomPanel, setShowBottomPanel] = useState(true);
   const [showVehicleList, setShowVehicleList] = useState(() => window.innerWidth >= 768);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
   const pendingVehicleIdRef = useRef<number | null>(null);
 
@@ -33,31 +34,23 @@ export default function LiveTrackingPage() {
     });
   }, []);
 
-  // Persist showBottomPanel whenever it changes
+  // Persist tracking prefs to IndexedDB (debounced to avoid TOCTOU race)
   useEffect(() => {
     if (!prefsLoaded) return;
-    getLiveTrackingPrefs().then((existing) => {
-      setLiveTrackingPrefs({ ...existing, showBottomPanel });
-    });
-  }, [showBottomPanel, prefsLoaded]);
+    const timer = setTimeout(() => {
+      getLiveTrackingPrefs().then((existing) => {
+        setLiveTrackingPrefs({
+          ...existing,
+          showBottomPanel,
+          showVehicleList,
+          ...(selectedVehicleId != null ? { lastVehicleId: selectedVehicleId } : {}),
+        });
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [showBottomPanel, showVehicleList, selectedVehicleId, prefsLoaded]);
 
-  // Persist showVehicleList whenever it changes
-  useEffect(() => {
-    if (!prefsLoaded) return;
-    getLiveTrackingPrefs().then((existing) => {
-      setLiveTrackingPrefs({ ...existing, showVehicleList });
-    });
-  }, [showVehicleList, prefsLoaded]);
-
-  // Persist last selected vehicle
-  useEffect(() => {
-    if (!prefsLoaded || selectedVehicleId == null) return;
-    getLiveTrackingPrefs().then((existing) => {
-      setLiveTrackingPrefs({ ...existing, lastVehicleId: selectedVehicleId });
-    });
-  }, [selectedVehicleId, prefsLoaded]);
-
-  // Auto-select vehicle from cache, or leave null (FleetMapLibre shows all on mobile)
+  // Auto-select vehicle from cache, or leave null (FleetMapLibre shows all vehicles)
   useEffect(() => {
     if (!prefsLoaded) return;
     if (!vehicles.length) { setSelectedVehicleId(null); return; }
@@ -67,11 +60,8 @@ export default function LiveTrackingPage() {
       pendingVehicleIdRef.current = null;
       if (pendingId != null && vehicles.some((v) => v.id === pendingId)) {
         setSelectedVehicleId(pendingId);
-      } else if (window.innerWidth >= 768) {
-        // Desktop: select first vehicle
-        setSelectedVehicleId(vehicles[0]?.id ?? null);
       }
-      // Mobile with no cache: leave null → FleetMapLibre shows all vehicles
+      // No cached vehicle → leave null so FleetMapLibre shows all vehicles via fitBounds
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicles, prefsLoaded]);
@@ -101,21 +91,12 @@ export default function LiveTrackingPage() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-1 overflow-hidden">
-        {/* Vehicle List Sidebar — collapsible; overlay on mobile, sidebar on desktop */}
+        {/* Desktop Vehicle List Sidebar — hidden on mobile */}
         <aside className={cn(
           'shrink-0 border-r border-border bg-card/95 backdrop-blur-md pointer-events-auto transition-all duration-200',
-          'max-md:absolute max-md:inset-y-0 max-md:z-30 max-md:shadow-xl',
-          showVehicleList
-            ? 'max-md:w-[85vw] max-md:left-0 w-[320px] lg:w-[320px]'
-            : 'max-md:w-0 max-md:overflow-hidden w-[40px]',
+          'max-md:hidden',
+          showVehicleList ? 'w-[320px] lg:w-[320px]' : 'w-[40px]',
         )}>
-          {/* Mobile backdrop */}
-          {showVehicleList && (
-            <div
-              className="fixed inset-0 z-[-1] bg-black/40 md:hidden"
-              onClick={() => setShowVehicleList(false)}
-            />
-          )}
           {showVehicleList ? (
             <VehicleList
               vehicles={vehicles}
@@ -135,6 +116,88 @@ export default function LiveTrackingPage() {
             </button>
           )}
         </aside>
+
+        {/* Mobile drawer trigger — floating button, only on mobile */}
+        <button
+          type="button"
+          onClick={() => setMobileDrawerOpen(true)}
+          className="pointer-events-auto absolute left-2 top-2 z-30 flex md:hidden h-9 w-9 items-center justify-center rounded-lg border border-border bg-card/95 text-foreground shadow-md backdrop-blur transition-colors hover:bg-accent"
+          title={t('showList')}
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
+        {/* Mobile drawer — simple vehicle list overlay */}
+        {mobileDrawerOpen && (
+          <div className="fixed inset-0 z-40 md:hidden">
+            {/* Backdrop — pointer-events-auto needed because ancestor has pointer-events-none */}
+            <div
+              className="pointer-events-auto absolute inset-0 bg-black/40"
+              onClick={() => setMobileDrawerOpen(false)}
+            />
+            {/* Drawer panel — pointer-events-auto for scrolling */}
+            <div className="pointer-events-auto absolute left-0 top-0 flex h-full w-[85vw] max-w-[320px] flex-col bg-card shadow-xl">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3 shrink-0">
+                <span className="text-sm font-semibold">{t('vehicles')} ({vehicles.length})</span>
+                <button
+                  type="button"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto overscroll-contain">
+                {vehicles.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">{t('noDevicesAssigned')}</div>
+                ) : (
+                  vehicles.map((v) => {
+                    const statusColor: Record<string, string> = {
+                      moving: 'bg-blue-500', idle: 'bg-amber-500', stopped: 'bg-slate-500',
+                      offline: 'bg-gray-400', alert: 'bg-red-500', maintenance: 'bg-purple-500',
+                    };
+                    const dotColor = statusColor[v.status] || 'bg-slate-500';
+                    const isSelected = v.id === selectedVehicleId;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedVehicleId(v.id);
+                          setMobileDrawerOpen(false);
+                          // Fly to the selected vehicle on the map
+                          if (v.lat != null && v.lng != null) {
+                            setTimeout(() => {
+                              mapHandleRef.current?.flyToVehicle(Number(v.lat), Number(v.lng));
+                            }, 350);
+                          }
+                        }}
+                        className={cn(
+                          'flex w-full items-center gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-accent/50',
+                          isSelected && 'bg-accent shadow-[inset_3px_0_0_0] shadow-primary',
+                        )}
+                      >
+                        <span className={cn('h-2 w-2 shrink-0 rounded-full', dotColor)} />
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate text-sm font-medium">{v.name}</div>
+                        </div>
+                        {v.status === 'moving' && (
+                          <div className="shrink-0 text-right">
+                            <div className="text-sm font-bold tabular-nums">{v.speed}</div>
+                            <div className="text-[10px] text-muted-foreground">km/h</div>
+                          </div>
+                        )}
+                        {v.status === 'alert' && (
+                          <div className="shrink-0 text-xs font-semibold text-red-500">{t('alert')}</div>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Empty center section — the global map shows through and is interactive */}
         <section className="relative flex-1 pointer-events-none" />
@@ -209,7 +272,7 @@ function VehicleNav({ vehicles, selectedId, onSelect }: {
   };
 
   return (
-    <div className="pointer-events-auto absolute bottom-20 left-0 right-0 z-30 flex items-center justify-center gap-6 md:hidden">
+    <div className="pointer-events-auto absolute bottom-24 left-0 right-0 z-30 flex items-center justify-center gap-6 md:hidden safe-bottom">
       <button
         type="button"
         onClick={goPrev}

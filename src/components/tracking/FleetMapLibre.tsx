@@ -150,6 +150,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   const serverVersionRef = useRef<string | undefined>(undefined);
   const [mapReady, setMapReady] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
+  const [styleKey, setStyleKey] = useState(0); // increments when basemap changes to re-create style-based layers
   const mapVisibleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { t } = useT();
 
@@ -470,16 +471,17 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update basemap style — re-sync markers after style loads
+  // Update basemap style — re-create style-based layers after style loads
   const prevBasemapRef = useRef(basemap);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
     if (prevBasemapRef.current === basemap) return;
     prevBasemapRef.current = basemap;
+    const onStyleLoad = () => setStyleKey((k) => k + 1);
+    map.on('style.load', onStyleLoad);
     map.setStyle(styleForBasemap(basemap));
-    // After style change, re-add markers by triggering a re-sync
-    // Markers will be re-created in the markers effect when mapReady stays true
+    return () => { map.off('style.load', onStyleLoad); };
   }, [basemap, mapReady]);
 
   // Track previous selectedId separately so marker sync effect doesn't re-run on selection changes
@@ -571,7 +573,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
           popupDismissedRef.current = false;
           onPopupDismissedChange?.(false);
           onSelectVehicle(v.id);
-          showPopup(v);
+          // Popup effect will handle showing popup with latest data
         });
         markersRef.current.set(v.id, marker);
       }
@@ -594,7 +596,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     }
   }, [vehicles, selectedId, onSelectVehicle, fitPadding, mapReady, zoomPrefResolved]);
 
-  // Show popup when vehicle is selected from sidebar (or close when deselected)
+  // Show popup when vehicle is selected (from sidebar, map click, or arrow nav)
   useEffect(() => {
     if (!selectedId) {
       if (popupRef.current) {
@@ -607,8 +609,16 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     // Wait until zoom/popup preferences are resolved (loaded from IndexedDB)
     if (!zoomPrefResolved) return;
 
-    // Skip if same as before (avoid re-showing on marker re-sync)
-    if (selectedId === prevSelectedRef.current) return;
+    // Same vehicle, popup already showing → just update position (handles RAF-moved markers)
+    if (selectedId === prevSelectedRef.current) {
+      if (popupRef.current) {
+        const vehicle = vehicles.find((v) => v.id === selectedId);
+        if (vehicle && validCoord(vehicle.lat, vehicle.lng)) {
+          popupRef.current.setLngLat([vehicle.lng!, vehicle.lat!]);
+        }
+      }
+      return;
+    }
     prevSelectedRef.current = selectedId;
 
     // Don't re-show popup on arrow nav if user previously closed it
@@ -666,7 +676,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
         'line-opacity': 0.8,
       },
     });
-  }, [showGeofences, geofences]);
+  }, [showGeofences, geofences, styleKey]);
 
   /* ── Accuracy circles ── */
   useEffect(() => {
@@ -703,7 +713,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
         if (map.getSource(srcId)) map.removeSource(srcId);
       } catch { /* ignore if map already destroyed */ }
     };
-  }, [mapReady, vehicles]);
+  }, [mapReady, vehicles, styleKey]);
 
   /* ── Live route trail for selected vehicle (cached in IndexedDB) ── */
   useEffect(() => {
@@ -790,7 +800,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     })();
 
     return () => { cancelled = true; };
-  }, [mapReady, selectedId, showRoute]);
+  }, [mapReady, selectedId, showRoute, styleKey]);
 
   /* ── POI Layer (KML overlay from user settings) ── */
   const { user, server } = useSession();
@@ -816,7 +826,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     })();
 
     return () => { cancelled = true; };
-  }, [mapReady, poiLayerUrl]);
+  }, [mapReady, poiLayerUrl, styleKey]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -857,9 +867,9 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       });
       try { if (map.getSource(id)) map.removeSource(id); } catch { /* ignore */ }
     };
-  }, [mapReady]);
+  }, [mapReady, styleKey]);
 
-  /* ── Fly to selected vehicle — preserve current zoom ── */
+  /* ── Fly to selected vehicle — adaptive zoom ── */
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || selectedId == null) return;
@@ -867,8 +877,8 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     if (!zoomPrefResolved) return;
     const vehicle = vehicles.find((v) => v.id === selectedId);
     if (!vehicle || !validCoord(vehicle.lat, vehicle.lng)) return;
-    const currentZoom = map.getZoom();
-    map.flyTo({ center: [vehicle.lng!, vehicle.lat!], zoom: currentZoom, duration: 600 });
+    const zoom = window.innerWidth < 768 ? 14 : 16;
+    map.flyTo({ center: [vehicle.lng!, vehicle.lat!], zoom, duration: 600 });
   }, [selectedId, mapReady, zoomPrefResolved]);
 
   // Handle map clicks (measurement or emulator)

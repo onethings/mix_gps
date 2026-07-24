@@ -156,7 +156,7 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
       {/* Map Controls (top-left) — grouped bar — only on tracking page */}
       {/* top-14 positions controls below the Topbar (h-14) on desktop; top-2 on mobile when Topbar is hidden */}
       {showControls && (
-        <div className="absolute left-2 top-2 z-20 flex flex-col gap-1 sm:left-4 sm:top-14">
+        <div className="absolute left-14 top-2 z-20 flex flex-col gap-1 sm:left-4 sm:top-14">
           <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur">
             <button type="button" onClick={() => setBasemap('road')}
               className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
@@ -181,7 +181,7 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
               {showGeofences ? <Shield className="h-3.5 w-3.5" /> : <ShieldOff className="h-3.5 w-3.5" />} <span className="hidden sm:inline">{t('zones')}</span>
             </button>
             <div className="mx-0.5 h-5 w-px bg-border" />
-            <button type="button" onClick={() => { if (!measuring) setMeasureKm(0); setMeasuring((p) => !p); }}
+            <button type="button" onClick={() => { if (!measuring) { setMeasureKm(0); mapHandleRef.current?.clearMeasurement(); } setMeasuring((p) => !p); }}
               className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
                 measuring ? 'bg-amber-500/20 text-amber-600 hover:bg-amber-500/30' : 'text-muted-foreground hover:bg-accent')}
               title={measuring ? t('stopMeasuring') : t('measureDistance')}>
