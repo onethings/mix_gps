@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
 import { useLiveData } from '@/context/LiveDataContext';
+import { useSession } from '@/context/SessionContext';
 import { useT } from '@/lib/i18n';
+import { supportsDailySummary } from '@/lib/serverVersion';
 import { createCarMarkerElement, updateCarMarkerElement } from '@/components/tracking/carMarkerSvg';
 import { reverseGeocode, lookupCached, subscribeGeocode, geocodeKey } from '@/lib/geocoder';
 import { wktToGeoJson } from '@/lib/geo';
@@ -309,6 +311,8 @@ function DataPanel({ route, stops, cursor, deviceName, selectedDate, onSeek }: {
 export default function ReplayPage() {
   const { t } = useT();
   const { devices, vehicles } = useLiveData();
+  const { server } = useSession();
+  const serverVersion = server?.version;
   const fallbackVehicleId = devices.length === 1 ? devices[0].id : null;
   const [searchParams, setSearchParams] = useSearchParams();
   const deviceIdFromUrl = searchParams.get('deviceId') || '';
@@ -338,6 +342,7 @@ export default function ReplayPage() {
   const [geofencesLoaded, setGeofencesLoaded] = useState(false);
   const [trips, setTrips] = useState<TraccarReportTrip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -465,7 +470,7 @@ export default function ReplayPage() {
     setDeviceId(String(vehicles[0]!.id));
   }, [vehicles, deviceId]);
 
-  // Fetch daily km
+  // Fetch daily km (cached in IndexedDB — only fetches missing dates)
   useEffect(() => {
     if (!deviceId) return;
     const mk = monthKey(calYear, calMonth);
@@ -474,29 +479,76 @@ export default function ReplayPage() {
     const ttl = isCurrentMonth ? 5 * 60 * 1000 : KM_CACHE_TTL;
     let cancelled = false;
     (async () => {
+      // 1) Load cache immediately (even if partial) to show data right away
       const cached = await cacheGet<Record<string, number>>('mileage', kmKey);
       if (cancelled) return;
-      if (cached) { setDailyKm(cached); return; }
-      setLoadingKm(true); setKmError(null);
+      const map: Record<string, number> = cached ? { ...cached } : {};
+      setDailyKm(map);
+
+      // 2) Determine which dates need fetching
+      const today = new Date();
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      const missingDays: number[] = [];
+      for (let day = 1; day <= daysInMonth; day++) {
+        const d = dayKey(calYear, calMonth, day);
+        if (!(d in map)) missingDays.push(day);
+      }
+      // Skip future dates and dates already covered by a fresh v5+ daily call
+      const needsFetch = missingDays.filter((day) => {
+        const date = new Date(calYear, calMonth, day);
+        return date <= today;
+      });
+      if (needsFetch.length === 0 && cached) return; // fully cached
+
+      setKmError(null);
       const from = new Date(calYear, calMonth, 1).toISOString();
       const to = new Date(calYear, calMonth + 1, 0, 23, 59, 59).toISOString();
       try {
-        const rows = await api.reports.summary({ from, to, deviceId: [Number(deviceId)], daily: true }) as Array<Record<string, unknown>>;
-        if (cancelled) return;
-        const map: Record<string, number> = {};
-        (rows || []).forEach((r) => {
-          if (!r.startTime) return;
-          const d = String(r.startTime).slice(0, 10);
-          const km = Math.max(0, Math.round((Number(r.distance) || 0) / 1000));
-          map[d] = km;
-        });
-        setDailyKm(map);
+        if (supportsDailySummary(serverVersion)) {
+          // v5+: single API call for entire month with daily=true
+          const summaryParams: Record<string, unknown> = { from, to, deviceId: [Number(deviceId)] };
+          summaryParams.daily = true;
+          const rows = await api.reports.summary(summaryParams) as Array<Record<string, unknown>>;
+          if (cancelled) return;
+          (rows || []).forEach((r) => {
+            if (!r.startTime) return;
+            const d = String(r.startTime).slice(0, 10);
+            const km = Math.max(0, Math.round((Number(r.distance) || 0) / 1000));
+            map[d] = km;
+          });
+        } else {
+          // v4.4: fetch only missing days individually (max 5 concurrent)
+          const dayPromises: (() => Promise<void>)[] = [];
+          for (const day of needsFetch) {
+            const dayFrom = new Date(Date.UTC(calYear, calMonth, day, 0, 0, 0)).toISOString();
+            const dayTo = new Date(Date.UTC(calYear, calMonth, day, 23, 59, 59)).toISOString();
+            dayPromises.push(async () => {
+              try {
+                const rows = await api.reports.summary({ from: dayFrom, to: dayTo, deviceId: [Number(deviceId)] }) as Array<any>;
+                if (cancelled) return;
+                if (rows && rows.length > 0) {
+                  const r = rows[0];
+                  const d = String(r.startTime || dayFrom).slice(0, 10);
+                  const km = Math.max(0, Math.round((Number(r.distance) || 0) / 1000));
+                  map[d] = km;
+                }
+              } catch { /* skip days with no data */ }
+            });
+          }
+          const concurrency = 5;
+          for (let i = 0; i < dayPromises.length; i += concurrency) {
+            const batch = dayPromises.slice(i, i + concurrency);
+            await Promise.all(batch.map((fn) => fn()));
+            if (cancelled) return;
+          }
+          if (cancelled) return;
+        }
+        setDailyKm({ ...map });
         cacheSet('mileage', kmKey, map, ttl);
       } catch (e) { if (!cancelled) setKmError((e as Error).message || 'Summary API failed'); }
-      finally { if (!cancelled) setLoadingKm(false); }
     })();
     return () => { cancelled = true; };
-  }, [deviceId, calYear, calMonth]);
+  }, [deviceId, calYear, calMonth, serverVersion]);
 
   // Fetch route + stops when selectedDate changes
   useEffect(() => {
@@ -656,6 +708,7 @@ export default function ReplayPage() {
     map.on('load', () => {
       mapRef.current = map;
       addArrowImage(map);
+      setMapReady(true);
     });
     const ro = new ResizeObserver(() => { map.resize(); });
     ro.observe(container);
@@ -666,6 +719,7 @@ export default function ReplayPage() {
       startEndMarkersRef.current.forEach((m) => m.remove());
       startEndMarkersRef.current = [];
       mapRef.current = null;
+      setMapReady(false);
       map.remove();
     };
   }, []);
@@ -817,7 +871,7 @@ export default function ReplayPage() {
     map.once('style.load', redraw);
     map.setStyle(styleForBasemap(basemap));
     setTimeout(redraw, 500);
-  }, [basemap, route, stops, geofences, showGeofences]);
+  }, [basemap, route, stops, geofences, showGeofences, mapReady]);
 
   // Sync geofences
   useEffect(() => {
@@ -882,7 +936,7 @@ export default function ReplayPage() {
     if (!map) return;
     if (map.loaded()) drawRoute(route);
     else map.once('load', () => drawRoute(route));
-  }, [route, stops]);
+  }, [route, stops, mapReady]);
 
   // Update marker position + rotation on cursor change
   useEffect(() => {

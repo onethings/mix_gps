@@ -5,6 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/context/SessionContext';
+import {
+  supportsCombinedReport,
+  supportsChartReport,
+  supportsGeofencesReport,
+} from '@/lib/serverVersion';
 import type { LucideIcon } from 'lucide-react';
 
 interface ReportItem {
@@ -44,10 +49,17 @@ const ITEMS: ReportItem[] = [
 
 export default function ReportsIndexPage() {
   const { t } = useT();
-  const { user } = useSession();
+  const { user, server } = useSession();
+  const serverVersion = server?.version;
   const isAdmin = Boolean(user?.administrator);
 
-  const visibleItems = ITEMS.filter((item) => !item.admin || isAdmin);
+  const visibleItems = ITEMS.filter((item) => {
+    if (item.admin && !isAdmin) return false;
+    if (item.to === 'combined' && !supportsCombinedReport(serverVersion)) return false;
+    if (item.to === 'chart' && !supportsChartReport(serverVersion)) return false;
+    if (item.to === 'geofences' && !supportsGeofencesReport(serverVersion)) return false;
+    return true;
+  });
   const groups = ['driving', 'events', 'system'] as const;
 
   return (

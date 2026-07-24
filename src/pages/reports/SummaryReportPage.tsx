@@ -9,7 +9,9 @@ import { Button } from '@/components/ui/button';
 import { formatDate, formatDuration } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useLiveData } from '@/context/LiveDataContext';
+import { useSession } from '@/context/SessionContext';
 import { useT } from '@/lib/i18n';
+import { supportsDailySummary } from '@/lib/serverVersion';
 import ReportFilter from '@/components/reports/ReportFilterV2';
 import type { ReportFilterValue } from '@/components/reports/ReportFilterV2';
 import ExportButton from '@/components/reports/ExportButton';
@@ -43,6 +45,9 @@ function formatSummaryCell(key: string, r: any): string {
 export default function SummaryReportPage() {
   const { t } = useT();
   const { devices } = useLiveData();
+  const { server } = useSession();
+  const serverVersion = server?.version;
+  const canUseDaily = supportsDailySummary(serverVersion);
   const nameByDeviceId = useMemo(() => { const m: Record<number, string> = {}; devices.forEach((d) => { m[d.id] = d.name; }); return m; }, [devices]);
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,7 +66,8 @@ export default function SummaryReportPage() {
     (async () => {
       try {
         const params: any = { from: value.from, to: value.to, deviceId: value.deviceIds };
-        if (daily) params.daily = true;
+        // Only pass daily param if server supports it (v5+); v4.4 doesn't support daily
+        if (daily && canUseDaily) params.daily = true;
         const data = await api.reports.summary(params) as any[];
         if (key !== fetchKeyRef.current) return;
         const enriched = (data || []).map((row: any) => ({
@@ -76,7 +82,7 @@ export default function SummaryReportPage() {
         if (key === fetchKeyRef.current) setLoading(false);
       }
     })();
-  }, [nameByDeviceId, daily]);
+  }, [nameByDeviceId, daily, canUseDaily]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -95,12 +101,14 @@ export default function SummaryReportPage() {
       <ReportFilter loading={loading} onShow={handleShow}
         columnDefs={COLUMNS} visibleColumns={visibleCols} onToggleColumn={toggleColumn}
         extraFilters={
-          <button type="button" onClick={() => setDaily((v) => !v)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-          >
-            {daily ? <ToggleRight className="h-4 w-4 text-primary" /> : <ToggleLeft className="h-4 w-4" />}
-            {daily ? t('daily') : t('summary')}
-          </button>
+          canUseDaily ? (
+            <button type="button" onClick={() => setDaily((v) => !v)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            >
+              {daily ? <ToggleRight className="h-4 w-4 text-primary" /> : <ToggleLeft className="h-4 w-4" />}
+              {daily ? t('daily') : t('summary')}
+            </button>
+          ) : null
         }
       >
         <ExportButton disabled={!filtered.length}

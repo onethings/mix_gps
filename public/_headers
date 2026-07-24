@@ -4,6 +4,7 @@
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self), camera=(), microphone=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://server.arcgisonline.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://tiles.openfreemap.org; connect-src 'self' https://demo3.traccar.org https://nominatim.openstreetmap.org https://tiles.openfreemap.org https://server.arcgisonline.com https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com wss://demo3.traccar.org; worker-src 'self' blob:; manifest-src 'self'
 
 # SVG sprite is large — cache for 30 days
 /markers/sprite.svg

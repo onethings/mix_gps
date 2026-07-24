@@ -13,7 +13,7 @@ import { useT } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import type { VehicleStatus } from '@/types';
 
-const STYLE_ROAD = 'https://tiles.openfreemap.org/styles/liberty';
+const STYLE_ROAD = '/custom/liberty.json';
 const STYLE_SATELLITE = {
   version: 8 as const,
   sources: {

@@ -42,6 +42,12 @@ self.addEventListener('activate', (event) => {
           .map((k) => caches.delete(k))
       )
     ).then(() => self.clients.claim())
+    .then(() => {
+      // Enable navigation preload if supported (speeds up navigation requests)
+      if (self.registration?.navigationPreload) {
+        self.registration.navigationPreload.enable().catch(() => {});
+      }
+    })
   );
 });
 
@@ -80,6 +86,44 @@ self.addEventListener('fetch', (event) => {
   // Non-GET: pass through
   if (request.method !== 'GET') return;
 
+  // Navigation requests: use preloadResponse (if available), network-first with cache fallback.
+  // Properly uses event.waitUntil() to prevent the "preloadResponse cancelled" warning.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      (async () => {
+        // Consume preload response first (if available) to prevent cancellation error
+        let preloadResponse;
+        try {
+          preloadResponse = await event.preloadResponse;
+        } catch {
+          /* preload not available */
+        }
+        if (preloadResponse) {
+          event.waitUntil(
+            caches.open(CACHE).then((cache) => cache.put(request, preloadResponse.clone()))
+          );
+          return preloadResponse;
+        }
+
+        // Fall back to network fetch
+        try {
+          const response = await fetch(request);
+          event.waitUntil(
+            caches.open(CACHE).then((cache) => cache.put(request, response.clone()))
+          );
+          return response;
+        } catch {
+          const fallback = await caches.match('/');
+          return fallback || new Response(
+            '<html><body><h1>Offline</h1><p>Please check your connection.</p></body></html>',
+            { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
+        }
+      })()
+    );
+    return;
+  }
+
   // Static assets & markers: cache-first (runtime caching)
   // This naturally handles Vite's hashed filenames without precaching
   event.respondWith(
@@ -94,7 +138,10 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => cached);
-      return cached || fetchAndCache;
+      // Return cached response if available, otherwise fetch from network.
+      // If both fail, return a 504 fallback to prevent "Failed to convert value to 'Response'".
+      if (cached) return cached;
+      return fetchAndCache.then((r) => r || new Response('', { status: 504 }));
     })
   );
 });

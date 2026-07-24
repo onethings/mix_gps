@@ -9,9 +9,10 @@ import { cacheGet, cacheSet } from '@/lib/db';
 import { loadPopupSettings, savePopupSetting, POPUP_FIELDS } from '@/lib/popupSettings';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/context/SessionContext';
+import { supportsDailySummary } from '@/lib/serverVersion';
 import type { Vehicle, TraccarGeofence } from '@/types';
 
-const STYLE_ROAD = 'https://tiles.openfreemap.org/styles/liberty';
+const STYLE_ROAD = '/custom/liberty.json';
 const STYLE_SATELLITE = {
   version: 8 as const,
   sources: {
@@ -146,6 +147,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   const navigate = useNavigate();
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
+  const serverVersionRef = useRef<string | undefined>(undefined);
   const [mapReady, setMapReady] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
   const mapVisibleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -324,26 +326,41 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       const kmKey = `replay-km-${vehicle.id}-${monthStr}`;
 
       (async () => {
-        // 1) Try IndexedDB cache first (same cache as ReplayPage uses)
+        // 1) Load existing cache from IndexedDB (may have data from ReplayPage)
         const cached = await cacheGet<Record<string, number>>('mileage', kmKey);
-        if (cached && cached[dateStr] !== undefined) {
+        const map: Record<string, number> = cached ? { ...cached } : {};
+        if (map[dateStr] !== undefined) {
           const el = document.getElementById(todayMileageId);
-          if (el) el.textContent = String(cached[dateStr]);
+          if (el) el.textContent = String(map[dateStr]);
           return;
         }
-        // 2) Fetch full month from API (more reliable than single-day query)
+        // 2) Fetch missing data (only today for popup)
         const from = new Date(y, m, 1).toISOString();
         const to = new Date(y, m + 1, 0, 23, 59, 59).toISOString();
         try {
-          const rows = await api.reports.summary({ from, to, deviceId: [vehicle.id], daily: true }) as Array<Record<string, unknown>>;
-          const map: Record<string, number> = {};
-          (rows || []).forEach((r: any) => {
-            if (!r.startTime) return;
-            const d = String(r.startTime).slice(0, 10);
-            const km = Math.max(0, Math.round((Number(r.distance) || 0) / 1000));
-            map[d] = km;
-          });
-          // 3) Cache for future use (same TTL as ReplayPage)
+          if (supportsDailySummary(serverVersionRef.current)) {
+            // v5+: use summary with daily=true (single API call for whole month)
+            const summaryParams: any = { from, to, deviceId: [vehicle.id] };
+            summaryParams.daily = true;
+            const rows = await api.reports.summary(summaryParams) as Array<Record<string, unknown>>;
+            (rows || []).forEach((r: any) => {
+              if (!r.startTime) return;
+              const d = String(r.startTime).slice(0, 10);
+              const km = Math.max(0, Math.round((Number(r.distance) || 0) / 1000));
+              map[d] = km;
+            });
+          } else {
+            // v4.4: fetch just today's summary (single day query)
+            const todayDay = today.getDate();
+            const todayFrom = new Date(Date.UTC(y, m, todayDay, 0, 0, 0)).toISOString();
+            const todayTo = new Date(Date.UTC(y, m, todayDay, 23, 59, 59)).toISOString();
+            const rows = await api.reports.summary({ from: todayFrom, to: todayTo, deviceId: [vehicle.id] }) as Array<any>;
+            if (rows && rows.length > 0) {
+              const km = Math.max(0, Math.round((Number(rows[0].distance) || 0) / 1000));
+              map[dateStr] = km;
+            }
+          }
+          // 3) Merge with existing cache & save
           const isCurrentMonth = y === new Date().getFullYear() && m === new Date().getMonth();
           const ttl = isCurrentMonth ? 5 * 60 * 1000 : 60 * 24 * 60 * 60 * 1000;
           cacheSet('mileage', kmKey, map, ttl);
@@ -776,7 +793,8 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   }, [mapReady, selectedId, showRoute]);
 
   /* ── POI Layer (KML overlay from user settings) ── */
-  const { user } = useSession();
+  const { user, server } = useSession();
+  serverVersionRef.current = server?.version;
   const poiLayerUrl = (user?.attributes as Record<string, string> | undefined)?.poiLayer;
 
   useEffect(() => {

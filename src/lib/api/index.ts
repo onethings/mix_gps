@@ -1,7 +1,7 @@
 // API client — organized by Traccar API resource
 import { request, qs, BASE } from './client';
 
-export { request, OPENID_AUTH_URL, openSocket } from './client';
+export { request, OPENID_AUTH_URL, openSocket, setBasicAuth, getBasicAuth } from './client';
 
 export const api = {
   session: {
@@ -17,18 +17,10 @@ export const api = {
     },
     loginWithToken: (token: string) => request(`/session?token=${encodeURIComponent(token)}`),
     logout: async () => {
-      let res: Response;
       try {
-        res = await fetch(`${BASE}/session`, {
-          method: 'DELETE',
-          credentials: 'include',
-          headers: { Accept: 'application/json' },
-        });
-      } catch { return null; }
-      if (res.ok || res.status === 401) return null;
-      const text = await res.text().catch(() => '');
-      const { ApiError } = await import('@/lib/apiError');
-      throw new ApiError(text || `${res.status}`, { status: res.status, raw: text });
+        await request('/session', { method: 'DELETE' });
+      } catch { /* ignore */ }
+      return null;
     },
     server: () => request('/server'),
     becomeUser: (userId: number) => request(`/session/${userId}`, { method: 'POST' }),

@@ -1,2 +1,2 @@
-# Cloudflare Pages SPA routing — all paths serve index.html
-/*    /index.html   200
+# SPA routing via 404.html (Cloudflare custom 404 page)
+# No catch-all — static files are served directly

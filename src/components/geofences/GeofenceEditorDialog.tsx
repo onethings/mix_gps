@@ -32,7 +32,7 @@ const DRAW_MODES = [
   { key: 'freehand' as const, icon: Pen, labelKey: 'lineGeofence' },
 ];
 
-const TILE_STYLE = 'https://tiles.openfreemap.org/styles/liberty';
+const TILE_STYLE = '/custom/liberty.json';
 
 function guessDefaultCenter(vehicles: VehicleShort[]) {
   const withCoords = (vehicles || []).filter(

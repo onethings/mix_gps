@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { api } from '@/lib/api';
+import { api, setBasicAuth } from '@/lib/api';
+import { cacheClear } from '@/lib/db';
 import type { TraccarUser, TraccarServer } from '@/types';
 
 type UserRole = 'admin' | 'manager' | 'driver';
@@ -57,7 +58,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const login = useCallback(async (email: string, password: string, code?: string) => {
+    // Clear cached data from previous session to avoid serving stale data
+    cacheClear().catch(() => {});
     const u = await api.session.login(email, password, code) as TraccarUser;
+    // Store Basic auth for cross-origin API requests (bypasses SameSite cookie + WWW-Authenticate popup)
+    setBasicAuth({ email, password });
     setUser(u);
     setError(null);
     try {
@@ -74,7 +79,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    setBasicAuth(null);
     setUser(null);
+    // Clear IndexedDB cache to prevent stale data from previous session
+    cacheClear().catch(() => {});
   }, []);
 
   const role: UserRole = user?.administrator ? 'admin' : user?.userLimit ? 'manager' : 'driver';

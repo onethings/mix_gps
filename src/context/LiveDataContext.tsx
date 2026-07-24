@@ -42,7 +42,7 @@ const LiveDataContext = createContext<LiveDataContextValue | null>(null);
 const MAX_EVENTS = 100;
 
 export function LiveDataProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useSession();
+  const { user, server } = useSession();
   const [devices, setDevices] = useState<TraccarDevice[]>([]);
   const [positions, setPositions] = useState<Record<string, TraccarPosition>>({});
   const [events, setEvents] = useState<TraccarEvent[]>([]);
@@ -157,9 +157,37 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // v4.4 沒有 WebSocket 支援 → 用輪詢，避免 Basic Auth 彈窗
+  const serverVersion = server?.version;
+  const useWebSocket = serverVersion ? Number(serverVersion.split('.')[0] || 0) >= 5 : true;
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!user) return undefined;
+
+    if (!useWebSocket) {
+      setConnected(false);
+      const poll = async () => {
+        try {
+          const [deviceList, positionList] = await Promise.all([
+            api.devices.list(),
+            api.positions.list(),
+          ]);
+          setDevices(Array.isArray(deviceList) ? deviceList : []);
+          const byDevice = {};
+          (Array.isArray(positionList) ? positionList : []).forEach((p) => {
+            const id = p.deviceId;
+            if (id == null) return;
+            byDevice[id] = p;
+            byDevice[String(id)] = p;
+          });
+          setPositions(byDevice);
+        } catch { /* ignore polling errors */ }
+      };
+      poll();
+      const interval = setInterval(poll, 15000);
+      return () => clearInterval(interval);
+    }
 
     const connect = () => {
       const socket = openSocket((frame: any) => {
@@ -216,7 +244,7 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
       socketRef.current?.close();
       setConnected(false);
     };
-  }, [user]);
+  }, [user, useWebSocket]);
 
   const baseVehicles = useMemo(() => toVehicles(devices, positions), [devices, positions]);
 

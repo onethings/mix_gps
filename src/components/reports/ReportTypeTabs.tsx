@@ -3,13 +3,21 @@ import { NavLink, useLocation, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { buildReportPath, REPORT_TABS } from '@/lib/reportNav';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSession } from '@/context/SessionContext';
 import { useT } from '@/lib/i18n';
+import {
+  supportsCombinedReport,
+  supportsChartReport,
+  supportsGeofencesReport,
+} from '@/lib/serverVersion';
 
 export default function ReportTypeTabs() {
   const { t } = useT();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { administrator, readonly, disableReports } = usePermissions();
+  const { server } = useSession();
+  const serverVersion = server?.version;
   const search = location.search || `?${searchParams.toString()}`;
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -18,6 +26,10 @@ export default function ReportTypeTabs() {
   const tabs = REPORT_TABS.filter((tab) => {
     if (tab.admin && !administrator) return false;
     if (tab.hideWhenReadonly && readonly) return false;
+    // Hide report types not supported by older server versions
+    if (tab.path === '/reports/combined' && !supportsCombinedReport(serverVersion)) return false;
+    if (tab.path === '/reports/chart' && !supportsChartReport(serverVersion)) return false;
+    if (tab.path === '/reports/geofences' && !supportsGeofencesReport(serverVersion)) return false;
     return true;
   });
 

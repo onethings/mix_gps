@@ -18,6 +18,19 @@ function apiBase() {
 export const BASE = apiBase();
 export const OPENID_AUTH_URL = `${BASE}/session/openid/auth`;
 
+// Basic auth for cross-origin requests (bypasses SameSite cookie restrictions)
+let _basicAuth: string | null = null;
+
+export function setBasicAuth(credentials: { email: string; password: string } | null) {
+  if (!credentials) { _basicAuth = null; return; }
+  _basicAuth = btoa(`${credentials.email}:${credentials.password}`);
+}
+
+export function getBasicAuth(): string | null {
+  return _basicAuth;
+}
+
+
 export function qs(params: Record<string, any> = {}) {
   const search = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
@@ -127,16 +140,18 @@ function parseErrorBodyText(text: string) {
 export async function request(path: string, opts: Record<string, any> = {}) {
   let res: Response;
   try {
+    const { headers: extraHeaders, ...restOpts } = opts;
     res = await fetch(`${BASE}${path}`, {
       credentials: 'include',
+      ...restOpts,
       headers: {
         Accept: 'application/json',
-        ...(opts.body && !opts.headers?.['Content-Type']
+        ...(opts.body && !extraHeaders?.['Content-Type']
           ? { 'Content-Type': 'application/json' }
           : {}),
-        ...(opts.headers || {}),
+        ...(extraHeaders || {}),
+        ...(_basicAuth ? { Authorization: `Basic ${_basicAuth}` } : {}),
       },
-      ...opts,
     });
   } catch (e: any) {
     const err = new ApiError(e.message || 'Network error', { status: 0 });

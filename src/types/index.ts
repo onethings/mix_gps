@@ -50,6 +50,7 @@ export interface TraccarServer {
   disableReports?: boolean;
   disableDevices?: boolean;
   attributes?: Record<string, unknown>;
+  version?: string;
 }
 
 export interface TraccarDevice {

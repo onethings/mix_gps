@@ -5,20 +5,13 @@ import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { visualizer } from 'rollup-plugin-visualizer';
 import path from 'path';
 
-const DEFAULT_TRACCAR_URL = 'https://demo3.traccar.org';
+ const DEFAULT_TRACCAR_URL = 'https://demo3.traccar.org';
+
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const target = env.VITE_TRACCAR_URL || DEFAULT_TRACCAR_URL;
   const wsTarget = target.replace(/^http/, 'ws');
-
-  // ⚠️ Production CORS note:
-  // In dev mode, /api requests go through Vite's proxy, so no CORS issues.
-  // In production/preview, the browser calls VITE_TRACCAR_URL directly.
-  // If your frontend domain differs from the Traccar server domain,
-  // add this to traccar.xml on the Traccar server:
-  //   <entry key='web.origin'>https://your-frontend-domain.com</entry>
-  // Do NOT use '*' — it exposes all vehicle/gps data to any website.
   const baseRaw = env.VITE_BASE_PATH && String(env.VITE_BASE_PATH).trim();
   const base = baseRaw ? `${baseRaw.replace(/\/$/, '')}/` : '/';
 
@@ -54,6 +47,7 @@ export default defineConfig(({ mode }) => {
         ],
       },
       manifest: {
+        filename: 'manifest.json',
         name: 'Kevin GPS',
         short_name: 'Kevin GPS',
         description: 'GPS Fleet Tracking Platform',
@@ -134,6 +128,11 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3001,
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+        port: 3001,
+      },
       proxy: {
         '/api/socket': {
           target: wsTarget,

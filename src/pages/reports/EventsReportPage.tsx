@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { useLiveData } from '@/context/LiveDataContext';
+import { useSession } from '@/context/SessionContext';
 import { useT } from '@/lib/i18n';
+import { supportsNotificationTypes, supportsEventTypeFilter } from '@/lib/serverVersion';
 import ReportFilter from '@/components/reports/ReportFilterV2';
 import type { ReportFilterValue } from '@/components/reports/ReportFilterV2';
 import ExportButton from '@/components/reports/ExportButton';
@@ -38,6 +40,10 @@ function eventTypeLabel(type: string | undefined | null, t: (s: string) => strin
 export default function EventsReportPage() {
   const { t } = useT();
   const { devices } = useLiveData();
+  const { server } = useSession();
+  const serverVersion = server?.version;
+  const canFetchTypes = supportsNotificationTypes(serverVersion);
+  const canFilterByType = supportsEventTypeFilter(serverVersion);
   const nameByDeviceId = useMemo(() => { const m: Record<number, string> = {}; devices.forEach((d) => { m[d.id] = d.name; }); return m; }, [devices]);
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,8 +59,9 @@ export default function EventsReportPage() {
   const mapRef = useRef<maplibregl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch available event types
+  // Fetch available event types (v4.4 doesn't have /notifications/types)
   useEffect(() => {
+    if (!canFetchTypes) return;
     let cancelled = false;
     (async () => {
       try {
@@ -64,7 +71,7 @@ export default function EventsReportPage() {
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [canFetchTypes]);
 
   // Map for selected event
   useEffect(() => {
@@ -106,7 +113,8 @@ export default function EventsReportPage() {
     (async () => {
       try {
         const params: any = { from: value.from, to: value.to, deviceId: value.deviceIds };
-        if (!selectedEventTypes.has('allEvents')) params.type = Array.from(selectedEventTypes);
+        // v4.4 doesn't support type filter; only pass type param on v5+ servers
+        if (canFilterByType && !selectedEventTypes.has('allEvents')) params.type = Array.from(selectedEventTypes);
         const data = await api.reports.events(params) as any[];
         if (key !== fetchKeyRef.current) return;
         (data || []).sort((a: any, b: any) => ((b.eventTime || b.serverTime) || '').localeCompare((a.eventTime || a.serverTime) || ''));
@@ -117,7 +125,7 @@ export default function EventsReportPage() {
         if (key === fetchKeyRef.current) setLoading(false);
       }
     })();
-  }, [selectedEventTypes]);
+  }, [selectedEventTypes, canFilterByType]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -165,17 +173,19 @@ export default function EventsReportPage() {
       <ReportFilter loading={loading} onShow={handleShow}
         columnDefs={COLUMNS} visibleColumns={visibleCols} onToggleColumn={toggleColumn}
         extraFilters={
-          <div className="inline-flex h-9 items-center gap-1 rounded-md border border-input bg-background px-2 text-xs">
-            <span className="text-muted-foreground">{t('type')}:</span>
-            <select
-              value={selectedEventTypes.has('allEvents') ? 'allEvents' : Array.from(selectedEventTypes)[0] || 'allEvents'}
-              onChange={(e) => setSelectedEventTypes(new Set(e.target.value === 'allEvents' ? ['allEvents'] : [e.target.value]))}
-              className="bg-transparent text-foreground outline-none text-xs max-w-[120px]"
-            >
-              <option value="allEvents">{t('eventAllEvents')}</option>
-              {eventTypes.map((et) => <option key={et} value={et}>{eventTypeLabel(et, t)}</option>)}
-            </select>
-          </div>
+          canFilterByType ? (
+            <div className="inline-flex h-9 items-center gap-1 rounded-md border border-input bg-background px-2 text-xs">
+              <span className="text-muted-foreground">{t('type')}:</span>
+              <select
+                value={selectedEventTypes.has('allEvents') ? 'allEvents' : Array.from(selectedEventTypes)[0] || 'allEvents'}
+                onChange={(e) => setSelectedEventTypes(new Set(e.target.value === 'allEvents' ? ['allEvents'] : [e.target.value]))}
+                className="bg-transparent text-foreground outline-none text-xs max-w-[120px]"
+              >
+                <option value="allEvents">{t('eventAllEvents')}</option>
+                {eventTypes.map((et) => <option key={et} value={et}>{eventTypeLabel(et, t)}</option>)}
+              </select>
+            </div>
+          ) : null
         }
       >
         <ExportButton disabled={!filtered.length}
