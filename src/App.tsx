@@ -97,6 +97,11 @@ function DefaultRedirect() {
   return <Navigate to={isMobile ? '/tracking' : '/dashboard'} replace />;
 }
 
+/** Wraps children in ErrorBoundary — isolates crash to a single page/feature */
+function PageErrorBoundary({ children }: { children: React.ReactNode }) {
+  return <ErrorBoundary>{children}</ErrorBoundary>;
+}
+
 function AppRoutes() {
   const { user, ready } = useSession();
 
@@ -122,8 +127,8 @@ function AppRoutes() {
           }
         >
           <Route index element={<DefaultRedirect />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/tracking" element={<LiveTrackingPage />} />
+          <Route path="/dashboard" element={<PageErrorBoundary><DashboardPage /></PageErrorBoundary>} />
+          <Route path="/tracking" element={<PageErrorBoundary><LiveTrackingPage /></PageErrorBoundary>} />
           <Route path="/alerts" element={<AlertsPage />} />
           <Route path="/trips" element={<Navigate to="/reports/trips" replace />} />
           <Route path="/fuel" element={<FuelPage />} />
@@ -139,7 +144,7 @@ function AppRoutes() {
           <Route path="/emulator" element={<EmulatorPage />} />
           <Route path="/commands/send/:id" element={<CommandSendPage />} />
 
-          <Route element={<ReportsShell />}>
+          <Route element={<PageErrorBoundary><ReportsShell /></PageErrorBoundary>}>
             <Route path="reports">
               <Route index element={<ReportsIndexPage />} />
               <Route path="combined" element={<CombinedReportPage />} />
@@ -157,7 +162,7 @@ function AppRoutes() {
               <Route path=":type" element={<ReportPage />} />
             </Route>
           </Route>
-          <Route path="/geofences" element={<GeofencesPage />} />
+          <Route path="/geofences" element={<PageErrorBoundary><GeofencesPage /></PageErrorBoundary>} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/position/:id" element={<PositionPage />} />
@@ -174,7 +179,6 @@ function AppRoutes() {
             <Route path="device/new" element={<DeviceEditorPage />} />
             <Route path="device/:id" element={<DeviceEditorPage />} />
             <Route path="groups" element={<GroupsSettingsPage />} />
-            <Route path="groups" element={<GroupsSettingsPage />} />
             <Route path="group/new" element={<GroupEditorPage />} />
             <Route path="group/:id" element={<GroupEditorPage />} />
             <Route path="notifications" element={<NotificationsSettingsPage />} />
@@ -189,7 +193,6 @@ function AppRoutes() {
             <Route path="driver/new" element={<DriverEditorPage />} />
             <Route path="driver/:id" element={<DriverEditorPage />} />
             <Route path="maintenance" element={<MaintenanceSettingsPage />} />
-            <Route path="maintenances" element={<MaintenanceSettingsPage />} />
             <Route path="maintenance/new" element={<MaintenanceEditorPage />} />
             <Route path="maintenance/:id" element={<MaintenanceEditorPage />} />
             <Route path="accumulators/:deviceId" element={<AccumulatorsPage />} />

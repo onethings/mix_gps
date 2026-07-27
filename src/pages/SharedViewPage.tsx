@@ -134,13 +134,13 @@ function SharedMap({ vehicles }: { vehicles: ShareVehicle[] }) {
 
         const popup = new maplibregl.Popup({ offset: [0, -18], closeButton: true, maxWidth: '280px' })
           .setHTML(`
-            <div style="font-family:system-ui,sans-serif;padding:4px;min-width:180px;">
-              <div style="font-weight:600;font-size:14px;margin-bottom:4px;">${escapeHtml(v.name)}</div>
-              <div style="font-size:12px;color:#666;">
-                <div>Plate: ${escapeHtml(v.plate || '—')}</div>
-                <div>Device: ${escapeHtml(v.deviceId || '—')}</div>
-                <div>Speed: ${v.speed ?? 0} km/h</div>
-                <div>${formatDate(v.lastUpdate)}</div>
+            <div style="font-family:system-ui,sans-serif;padding:10px 12px;min-width:180px;">
+              <div style="font-weight:600;font-size:14px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f1f5f9;color:#1e293b;">${escapeHtml(v.name)}</div>
+              <div style="font-size:12px;color:#64748b;">
+                <div style="margin-bottom:3px"><span style="color:#64748b">Plate:</span> <b style="color:#1e293b">${escapeHtml(v.plate || '—')}</b></div>
+                <div style="margin-bottom:3px"><span style="color:#64748b">Device:</span> <b style="color:#1e293b">${escapeHtml(v.deviceId || '—')}</b></div>
+                <div style="margin-bottom:3px"><span style="color:#64748b">Speed:</span> <b style="color:#1e293b">${v.speed ?? 0} km/h</b></div>
+                <div><span style="color:#64748b">${formatDate(v.lastUpdate)}</span></div>
               </div>
             </div>
           `);

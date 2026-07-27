@@ -20,7 +20,7 @@ export default function FlashToast() {
     >
       {isError ? <AlertCircle className="h-4 w-4 shrink-0" /> : <CheckCircle className="h-4 w-4 shrink-0" />}
       <span className="flex-1">{toast.message}</span>
-      <button onClick={dismiss} className="shrink-0 opacity-70 hover:opacity-100">
+      <button onClick={dismiss} aria-label="Dismiss" className="shrink-0 opacity-70 hover:opacity-100">
         <X className="h-4 w-4" />
       </button>
     </div>

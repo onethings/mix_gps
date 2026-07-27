@@ -19,6 +19,61 @@ import { downloadCsv, downloadExcel, downloadPdf } from '@/lib/exportUtils';
 
 const STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
+/** Drag-to-resize handle with proper cleanup on unmount + touch support */
+function ResizeHandle({ mapHeight, onResize }: { mapHeight: number; onResize: (h: number) => void }) {
+  const [dragging, setDragging] = useState(false);
+  const startRef = useRef({ y: 0, h: 0 });
+  const onResizeRef = useRef(onResize);
+  onResizeRef.current = onResize;
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    const onMove = (ev: MouseEvent | TouchEvent) => {
+      const clientY = 'touches' in ev ? ev.touches[0].clientY : ev.clientY;
+      const delta = clientY - startRef.current.y;
+      onResizeRef.current(Math.max(100, Math.min(600, startRef.current.h + delta)));
+    };
+    const onUp = () => {
+      setDragging(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, [dragging]);
+
+  return (
+    <div
+      onMouseDown={(e) => {
+        e.preventDefault();
+        setDragging(true);
+        startRef.current = { y: e.clientY, h: mapHeight };
+      }}
+      onTouchStart={(e) => {
+        setDragging(true);
+        startRef.current = { y: e.touches[0].clientY, h: mapHeight };
+      }}
+      className="flex cursor-row-resize items-center justify-center gap-1 rounded-md border bg-muted/30 py-1 text-[10px] text-muted-foreground hover:bg-accent transition-colors select-none"
+    >
+      <GripHorizontal className="h-3 w-3" />
+      Drag to resize
+    </div>
+  );
+}
+
 /* ── Period presets (like traccar-web) ── */
 type PeriodKey = 'today' | 'yesterday' | 'thisWeek' | 'prevWeek' | 'thisMonth' | 'prevMonth' | 'custom';
 
@@ -529,26 +584,10 @@ export default function CombinedReportPage() {
             style={{ height: mapHeight }}
           />
           {/* ── ResizeHandle (drag to resize map/table) ── */}
-          <div
-            onMouseDown={(e) => {
-              const startY = e.clientY;
-              const startH = mapHeight;
-              const onMove = (ev: MouseEvent) => {
-                const delta = ev.clientY - startY;
-                setMapHeight(Math.max(100, Math.min(600, startH + delta)));
-              };
-              const onUp = () => {
-                window.removeEventListener('mousemove', onMove);
-                window.removeEventListener('mouseup', onUp);
-              };
-              window.addEventListener('mousemove', onMove);
-              window.addEventListener('mouseup', onUp);
-            }}
-            className="flex cursor-row-resize items-center justify-center gap-1 rounded-md border bg-muted/30 py-1 text-[10px] text-muted-foreground hover:bg-accent transition-colors select-none"
-          >
-            <GripHorizontal className="h-3 w-3" />
-            Drag to resize
-          </div>
+          <ResizeHandle
+            mapHeight={mapHeight}
+            onResize={setMapHeight}
+          />
         </div>
       )}
 

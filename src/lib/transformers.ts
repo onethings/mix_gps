@@ -83,6 +83,8 @@ export function toVehicle(device, position) {
 
 // Stable reference cache: only creates new objects when data actually changes
 // Prevents cascading re-renders when only one vehicle's position updates
+// Limited to MAX_VEHICLE_CACHE entries to prevent unbounded growth
+const MAX_VEHICLE_CACHE = 500;
 const _vehicleCache = new Map();
 
 export function toVehicles(devices = [], positionsByDevice = {}) {
@@ -95,6 +97,11 @@ export function toVehicles(devices = [], positionsByDevice = {}) {
       return cached;
     }
     _vehicleCache.set(fresh.id, fresh);
+    // Evict oldest entries when over limit
+    if (_vehicleCache.size > MAX_VEHICLE_CACHE) {
+      const key = _vehicleCache.keys().next().value;
+      if (key !== undefined) _vehicleCache.delete(key);
+    }
     return fresh;
   });
 }

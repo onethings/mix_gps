@@ -19,7 +19,7 @@ const STORES: Record<string, { keyPath: string; ttl: number }> = {
 
 let dbPromise: Promise<IDBDatabase | null> | null = null;
 
-function openDB(): Promise<IDBDatabase | null> {
+export function openDB(): Promise<IDBDatabase | null> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve) => {
     if (typeof indexedDB === 'undefined') { resolve(null); return; }
@@ -39,7 +39,7 @@ function openDB(): Promise<IDBDatabase | null> {
   return dbPromise;
 }
 
-function pruneExpired(db: IDBDatabase): void {
+export function pruneExpired(db: IDBDatabase): void {
   const now = Date.now();
   try {
     Object.keys(STORES).forEach((name) => {

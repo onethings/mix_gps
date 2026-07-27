@@ -158,12 +158,12 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
       {showControls && (
         <div className="absolute left-14 top-2 z-20 flex flex-col gap-1 sm:left-4 sm:top-14">
           <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur">
-            <button type="button" onClick={() => setBasemap('road')}
-              className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
+            <button type="button" aria-label={t('mapLayer')} onClick={() => setBasemap('road')}
+                className={cn('flex items-center gap-1 rounded px-1.5 py-1 text-xs font-medium transition-colors',
                 basemap === 'road' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
               <MapIcon className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('mapLayer')}</span>
             </button>
-            <button type="button" onClick={() => setBasemap('satellite')}
+            <button type="button" aria-label={t('satellite')} onClick={() => setBasemap('satellite')}
               className={cn('flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:px-2.5',
                 basemap === 'satellite' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
               <Satellite className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{t('satellite')}</span>
@@ -202,7 +202,7 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
               <span className="font-medium text-amber-700 dark:text-amber-300">
                 {measureKm > 0 ? `${measureKm.toFixed(2)} ${t('unitKm')}` : t('clickToMeasure')}
               </span>
-              <button type="button" onClick={() => { mapHandleRef.current?.clearMeasurement?.(); setMeasureKm(0); }}
+              <button type="button" aria-label={t('clear')} onClick={() => { mapHandleRef.current?.clearMeasurement?.(); setMeasureKm(0); }}
                 className="ml-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-amber-600 hover:bg-amber-200/50 dark:text-amber-400 dark:hover:bg-amber-800/50">{t('clear')}</button>
             </div>
           )}

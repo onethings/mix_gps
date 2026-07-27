@@ -213,15 +213,15 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
 
     const settingsHtml = `
       <div id="${settingsId}" style="position:relative;display:inline-block">
-        <span style="cursor:pointer;font-size:14px;opacity:0.5" onclick="(function(){
+        <span style="cursor:pointer;font-size:14px;opacity:0.45" onclick="(function(){
           var p=document.getElementById('${panelId}');
           if(p)p.style.display=p.style.display==='block'?'none':'block'
         })()">⚙</span>
-        <div id="${panelId}" style="display:none;position:absolute;top:20px;right:0;z-index:9999;background:#fff;border:1px solid #d1d5db;border-radius:8px;padding:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);min-width:160px;font-size:11px;color:#111">
-          <div style="font-weight:600;padding:4px 6px 6px;border-bottom:1px solid #e5e7eb;margin-bottom:4px">${t('displayFields')}</div>
+        <div id="${panelId}" style="display:none;position:absolute;top:20px;right:0;z-index:9999;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:8px;box-shadow:0 4px 12px rgba(0,0,0,0.12);min-width:160px;font-size:11px;color:#1e293b">
+          <div style="font-weight:600;padding:4px 6px 6px;border-bottom:1px solid #f1f5f9;margin-bottom:4px">${t('displayFields')}</div>
           ${POPUP_FIELDS.map(f => `
             <label style="display:flex;align-items:center;gap:6px;padding:4px 6px;cursor:pointer;border-radius:4px"
-              onmouseenter="this.style.background='#f3f4f6'" onmouseleave="this.style.background=''">
+              onmouseenter="this.style.background='#f8fafc'" onmouseleave="this.style.background=''">
               <input type="checkbox" ${settings[f.key] !== false ? 'checked' : ''}
                 onchange="try{var s=JSON.parse(localStorage.getItem('popup-display-fields')||'{}');s['${f.key}']=this.checked;localStorage.setItem('popup-display-fields',JSON.stringify(s));var p=this.closest('.maplibregl-popup-content');if(p){var e=p.querySelector('[data-key=\\'${f.key}\\']');if(e)e.style.display=this.checked?'':'none'}}catch(e){}"
                 style="accent-color:#3b82f6">
@@ -236,7 +236,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     const dataRows: string[] = [];
     const addData = (key: string, label: string, valueHtml: string) => {
       const hidden = settings[key] === false ? ' style="display:none"' : '';
-      dataRows.push(`<span data-key="${key}"${hidden} style="background:#f3f4f6;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6"><span style="color:#6b7280">${label}</span> <b style="color:#111">${valueHtml}</b></span>`);
+      dataRows.push(`<span data-key="${key}"${hidden} style="background:#f8fafc;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6"><span style="color:#64748b">${label}</span> <b style="color:#1e293b">${valueHtml}</b></span>`);
     };
     addData('speed', '⚡', `${escapeHtml(vehicle.speed)} ${t('unitKmh')}`);
     addData('ignition', '🔑', vehicle.ignition ? '<span style="color:#22c55e">ON</span>' : '<span style="color:#6b7280">OFF</span>');
@@ -269,31 +269,31 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     const accEditId = `acc-edit-${vehicle.id}-${Date.now()}`;
     const hiddenAttr = settings.accumulators === false ? ' style="display:none"' : '';
     const accHtml = `
-      <span data-key="accumulators"${hiddenAttr} style="background:#f3f4f6;border-radius:4px;padding:2px 7px;white-space:nowrap;font-size:10px;line-height:1.6">
-        <span style="color:#6b7280">⏱</span> <b style="color:#111;margin-right:3px">${hoursDisplay}</b><span style="color:#6b7280">h</span>
-        <span style="color:#d1d5db;margin:0 2px">|</span>
-        <span style="color:#6b7280">📏</span> <b style="color:#111;margin-right:3px">${distDisplay}</b><span style="color:#6b7280">km</span>
-        <span id="${accEditId}" style="cursor:pointer;margin-left:1px;color:#9ca3af" onclick="window.__openAccumulatorEditor(${vehicle.id})">⚙</span>
+      <span data-key="accumulators"${hiddenAttr} style="background:#f8fafc;border-radius:4px;padding:2px 7px;white-space:nowrap;font-size:10px;line-height:1.6">
+        <span style="color:#64748b">⏱</span> <b style="color:#1e293b;margin-right:3px">${hoursDisplay}</b><span style="color:#64748b">h</span>
+        <span style="color:#cbd5e1;margin:0 2px">|</span>
+        <span style="color:#64748b">📏</span> <b style="color:#1e293b;margin-right:3px">${distDisplay}</b><span style="color:#64748b">km</span>
+        <span id="${accEditId}" style="cursor:pointer;margin-left:1px;color:#94a3b8" onclick="window.__openAccumulatorEditor(${vehicle.id})">⚙</span>
       </span>`;
     dataRows.push(accHtml);
 
-    const todayMileageRender = `<span data-key="todayMileage"${settings.todayMileage !== false ? '' : ' style="display:none"'} style="background:#f3f4f6;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6"><span style="color:#6b7280">📅</span> <b style="color:#111"><span id="${todayMileageId}">—</span> ${t('unitKm')}</b></span>`;
+    const todayMileageRender = `<span data-key="todayMileage"${settings.todayMileage !== false ? '' : ' style="display:none"'} style="background:#f8fafc;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6"><span style="color:#64748b">📅</span> <b style="color:#1e293b"><span id="${todayMileageId}">—</span> ${t('unitKm')}</b></span>`;
 
     const html = `
-      <div style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.4;min-width:180px;max-width:${isMobile ? '200px' : '280px'}">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid #e5e7eb">
+      <div style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.4;min-width:180px;max-width:${isMobile ? '200px' : '280px'};padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f1f5f9">
           <span style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0"></span>
-          <span style="font-weight:600;font-size:12px;color:#111;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(vehicle.name)}</span>
+          <span style="font-weight:600;font-size:13px;color:#1e293b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(vehicle.name)}</span>
           ${settingsHtml}
-          <span style="font-size:9px;padding:1px 5px;border-radius:3px;background:${sc}22;color:${sc};font-weight:600;text-transform:capitalize">${escapeHtml(vehicle.status)}</span>
+          <span style="font-size:9px;padding:1px 6px;border-radius:4px;background:${sc}18;color:${sc};font-weight:600;text-transform:capitalize">${escapeHtml(vehicle.status)}</span>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">
           ${dataRows.join('')}
           ${todayMileageRender}
         </div>
-        <div data-key="replayLink"${settings.replayLink !== false ? '' : ' style="display:none"'} style="display:flex;gap:8px;border-top:1px solid #e5e7eb;padding:3px 0">
-          <a href="javascript:void(0)" onclick="window.__openDeviceProfile(${vehicle.id})" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#3b82f6;text-decoration:none;font-weight:500;cursor:pointer">🔍 ${t('details')}</a>
-          <a href="javascript:void(0)" onclick="window.__openReplayTab('${vehicle.id}')" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#3b82f6;text-decoration:none;font-weight:500;cursor:pointer">▶ ${t('replayToday')}</a>
+        <div data-key="replayLink"${settings.replayLink !== false ? '' : ' style="display:none"'} style="display:flex;gap:8px;border-top:1px solid #f1f5f9;padding:4px 0 0">
+          <a href="#" onclick="window.__openDeviceProfile(${vehicle.id});return false" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">🔍 ${t('details')}</a>
+          <a href="#" onclick="window.__openReplayTab('${vehicle.id}');return false" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">▶ ${t('replayToday')}</a>
         </div>
       </div>
     `;
@@ -572,8 +572,14 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
         el.addEventListener('click', () => {
           popupDismissedRef.current = false;
           onPopupDismissedChange?.(false);
-          onSelectVehicle(v.id);
-          // Popup effect will handle showing popup with latest data
+          if (v.id === selectedId) {
+            // Same vehicle re-selected — selectedId won't change, so the popup effect
+            // won't re-run. Show popup directly (e.g. after user closed it via X).
+            showPopup(v);
+          } else {
+            onSelectVehicle(v.id);
+            // Popup effect will handle showing popup with latest data
+          }
         });
         markersRef.current.set(v.id, marker);
       }

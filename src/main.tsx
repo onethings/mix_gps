@@ -10,7 +10,11 @@ import { FlashProvider } from './context/FlashContext';
 import { I18nProvider } from './lib/i18n';
 import { TabsProvider } from './context/TabsContext';
 import { env } from './lib/env';
+import { openDB, pruneExpired } from './lib/db';
 import './index.css';
+
+// Prune stale IndexedDB records on app startup (best effort)
+openDB().then((db) => { if (db) pruneExpired(db); });
 
 // Sentry initialisation (requires VITE_SENTRY_DSN in production)
 if (env.VITE_SENTRY_DSN) {

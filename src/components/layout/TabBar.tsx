@@ -59,6 +59,7 @@ export default function TabBar() {
         <button
           key={tab.path}
           type="button"
+          aria-label={tab.label}
           onClick={() => handleTabClick(tab.path)}
           className={cn(
             'group relative flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors',

@@ -19,7 +19,7 @@ import type { TraccarPosition } from '@/types';
 import { toMaintenance } from '@/lib/transformers';
 import { useTripsReport } from '@/hooks/useTripsReport';
 import { useT } from '@/lib/i18n';
-import { reverseGeocode } from '@/lib/geocode';
+import { reverseGeocode } from '@/lib/geocoder';
 
 function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (

@@ -53,6 +53,7 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
   const [geocoded, setGeocoded] = useState<Record<string, string>>({});
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectDelayRef = useRef(2000);
 
   useEffect(() => {
     return subscribeGeocode((key, address) => {
@@ -222,17 +223,27 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
       socket.addEventListener('open', () => {
         setConnected(true);
         setSocketError(null);
+        reconnectDelayRef.current = 2000; // reset backoff on success
       });
       socket.addEventListener('close', () => {
         setConnected(false);
         if (!reconnectBlocked) {
-          setSocketError('Connection closed — reconnecting…');
-          reconnectRef.current = setTimeout(connect, 15000);
+          const delay = reconnectDelayRef.current;
+          setSocketError(`Connection closed — reconnecting in ${Math.round(delay / 1000)}s…`);
+          reconnectRef.current = setTimeout(connect, delay);
+          // exponential backoff: double, cap at 60s
+          reconnectDelayRef.current = Math.min(delay * 2, 60000);
         }
       });
       socket.addEventListener('error', () => {
-        setSocketError('Live connection error');
+        setSocketError('Live connection error — reconnecting…');
         socket.close();
+        // Some browsers may not fire 'close' after 'error'; schedule reconnect as fallback
+        if (!reconnectBlocked && !reconnectRef.current) {
+          const delay = reconnectDelayRef.current;
+          reconnectRef.current = setTimeout(connect, delay);
+          reconnectDelayRef.current = Math.min(delay * 2, 60000);
+        }
       });
       socketRef.current = socket;
     };
@@ -240,8 +251,11 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
     connect();
 
     return () => {
-      if (flushRafRef.current !== null) cancelAnimationFrame(flushRafRef.current);
-      flushRafRef.current = null;
+      // Flush any pending batch before cleanup to avoid data loss
+      if (flushRafRef.current !== null) {
+        cancelAnimationFrame(flushRafRef.current);
+      }
+      flushFrameBatch();
       pendingDevicesRef.current = null;
       pendingPositionsRef.current = null;
       pendingEventsRef.current = null;

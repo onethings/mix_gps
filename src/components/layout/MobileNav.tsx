@@ -129,6 +129,7 @@ export default function MobileNav({ open, onClose }: MobileNavProps) {
           <span className="text-sm font-semibold">{t(sectionLabel)}</span>
           <button
             type="button"
+            aria-label="Close menu"
             onClick={onClose}
             className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent transition-colors"
           >

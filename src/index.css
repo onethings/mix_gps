@@ -97,3 +97,27 @@
     padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* ── MapLibre Popup overrides ── */
+.maplibregl-popup-content {
+  background: hsl(var(--card)) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  padding: 0 !important;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+.maplibregl-popup-tip {
+  border-top-color: hsl(var(--card)) !important;
+}
+.maplibregl-popup-close-button {
+  font-size: 16px !important;
+  color: hsl(var(--muted-foreground)) !important;
+  opacity: 0.5;
+  padding: 4px 8px !important;
+  border-radius: 0 var(--radius) 0 0 !important;
+}
+.maplibregl-popup-close-button:hover {
+  opacity: 1;
+  background: transparent !important;
+  color: hsl(var(--foreground)) !important;
+}
