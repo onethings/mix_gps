@@ -135,6 +135,8 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   const popupDismissedRef = useRef(false);
   const vehiclesRef = useRef(vehicles);
   vehiclesRef.current = vehicles;
+  const selectedIdRef = useRef(selectedId);
+  selectedIdRef.current = selectedId;
   // Initialize popupDismissedRef from persisted preference on mount
   if (initialPopupDismissed !== undefined) {
     popupDismissedRef.current = initialPopupDismissed;
@@ -236,7 +238,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     const dataRows: string[] = [];
     const addData = (key: string, label: string, valueHtml: string) => {
       const hidden = settings[key] === false ? ' style="display:none"' : '';
-      dataRows.push(`<span data-key="${key}"${hidden} style="background:#f8fafc;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6"><span style="color:#64748b">${label}</span> <b style="color:#1e293b">${valueHtml}</b></span>`);
+      dataRows.push(`<span data-key="${key}"${hidden} style="background:#f8fafc;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle"><span style="color:#64748b">${label}</span> <b style="color:#1e293b">${valueHtml}</b></span>`);
     };
     addData('speed', '⚡', `${escapeHtml(vehicle.speed)} ${t('unitKmh')}`);
     addData('ignition', '🔑', vehicle.ignition ? '<span style="color:#22c55e">ON</span>' : '<span style="color:#6b7280">OFF</span>');
@@ -572,7 +574,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
         el.addEventListener('click', () => {
           popupDismissedRef.current = false;
           onPopupDismissedChange?.(false);
-          if (v.id === selectedId) {
+          if (v.id === selectedIdRef.current) {
             // Same vehicle re-selected — selectedId won't change, so the popup effect
             // won't re-run. Show popup directly (e.g. after user closed it via X).
             showPopup(v);
