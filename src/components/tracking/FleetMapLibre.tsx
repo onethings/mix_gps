@@ -241,7 +241,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       dataRows.push(`<span data-key="${key}"${hidden} style="background:#f8fafc;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle"><span style="color:#64748b">${label}</span> <b style="color:#1e293b">${valueHtml}</b></span>`);
     };
     addData('speed', '⚡', `${escapeHtml(vehicle.speed)} ${t('unitKmh')}`);
-    addData('ignition', '🔑', vehicle.ignition ? '<span style="color:#22c55e">ON</span>' : '<span style="color:#6b7280">OFF</span>');
+    addData('ignition', '🔑', vehicle.ignition ? `<span style="color:#22c55e">${escapeHtml(t('on'))}</span>` : `<span style="color:#6b7280">${escapeHtml(t('off'))}</span>`);
     addData('updated', '🕐', dateStr);
     if (!isMobile) {
       addData('address', '📍', escapeHtml(vehicle.address || '—'));
@@ -287,7 +287,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
           <span style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0"></span>
           <span style="font-weight:600;font-size:13px;color:#1e293b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(vehicle.name)}</span>
           ${settingsHtml}
-          <span style="font-size:9px;padding:1px 6px;border-radius:4px;background:${sc}18;color:${sc};font-weight:600;text-transform:capitalize">${escapeHtml(vehicle.status)}</span>
+          <span style="font-size:9px;padding:1px 6px;border-radius:4px;background:${sc}18;color:${sc};font-weight:600">${escapeHtml(t(vehicle.status))}</span>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">
           ${dataRows.join('')}

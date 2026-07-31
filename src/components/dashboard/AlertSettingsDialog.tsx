@@ -27,6 +27,13 @@ interface Props {
   onSettingsChange: () => void;
 }
 
+const FIELD_LABEL_KEYS: Record<AlertCardFieldKey, string> = {
+  eventType: 'alertSettingsFieldEventType',
+  licensePlate: 'alertSettingsFieldLicensePlate',
+  geofence: 'alertSettingsFieldGeofence',
+  time: 'alertSettingsFieldTime',
+};
+
 export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChange }: Props) {
   const { t } = useT();
   const [settings, setSettings] = useState<AlertSettings | null>(null);
@@ -90,32 +97,32 @@ export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChan
             {t('alerts')} — {t('preferences')}
           </DialogTitle>
           <DialogDescription>
-            Customise countdown timer, colours, and card layout
+            {t('alertSettingsDescription')}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="timer">
-              <Clock className="h-3.5 w-3.5 mr-1" /> Timer
+              <Clock className="h-3.5 w-3.5 mr-1" /> {t('alertSettingsTabTimer')}
             </TabsTrigger>
             <TabsTrigger value="colors">
-              <Palette className="h-3.5 w-3.5 mr-1" /> Colors
+              <Palette className="h-3.5 w-3.5 mr-1" /> {t('alertSettingsTabColors')}
             </TabsTrigger>
             <TabsTrigger value="layout">
-              <Layout className="h-3.5 w-3.5 mr-1" /> Layout
+              <Layout className="h-3.5 w-3.5 mr-1" /> {t('alertSettingsTabLayout')}
             </TabsTrigger>
             <TabsTrigger value="help">
-              <HelpCircle className="h-3.5 w-3.5 mr-1" /> Help
+              <HelpCircle className="h-3.5 w-3.5 mr-1" /> {t('alertSettingsTabHelp')}
             </TabsTrigger>
           </TabsList>
 
           {/* ── Timer Tab ── */}
           <TabsContent value="timer" className="space-y-4">
             <div>
-              <label className="text-sm font-medium">Countdown Duration</label>
+              <label className="text-sm font-medium">{t('alertSettingsTimerDuration')}</label>
               <p className="text-xs text-muted-foreground mb-2">
-                Set how long the countdown timer runs (in seconds). Default: 300 (5 min).
+                {t('alertSettingsTimerHelp')}
               </p>
               <div className="flex items-center gap-2">
                 <Input
@@ -128,19 +135,20 @@ export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChan
                   className="w-32"
                 />
                 <span className="text-sm text-muted-foreground">
-                  sec ({Math.round(settings.timerDuration / 60)} min)
+                  {t('alertSettingsSec')} ({Math.round(settings.timerDuration / 60)} {t('minute')})
                 </span>
               </div>
             </div>
 
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs text-muted-foreground">
-                <strong>Timer colour changes</strong> based on remaining time:{' '}
+                <strong>{t('alertSettingsTimerColourChanges')}</strong>{' '}
+                {t('alertSettingsBasedOnRemaining')}{' '}
                 <span className="font-mono">≥5m</span> →{' '}
                 <span className="font-mono">≥4m</span> →{' '}
                 <span className="font-mono">≥3m</span> →{' '}
                 <span className="font-mono">≥2m</span> →{' '}
-                <span className="font-mono">≤1m</span>. Set colours in the Colors tab.
+                <span className="font-mono">≤1m</span>. {t('alertSettingsSetColoursInTab')}
               </p>
             </div>
           </TabsContent>
@@ -148,12 +156,12 @@ export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChan
           {/* ── Colors Tab ── */}
           <TabsContent value="colors" className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Pick a colour for each remaining-minute threshold. Expired alerts turn grey.
+              {t('alertSettingsColorsHelp')}
             </p>
             {[5, 4, 3, 2, 1].map((min) => (
               <div key={min} className="flex items-center gap-3">
                 <span className="text-sm font-medium w-16 shrink-0">
-                  ≥ {min} min
+                  ≥ {min} {t('minute')}
                 </span>
                 <div className="flex gap-1.5 flex-wrap">
                   {PRESET_COLORS.map((color) => (
@@ -195,7 +203,7 @@ export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChan
           {/* ── Layout Tab ── */}
           <TabsContent value="layout" className="space-y-4">
             <p className="text-xs text-muted-foreground">
-              Reorder fields by moving them up/down. Toggle visibility on/off.
+              {t('alertSettingsLayoutHelp')}
             </p>
             <div className="space-y-1.5">
               {settings.cardFieldsOrder.map((key, idx) => {
@@ -208,7 +216,7 @@ export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChan
                     className="flex items-center gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2"
                   >
                     <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/40" />
-                    <span className="flex-1 text-sm">{field.label}</span>
+                    <span className="flex-1 text-sm">{t(FIELD_LABEL_KEYS[field.key])}</span>
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
@@ -239,7 +247,7 @@ export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChan
                           ? 'text-primary hover:text-primary/80'
                           : 'text-muted-foreground/40 hover:text-muted-foreground'
                       }`}
-                      title={visible ? 'Hide' : 'Show'}
+                      title={visible ? t('alertSettingsHide') : t('alertSettingsShow')}
                     >
                       {visible ? (
                         <Eye className="h-4 w-4" />
@@ -254,8 +262,8 @@ export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChan
 
             <div className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs text-muted-foreground">
-                <strong>Dynamic font size:</strong> 1 field → large (20pt), 2 fields → medium
-                (15–17pt), 3+ fields → normal (13–15pt).
+                <strong>{t('alertSettingsDynamicFontSize')}</strong>{' '}
+                {t('alertSettingsFontSizeHelp')}
               </p>
             </div>
           </TabsContent>
@@ -263,31 +271,31 @@ export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChan
           {/* ── Help Tab ── */}
           <TabsContent value="help" className="space-y-3 text-sm">
             <div>
-              <h4 className="font-medium mb-1">Countdown Timer</h4>
+              <h4 className="font-medium mb-1">{t('alertSettingsHelpTimerTitle')}</h4>
               <p className="text-muted-foreground text-xs">
-                Each alert shows a <code>MM:SS</code> countdown from the event time. The colour
-                changes as time runs out. Expired alerts show a grey <em>timer_off</em> icon.
+                {t('alertSettingsHelpTimerBody1')}
+                <code>MM:SS</code>
+                {t('alertSettingsHelpTimerBody2')}
+                <em>timer_off</em>
+                {t('alertSettingsHelpTimerBody3')}
               </p>
             </div>
             <div>
-              <h4 className="font-medium mb-1">Timer Colours</h4>
+              <h4 className="font-medium mb-1">{t('alertSettingsHelpColorsTitle')}</h4>
               <p className="text-muted-foreground text-xs">
-                Each minute threshold (5/4/3/2/1 min) can have its own colour. 14 preset colours
-                are available plus a custom colour picker.
+                {t('alertSettingsHelpColorsBody')}
               </p>
             </div>
             <div>
-              <h4 className="font-medium mb-1">Event Type Filter</h4>
+              <h4 className="font-medium mb-1">{t('alertSettingsHelpEventTypeTitle')}</h4>
               <p className="text-muted-foreground text-xs">
-                The server's notification settings are used automatically — only enabled event
-                types appear. No duplicate configuration needed.
+                {t('alertSettingsHelpEventTypeBody')}
               </p>
             </div>
             <div>
-              <h4 className="font-medium mb-1">Card Layout</h4>
+              <h4 className="font-medium mb-1">{t('alertSettingsHelpLayoutTitle')}</h4>
               <p className="text-muted-foreground text-xs">
-                Drag (▲/▼) to reorder fields and toggle visibility with the Eye icon. Font size
-                adjusts automatically based on how many fields are shown.
+                {t('alertSettingsHelpLayoutBody')}
               </p>
             </div>
           </TabsContent>
@@ -296,7 +304,7 @@ export default function AlertSettingsDialog({ open, onOpenChange, onSettingsChan
         {/* ── Actions ── */}
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <Button variant="ghost" size="sm" onClick={handleReset}>
-            Reset to defaults
+            {t('alertSettingsReset')}
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
