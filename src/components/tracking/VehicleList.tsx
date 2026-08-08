@@ -30,6 +30,29 @@ function getMarkerIconSrc(vehicle: Vehicle): string {
   return `/markers/${prefix}_${vehicleType}.svg`;
 }
 
+/**
+ * Translate a Traccar alarm value into the localized label for the current locale.
+ *
+ * Handles all the shapes the `alarm` position attribute can take:
+ * - raw alarm codes:      "powerOff"  → t("alarmType_powerOff")
+ * - already-prefixed key: "alarmType_powerOff" → t("alarmType_powerOff")
+ * - multi-alarm values:   "powerOff,sos" or "powerOff sos" → translated, joined
+ *
+ * Falls back to the raw value when no translation exists for a given locale.
+ */
+function translateAlarmLabel(t: (key: string) => string, alarmValue: unknown): string | null {
+  if (alarmValue == null || typeof alarmValue === 'boolean') return null;
+  const parts = String(alarmValue).split(/[, ]+/).filter(Boolean);
+  if (parts.length === 0) return null;
+  return parts
+    .map((item) => {
+      const key = item.startsWith('alarmType_') ? item : `alarmType_${item}`;
+      const translated = t(key);
+      return translated !== key ? translated : item;
+    })
+    .join(', ');
+}
+
 interface VehicleListProps {
   vehicles: Vehicle[];
   selectedId: number | null;
@@ -55,8 +78,7 @@ function VehicleRow({
   const colors = STATUS_COLORS[vehicle.status] || STATUS_COLORS.stopped;
   const timeText = formatRelativeTime(vehicle.lastUpdate, locale, t);
   const isAlert = vehicle.status === 'alert';
-  const alarmType = isAlert ? vehicle._raw?.position?.attributes?.alarm : null;
-  const alarmLabel = alarmType ? t('alarmType_' + alarmType) : null;
+  const alarmLabel = isAlert ? translateAlarmLabel(t, vehicle._raw?.position?.attributes?.alarm) : null;
 
   return (
     <button
