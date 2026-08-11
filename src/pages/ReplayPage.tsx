@@ -40,12 +40,27 @@ const SPEEDS = [0.5, 1, 2, 4, 8];
 const KM_CACHE_TTL = 60 * 24 * 60 * 60 * 1000;
 const ROUTE_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
 
+// Bottom edge (relative to the map container) of the floating map-controls overlay
+// (basemap / satellite switch bar), plus a gap. Ensures a fitted route or a followed
+// marker never hides underneath the bar. Returns 0 when the bar isn't rendered yet.
+function mapControlsInset(container: HTMLElement | null | undefined): number {
+  if (!container) return 0;
+  const el = document.getElementById('replay-map-controls');
+  if (!el) return 0;
+  const c = container.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  const bottom = r.bottom - c.top;
+  return Math.max(0, bottom) + 12; // 12px breathing room under the bar
+}
+
 // Map safe-area padding: keeps the replay marker + route inside the visible area,
-// clear of the phone screen edge and the bottom controls bar / nav on mobile.
-function mapPadForWidth(): { top: number; bottom: number; left: number; right: number } {
+// clear of the phone screen edge, the bottom controls bar / nav on mobile, and the
+// floating top-left map-controls overlay (basemap / satellite switch bar).
+function mapPadForWidth(container?: HTMLElement | null): { top: number; bottom: number; left: number; right: number } {
+  const inset = mapControlsInset(container);
   return window.innerWidth < 768
-    ? { top: 90, bottom: 240, left: 50, right: 50 }
-    : { top: 70, bottom: 110, left: 70, right: 70 };
+    ? { top: 90 + inset, bottom: 240, left: 50, right: 50 }
+    : { top: 70 + inset, bottom: 110, left: 70, right: 70 };
 }
 
 function monthKey(year: number, month: number) {
@@ -420,6 +435,9 @@ export default function ReplayPage() {
   const rafRef = useRef(0);
   const lastTsRef = useRef(0);
   const appliedBasemapRef = useRef(basemap);
+  // Becomes true only after the initial fitBounds-to-whole-route animation settles (moveend).
+  // Until then the marker-follow camera is suppressed so it can't cancel the fit.
+  const fitSettledRef = useRef(false);
 
   const dateFromUrl = searchParams.get('date') || '';
 
@@ -441,14 +459,6 @@ export default function ReplayPage() {
       setSearchParams({ deviceId }, { replace: true });
     }
   }, [dateFromUrl, deviceId, setSearchParams]);
-
-  // Auto-play when route finishes loading from "Replay Today"
-  useEffect(() => {
-    if (autoDateRef.current && route.length > 0 && !autoPlayRef.current) {
-      autoPlayRef.current = true;
-      setPlaying(true);
-    }
-  }, [route.length]);
 
   useEffect(() => {
     if (deviceId) setSearchParams({ deviceId }, { replace: true });
@@ -771,10 +781,10 @@ export default function ReplayPage() {
       scrollZoom: true,
       doubleClickZoom: true,
     });
-    map.setPadding(mapPadForWidth());
+    map.setPadding(mapPadForWidth(map.getContainer()));
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     // Keep the safe-area padding in sync when the viewport crosses the mobile breakpoint
-    const onWindowResize = () => { map.setPadding(mapPadForWidth()); };
+    const onWindowResize = () => { map.setPadding(mapPadForWidth(map.getContainer())); };
     window.addEventListener('resize', onWindowResize);
     map.on('load', () => {
       mapRef.current = map;
@@ -799,7 +809,11 @@ export default function ReplayPage() {
   function drawRoute(coordsArray: RoutePoint[]) {
     const map = mapRef.current;
     if (!map) return;
-    const coords: [number, number][] = coordsArray.map((p) => [Number(p.longitude), Number(p.latitude)]);
+    // Sanitise coordinates so the route line and the fitBounds bounding box are
+    // always computed from valid points (works for any route worldwide).
+    const coords: [number, number][] = coordsArray
+      .map((p) => [Number(p.longitude), Number(p.latitude)] as [number, number])
+      .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat) && !(lng === 0 && lat === 0));
     if (map.getLayer('route-line')) map.removeLayer('route-line');
     if (map.getLayer('route-arrows')) map.removeLayer('route-arrows');
     if (map.getSource('route')) map.removeSource('route');
@@ -926,8 +940,46 @@ export default function ReplayPage() {
 
     const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0]!, coords[0]!));
     const isMobile = window.innerWidth < 768;
-    // Bottom padding on mobile keeps the whole route visible above the bottom controls bar
-    map.fitBounds(bounds, { padding: { top: 70, bottom: isMobile ? 230 : 70, left: 60, right: 60 }, duration: 500 });
+    // Fit only once the map canvas actually has a size. When drawRoute runs right after
+    // data load, the container may not be laid out yet (0×0 canvas) — fitBounds then fails
+    // with "Map cannot fit within canvas" and the camera stays at the initial position.
+    // Retry on the map's resize event (container ResizeObserver → map.resize() → 'resize'),
+    // so it's fully event-driven — no timeout.
+    const doFit = () => {
+      map.resize();
+      const canvas = map.getCanvas();
+      const cw = canvas.clientWidth;
+      const ch = canvas.clientHeight;
+      if (!cw || !ch) {
+        map.once('resize', doFit);
+        return;
+      }
+      // MapLibre's fitBounds ADDS the map's current setPadding to the options padding.
+      // With the large mobile padding (bottom ~240) both stack up and the available
+      // area can go negative → "Map cannot fit within canvas" → the camera never moves.
+      // So: zero the map padding, fit with a clamped safe-area padding, then restore.
+      const pad = mapPadForWidth(map.getContainer());
+      const safe = {
+        top: Math.min(pad.top, ch * 0.3),
+        bottom: Math.min(pad.bottom, ch * 0.45),
+        left: Math.min(pad.left, cw * 0.15),
+        right: Math.min(pad.right, cw * 0.15),
+      };
+      const prevPad = map.getPadding();
+      map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
+      try {
+        map.fitBounds(bounds, { padding: safe, duration: 0 });
+      } finally {
+        map.setPadding(prevPad);
+      }
+      fitSettledRef.current = true;
+      // "Replay Today": playback starts only after the fit.
+      if (autoDateRef.current && !autoPlayRef.current) {
+        autoPlayRef.current = true;
+        setPlaying(true);
+      }
+    };
+    doFit();
   }
 
   // Switch basemap
@@ -1004,11 +1056,12 @@ export default function ReplayPage() {
     setShowGeofences((prev) => !prev);
   }, [showGeofences, geofencesLoaded]);
 
+  // Redraw whenever the route/stops change AND the map is loaded. Uses the
+  // mapReady flag (set on the map's load event) instead of map.loaded()/once('load'),
+  // which can miss the load event and silently never draw/fit the route.
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    if (map.loaded()) drawRoute(route);
-    else map.once('load', () => drawRoute(route));
+    if (!mapReady || !mapRef.current) return;
+    drawRoute(route);
   }, [route, stops, mapReady]);
 
   // Update marker position + rotation on cursor change
@@ -1025,7 +1078,7 @@ export default function ReplayPage() {
       // phone screen edge or hidden behind the bottom controls bar / nav on mobile.
       // NOTE: map.project() returns CSS pixels — compare against clientWidth/clientHeight,
       // NOT canvas.width/height (which are physical pixels and break on high-DPR phones).
-      const pad = mapPadForWidth();
+      const pad = mapPadForWidth(map.getContainer());
       const canvas = map.getCanvas();
       const w = canvas.clientWidth || 1;
       const h = canvas.clientHeight || 1;
@@ -1033,7 +1086,9 @@ export default function ReplayPage() {
       const inside =
         pt.x >= pad.left + 10 && pt.x <= w - pad.right - 10 &&
         pt.y >= pad.top + 10 && pt.y <= h - pad.bottom - 10;
-      if (!inside) {
+      // Only follow once the whole-route fitBounds has settled (moveend), so the
+      // initial fit to the full route is never cancelled by the follow camera.
+      if (fitSettledRef.current && !inside) {
         // easeTo with padding keeps the marker at the center of the safe area
         map.easeTo({ center: [lng, lat], duration: 150, padding: pad });
       }
@@ -1180,7 +1235,7 @@ export default function ReplayPage() {
           )}
 
           {/* Map controls overlay (top-left) — top-2 on mobile when Topbar hidden, top-4 on desktop */}
-          <div className="absolute left-2 top-2 z-20 flex items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur sm:left-4 sm:top-4">
+          <div id="replay-map-controls" className="absolute left-2 top-2 z-20 flex items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur sm:left-4 sm:top-4">
             <button type="button" onClick={() => setBasemap('road')}
               className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
                 basemap === 'road' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>

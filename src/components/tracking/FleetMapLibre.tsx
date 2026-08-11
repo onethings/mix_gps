@@ -246,7 +246,10 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     // 速度、點火為固定長度（icon + 數字+km/h、icon + ON/OFF）→ 壓縮欄寬與 padding；
     // 時間較長 → 分配較大欄寬，避免時間被截斷
     const row1Cells = [
-      cell('speed', '⚡', `${escapeHtml(Math.round(Number(vehicle.speed)))} ${t('unitKmh')}`, ';flex:0.8;padding:0 1px'),
+      // 速度可能 1~3 位數（如 210 km/h）→ 不壓縮、不截斷，永遠顯示完整；
+      // 空間由彈性最大的時間欄（updated, flex:1.6）吸收。
+      // 單位直接固定英文 km/h，不用翻譯（其他語言的單位文字較長，易撐壞版面）。
+      cell('speed', '⚡', `${escapeHtml(Math.round(Number(vehicle.speed)))} km/h`, ';flex:0 0 auto;min-width:max-content;max-width:none;overflow:visible;text-overflow:clip;padding:0 1px'),
       cell('ignition', '🔑', vehicle.ignition ? `<span style="color:#22c55e">${escapeHtml(t('on'))}</span>` : `<span style="color:#6b7280">${escapeHtml(t('off'))}</span>`, ';flex:0.8'),
       cell('updated', '🕐', dateStr, ';flex:1.6'),
     ].join('');
@@ -281,7 +284,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     const hoursIcon = isMobile ? '' : '<span style="color:#64748b">⏱</span> ';
     const distIcon = isMobile ? '' : '<span style="color:#64748b">📏</span> ';
     const hoursInner = `${hoursIcon}<span style="color:#1e293b;margin-right:3px">${hoursDisplay}</span><span style="color:#64748b">h</span>`;
-    const distInner = `${distIcon}<span style="color:#1e293b;margin-right:3px">${distDisplay}</span><span style="color:#64748b">km</span><span id="${accEditId}" style="cursor:pointer;margin-left:1px;color:#94a3b8" onclick="window.__openAccumulatorEditor(${vehicle.id})">⚙</span>`;
+    const distInner = `${distIcon}<span style="color:#1e293b;margin-right:3px">${distDisplay}</span><span style="color:#64748b">km</span><span id="${accEditId}" data-action="accumulators" style="cursor:pointer;margin-left:1px;color:#94a3b8">⚙</span>`;
     // 有駕駛員時：時數 + 分隔線 + 里程 合成一格、置中
     const accHtml = accCell(
       `${hoursInner}
@@ -317,8 +320,8 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
           ${row2Cells}
         </div>
         <div data-key="replayLink"${settings.replayLink !== false ? '' : ' style="display:none"'} style="display:flex;gap:8px;border-top:1px solid #f1f5f9;padding:${isMobile ? '3px 0 0' : '4px 0 0'}>
-          <a href="#" onclick="window.__openDeviceProfile(${vehicle.id});return false" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">${isMobile ? '' : '🔍 '}${t('details')}</a>
-          <a href="#" onclick="window.__openReplayTab('${vehicle.id}');return false" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">${isMobile ? '' : '▶ '}${t('replayToday')}</a>
+          <a href="#" data-action="device" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">${isMobile ? '' : '🔍 '}${t('details')}</a>
+          <a href="#" data-action="replay" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">${isMobile ? '' : '▶ '}${t('replayToday')}</a>
         </div>
       </div>
     `;
@@ -332,6 +335,26 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       .setLngLat([vehicle.lng!, vehicle.lat!])
       .setHTML(html)
       .addTo(map);
+
+    // Attach real click handlers — reliable e.preventDefault() and one action
+    // per element. Avoids the fragile inline `onclick="...;return false"` +
+    // `window.__open*` globals (which can be deleted/shadowed by a stale bundle
+    // and let the `href="#"` default fire, causing a stray extra navigation).
+    const popupContent = popup.getElement()?.querySelector('.maplibregl-popup-content');
+    popupContent?.querySelectorAll<HTMLElement>('[data-action]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const action = el.getAttribute('data-action');
+        if (action === 'device') {
+          navigateRef.current(`/devices/${vehicle.id}`);
+        } else if (action === 'replay') {
+          navigateRef.current(`/replay?deviceId=${vehicle.id}&date=today`);
+        } else if (action === 'accumulators') {
+          (window as any).__openAccumulatorEditor(vehicle.id);
+        }
+      });
+    });
 
     // Remember when user dismisses popup (X button) — don't re-show on arrow nav
     // IMPORTANT: reset after removal above so old popup's close event doesn't pollute state
@@ -402,14 +425,8 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     }
   }
 
-  // Expose global functions so raw HTML popup can trigger React actions
+  // Expose the accumulator editor global (used by the ⚙ gear inside the popup)
   useEffect(() => {
-    (window as any).__openReplayTab = (deviceId: string) => {
-      navigateRef.current(`/replay?deviceId=${deviceId}&date=today`);
-    };
-    (window as any).__openDeviceProfile = (deviceId: number) => {
-      navigateRef.current(`/devices/${deviceId}`);
-    };
     (window as any).__openAccumulatorEditor = (deviceId: number) => {
       setAccVehicleId(deviceId);
       const vehicle = vehiclesRef.current.find((v) => v.id === deviceId);
@@ -430,8 +447,6 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       setAccEditOpen(true);
     };
     return () => {
-      delete (window as any).__openReplayTab;
-      delete (window as any).__openDeviceProfile;
       delete (window as any).__openAccumulatorEditor;
     };
   }, []);
