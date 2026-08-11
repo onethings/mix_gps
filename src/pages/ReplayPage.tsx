@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Download, Map as MapIcon, Pause, Play, Ruler, Satellite, Shield, SkipBack, SkipForward, Table2, BarChart3, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, Map as MapIcon, MapPin, Pause, Play, Ruler, Satellite, Shield, SkipBack, SkipForward, Table2, BarChart3, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
@@ -39,6 +39,14 @@ function styleForBasemap(b: string) { return b === 'satellite' ? STYLE_SATELLITE
 const SPEEDS = [0.5, 1, 2, 4, 8];
 const KM_CACHE_TTL = 60 * 24 * 60 * 60 * 1000;
 const ROUTE_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
+
+// Map safe-area padding: keeps the replay marker + route inside the visible area,
+// clear of the phone screen edge and the bottom controls bar / nav on mobile.
+function mapPadForWidth(): { top: number; bottom: number; left: number; right: number } {
+  return window.innerWidth < 768
+    ? { top: 90, bottom: 240, left: 50, right: 50 }
+    : { top: 70, bottom: 110, left: 70, right: 70 };
+}
 
 function monthKey(year: number, month: number) {
   return `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -116,6 +124,9 @@ interface RoutePoint {
   fixTime?: string;
   deviceTime?: string;
   address?: string;
+  altitude?: number;
+  accuracy?: number;
+  attributes?: Record<string, unknown>;
 }
 
 interface StopPoint {
@@ -124,6 +135,61 @@ interface StopPoint {
   startTime?: string;
   endTime?: string;
   address?: string;
+}
+
+/** Convert Traccar engine-hours (stored in ms) to a compact readable "Xh" string */
+function formatEngineHours(rawMs: number, t: (k: string) => string): string {
+  const n = rawMs / 3600000;
+  if (n >= 100) return `${Math.round(n)}${t('posField_unitH')}`;
+  return `${n.toFixed(1)}${t('posField_unitH')}`;
+}
+
+/** Extract useful sensor readings from a route point's Traccar attributes */
+function sensorItemsFor(point: RoutePoint, t: (k: string) => string): { key: string; label: string; value: string }[] {
+  const attrs = point.attributes || {};
+  const num = (v: unknown): number | null => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const out: { key: string; label: string; value: string }[] = [];
+
+  const fuel = num(attrs.fuel ?? attrs.fuelLevel);
+  if (fuel !== null && fuel >= 0) out.push({ key: 'fuel', label: t('posField_fuelLevel'), value: `${Math.round(fuel)}%` });
+
+  const battery = num(attrs.batteryLevel ?? attrs.battery ?? attrs.battery_percent);
+  if (battery !== null && battery >= 0) out.push({ key: 'battery', label: t('posField_batteryLevel'), value: `${Math.round(battery)}%` });
+
+  const power = num(attrs.power ?? attrs.batteryVoltage);
+  if (power !== null && power > 0) out.push({ key: 'power', label: t('posField_charge'), value: `${power.toFixed(1)}V` });
+
+  const rpm = num(attrs.rpm);
+  if (rpm !== null && rpm > 0) out.push({ key: 'rpm', label: t('posField_rpm'), value: String(Math.round(rpm)) });
+
+  const temp = num(attrs.temp ?? attrs.temperature);
+  if (temp !== null) out.push({ key: 'temp', label: t('posField_temp'), value: `${temp.toFixed(0)}°` });
+
+  const engineTemp = num(attrs.engineTemp ?? attrs.engine_temp);
+  if (engineTemp !== null) out.push({ key: 'engineTemp', label: t('posField_engineTemp'), value: `${engineTemp.toFixed(0)}°` });
+
+  // Engine hours: Traccar stores the raw value in milliseconds (e.g. 1692742038 ≈ 470h)
+  const rawHours = num(attrs.hours ?? attrs.engineHours);
+  if (rawHours !== null && rawHours > 0) {
+    out.push({ key: 'hours', label: t('posField_hours'), value: formatEngineHours(rawHours, t) });
+  }
+
+  const altitude = num(point.altitude ?? attrs.altitude);
+  if (altitude !== null) out.push({ key: 'altitude', label: t('posField_altitude'), value: `${Math.round(altitude)}m` });
+
+  const accuracy = num(point.accuracy ?? attrs.accuracy);
+  if (accuracy !== null && accuracy > 0) out.push({ key: 'accuracy', label: t('posField_accuracy'), value: `${Math.round(accuracy)}m` });
+
+  const ignition = attrs.ignition;
+  if (typeof ignition === 'boolean' || ignition === 0 || ignition === 1 || ignition === 'true' || ignition === 'false') {
+    const on = ignition === true || ignition === 1 || ignition === 'true';
+    out.push({ key: 'ignition', label: t('ignition'), value: t(on ? 'on' : 'off') });
+  }
+
+  return out;
 }
 
 function DataPanel({ route, stops, cursor, deviceName, selectedDate, onSeek }: {
@@ -343,6 +409,7 @@ export default function ReplayPage() {
   const [trips, setTrips] = useState<TraccarReportTrip[]>([]);
   const [loadingTrips, setLoadingTrips] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -704,7 +771,11 @@ export default function ReplayPage() {
       scrollZoom: true,
       doubleClickZoom: true,
     });
+    map.setPadding(mapPadForWidth());
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    // Keep the safe-area padding in sync when the viewport crosses the mobile breakpoint
+    const onWindowResize = () => { map.setPadding(mapPadForWidth()); };
+    window.addEventListener('resize', onWindowResize);
     map.on('load', () => {
       mapRef.current = map;
       addArrowImage(map);
@@ -713,6 +784,7 @@ export default function ReplayPage() {
     const ro = new ResizeObserver(() => { map.resize(); });
     ro.observe(container);
     return () => {
+      window.removeEventListener('resize', onWindowResize);
       ro.disconnect();
       stopMarkersRef.current.forEach((m) => m.remove());
       stopMarkersRef.current = [];
@@ -854,7 +926,8 @@ export default function ReplayPage() {
 
     const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0]!, coords[0]!));
     const isMobile = window.innerWidth < 768;
-    map.fitBounds(bounds, { padding: { top: 60, bottom: isMobile ? 140 : 60, left: 60, right: 60 }, duration: 500 });
+    // Bottom padding on mobile keeps the whole route visible above the bottom controls bar
+    map.fitBounds(bounds, { padding: { top: 70, bottom: isMobile ? 230 : 70, left: 60, right: 60 }, duration: 500 });
   }
 
   // Switch basemap
@@ -948,17 +1021,21 @@ export default function ReplayPage() {
     const lat = Number(p.latitude);
     markerRef.current.setLngLat([lng, lat]);
     try {
+      // Keep the marker inside the safe (padded) area so it never gets clipped by the
+      // phone screen edge or hidden behind the bottom controls bar / nav on mobile.
+      // NOTE: map.project() returns CSS pixels — compare against clientWidth/clientHeight,
+      // NOT canvas.width/height (which are physical pixels and break on high-DPR phones).
+      const pad = mapPadForWidth();
       const canvas = map.getCanvas();
-      const isMobile = window.innerWidth < 768;
-      const margin = 120;
-      const bottomMargin = isMobile ? 180 : 120;
+      const w = canvas.clientWidth || 1;
+      const h = canvas.clientHeight || 1;
       const pt = map.project([lng, lat]);
-      const w = canvas.width;
-      const h = canvas.height;
-      if (pt.x < margin || pt.x > w - margin || pt.y < margin || pt.y > h - bottomMargin) {
-        // Use easeTo with short duration + offset to avoid flashing from interrupted flyTo
-        const offsetY = isMobile ? 80 : 0;
-        map.easeTo({ center: [lng, lat], duration: 100, offset: [0, offsetY] });
+      const inside =
+        pt.x >= pad.left + 10 && pt.x <= w - pad.right - 10 &&
+        pt.y >= pad.top + 10 && pt.y <= h - pad.bottom - 10;
+      if (!inside) {
+        // easeTo with padding keeps the marker at the center of the safe area
+        map.easeTo({ center: [lng, lat], duration: 150, padding: pad });
       }
     } catch { /* ignore */ }
     const course = Number(p.course);
@@ -1001,6 +1078,30 @@ export default function ReplayPage() {
 
   const current = route[cursor] || null;
   const total = route.length;
+  const sensorItems = useMemo(() => (current ? sensorItemsFor(current, t) : []), [current, t]);
+
+  // On pause, reverse-geocode the current point's street name if missing.
+  // lib/geocoder rate-limits Nominatim to 1 request / 1.5s and caches results,
+  // so this is safe to call repeatedly (deduped by geohash + hot/IndexedDB cache).
+  useEffect(() => {
+    if (!current || playing) return;
+    if (current.address) { setGeoLoading(false); return; }
+    const lat = Number(current.latitude);
+    const lng = Number(current.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const cached = lookupCached(lat, lng);
+    if (cached) {
+      // Apply cached address immediately (async results are patched by the geocode subscriber)
+      setRoute((prev) => prev.map((p, i) => (i === cursor && !p.address ? { ...p, address: cached } : p)));
+      setGeoLoading(false);
+      return;
+    }
+    setGeoLoading(true);
+    reverseGeocode(lat, lng, 0)
+      .catch(() => null)
+      .finally(() => setGeoLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, cursor, current?.latitude, current?.longitude]);
 
   const goPrevMonth = () => {
     if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); }
@@ -1126,18 +1227,19 @@ export default function ReplayPage() {
 
       {/* Bottom controls — on mobile: absolute at bottom of map area, above nav */}
       {selectedDate && total > 0 && (
-        <div className="shrink-0 border-t border-border bg-card/95 px-2 py-1.5 shadow-lg backdrop-blur-sm md:px-3 md:py-2 max-md:absolute max-md:bottom-12 max-md:left-0 max-md:right-0 max-md:z-30 max-md:border-t max-md:border-border max-md:pb-safe">
+        <div className="shrink-0 border-t border-border bg-card/95 shadow-lg backdrop-blur-sm md:px-3 md:py-2 max-md:absolute max-md:bottom-12 max-md:left-0 max-md:right-0 max-md:z-30 max-md:border-t max-md:border-border max-md:px-3 max-md:pt-2 max-md:pb-safe touch-manipulation select-none">
           <div className="flex items-center gap-1 md:gap-2">
-            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 md:h-7 md:w-7" onClick={() => { setPlaying(false); setCursor(0); }} disabled={!total}>
-              <SkipBack className="h-4 w-4 md:h-3.5 md:w-3.5" />
+            <Button size="sm" variant="ghost" className="h-9 w-9 shrink-0 p-0 active:scale-95 md:h-7 md:w-7" onClick={() => { setPlaying(false); setCursor(0); }} disabled={!total}>
+              <SkipBack className="h-5 w-5 md:h-3.5 md:w-3.5" />
             </Button>
-            <Button size="sm" className="h-8 w-8 p-0 md:h-7 md:w-7" onClick={() => setPlaying((p) => !p)} disabled={!total || cursor >= total - 1}>
-              {playing ? <Pause className="h-4 w-4 md:h-3.5 md:w-3.5" /> : <Play className="h-4 w-4 md:h-3.5 md:w-3.5" />}
+            <Button size="sm" className="h-10 w-10 shrink-0 p-0 active:scale-95 md:h-7 md:w-7" onClick={() => setPlaying((p) => !p)} disabled={!total || cursor >= total - 1}>
+              {playing ? <Pause className="h-6 w-6 md:h-3.5 md:w-3.5" /> : <Play className="h-6 w-6 md:h-3.5 md:w-3.5" />}
             </Button>
-            <Button size="sm" variant="ghost" className="h-8 w-8 p-0 md:h-7 md:w-7" onClick={() => { setPlaying(false); setCursor(total ? total - 1 : 0); }} disabled={!total}>
-              <SkipForward className="h-4 w-4 md:h-3.5 md:w-3.5" />
+            <Button size="sm" variant="ghost" className="h-9 w-9 shrink-0 p-0 active:scale-95 md:h-7 md:w-7" onClick={() => { setPlaying(false); setCursor(total ? total - 1 : 0); }} disabled={!total}>
+              <SkipForward className="h-5 w-5 md:h-3.5 md:w-3.5" />
             </Button>
-            {/* Speed — show full selector on desktop, current speed badge on mobile */}
+
+            {/* Desktop speed selector (inline in row) */}
             <div className="hidden md:flex items-center gap-0.5 rounded border border-input bg-background p-0.5">
               {SPEEDS.map((s) => (
                 <button key={s} type="button" onClick={() => setSpeed(s)}
@@ -1146,12 +1248,24 @@ export default function ReplayPage() {
                 </button>
               ))}
             </div>
-            <span className="rounded border border-input bg-background px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground md:hidden">
-              {speed}×
-            </span>
-            <span className="text-[10px] tabular-nums text-muted-foreground md:text-[11px]">
+
+            {/* Mobile speed selector — same row as transport buttons, fills free space (no blank) */}
+            <div className="flex h-9 min-w-0 flex-1 items-stretch gap-0.5 rounded-lg border border-input bg-background p-0.5 md:hidden">
+              {SPEEDS.map((s) => (
+                <button key={s} type="button" onClick={() => setSpeed(s)}
+                  className={cn('flex-1 rounded-md text-[11px] font-semibold tabular-nums transition-colors',
+                    speed === s
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:bg-accent hover:text-foreground')}>
+                  {s}×
+                </button>
+              ))}
+            </div>
+
+            <span className="ml-0.5 shrink-0 text-sm font-semibold tabular-nums text-foreground md:text-[11px] md:font-normal md:text-muted-foreground">
               {total ? `${cursor + 1}/${total}` : '—'}
             </span>
+
             {/* Desktop: date + chart/data toggles */}
             <span className="hidden text-[11px] text-muted-foreground md:inline ml-auto">{selectedDate}</span>
             <Button size="sm" variant={showChartPanel ? 'default' : 'outline'} className="hidden h-7 gap-1 px-2 text-[10px] font-semibold md:inline-flex"
@@ -1167,7 +1281,41 @@ export default function ReplayPage() {
           {/* Range slider */}
           <input type="range" min={0} max={Math.max(0, total - 1)} value={cursor}
             onChange={(e) => { setPlaying(false); setCursor(Number(e.target.value)); }}
-            disabled={!total} className="mt-1 h-1.5 w-full accent-primary md:h-1" />
+            disabled={!total}
+            className="mt-2 h-2 w-full accent-primary md:mt-1 md:h-1 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-primary md:[&::-webkit-slider-thumb]:h-3 md:[&::-webkit-slider-thumb]:w-3 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-primary md:[&::-moz-range-thumb]:h-3 md:[&::-moz-range-thumb]:w-3" />
+
+          {/* Mobile current point info — time / speed / sensors + street name (packed, no wrap/clip) */}
+          {current && (
+            <div className="mt-1.5 space-y-1 md:hidden">
+              {/* Time + speed + sensor chips (horizontally scrollable) */}
+              <div className="flex items-center gap-1 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <span className="shrink-0 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-foreground">
+                  {formatTime(current.fixTime || current.deviceTime)}
+                </span>
+                <span className="shrink-0 whitespace-nowrap rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-primary-foreground">
+                  {Math.round((Number(current.speed) || 0) * 1.852)} {t('unitKmh')}
+                </span>
+                {sensorItems.map((s) => (
+                  <span key={s.key} className="shrink-0 whitespace-nowrap rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] tabular-nums text-foreground">
+                    <span className="mr-0.5 text-[8px] font-medium uppercase tracking-wide text-muted-foreground">{s.label}:</span>{s.value}
+                  </span>
+                ))}
+              </div>
+              {/* Street name / address (fetched from Nominatim on pause when missing) */}
+              <div className="flex items-center gap-1 px-0.5">
+                <MapPin className="h-3 w-3 shrink-0 text-primary" />
+                {current.address ? (
+                  <span className="min-w-0 flex-1 truncate text-[11px] leading-tight text-foreground">{current.address}</span>
+                ) : (
+                  <span className="min-w-0 flex-1 truncate text-[11px] leading-tight text-muted-foreground">
+                    {geoLoading ? t('loading') : (
+                      <span className="font-mono">{Number(current.latitude).toFixed(5)}, {Number(current.longitude).toFixed(5)}</span>
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Current point info — desktop only */}
           {current && (

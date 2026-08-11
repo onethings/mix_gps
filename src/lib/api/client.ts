@@ -1,18 +1,18 @@
 // Core API client — request(), WebSocket, shared helpers
 import { ApiError } from '@/lib/apiError';
+import { resolveApiOrigin, resolveWsUrl } from '@/lib/runtimeConfig';
 
 function apiBase() {
   if (import.meta.env.DEV) return '/api';
-  const raw = import.meta.env.VITE_TRACCAR_URL;
-  if (!raw || !String(raw).trim()) return '/api';
-  const trimmed = String(raw).trim();
+  const origin = resolveApiOrigin();
+  if (!origin) return '/api';
   try {
     if (typeof window !== 'undefined') {
-      const apiOrigin = new URL(trimmed).origin;
+      const apiOrigin = new URL(origin).origin;
       if (apiOrigin === window.location.origin) return '/api';
     }
-  } catch { /* invalid VITE_TRACCAR_URL */ }
-  return `${trimmed.replace(/\/$/, '')}/api`;
+  } catch { /* invalid origin */ }
+  return `${origin.replace(/\/$/, '')}/api`;
 }
 
 export const BASE = apiBase();
@@ -206,20 +206,10 @@ export function openSocket(onMessage: (frame: any) => void): WebSocket {
   const host = import.meta.env.DEV
     ? `${protocol}//${window.location.host}/api/socket`
     : (() => {
-        // 1. 優先使用 VITE_WS_URL（直接用 Traccar WebSocket，繞過 proxy）
-        const wsUrl = import.meta.env.VITE_WS_URL;
-        if (wsUrl && String(wsUrl).trim()) {
-          return String(wsUrl).trim().replace(/\/$/, '');
-        }
-        // 2. 從 VITE_TRACCAR_URL 推導 WebSocket URL
-        const raw = import.meta.env.VITE_TRACCAR_URL;
-        if (raw && String(raw).trim()) {
-          const base = String(raw).trim().replace(/\/$/, '');
-          const wsBase = base.replace(/^http/, 'ws');
-          return `${wsBase}/api/socket`;
-        }
-        // 3. 同源
-        return `${protocol}//${window.location.host}/api/socket`;
+        // Runtime hostname-based server resolution (one build → many deployments).
+        // Falls back to same-origin `/api/socket` if no server is resolved.
+        const resolved = resolveWsUrl();
+        return resolved || `${protocol}//${window.location.host}/api/socket`;
       })();
 
   // Read JSESSIONID from cookie for production environments
