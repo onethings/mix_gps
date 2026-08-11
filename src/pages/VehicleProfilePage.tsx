@@ -379,6 +379,12 @@ export default function VehicleProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { getVehicle, refresh } = useLiveData();
+  // 手機端點左上返回應回到上一頁（例如從 /tracking 的 Detail 進來），而非固定回裝置列表；無歷史時退回 /devices
+  const isMobile = window.innerWidth < 768;
+  const handleBack = () => {
+    if (isMobile && window.history.length > 1) navigate(-1);
+    else navigate('/devices');
+  };
   const { showError, showSuccess } = useFlash();
   const v = getVehicle(id);
 
@@ -490,7 +496,7 @@ export default function VehicleProfilePage() {
 
   if (!v) {
     return (<div className="space-y-2 md:space-y-4">
-      <Button variant="ghost" size="sm" asChild className="w-fit -ml-2"><Link to="/devices"><ArrowLeft className="h-4 w-4" /> {t('devices')}</Link></Button>
+      <Button variant="ghost" size="sm" className="w-fit -ml-2" onClick={handleBack}><ArrowLeft className="h-4 w-4" /> {!isMobile && t('devices')}</Button>
       <EmptyState title={t('vehicleNotFound')} description={t('vehicleNotFoundDesc')} />
     </div>);
   }
@@ -499,7 +505,7 @@ export default function VehicleProfilePage() {
 
   return (
     <div className="space-y-3 md:space-y-5">
-      <Button variant="ghost" size="sm" asChild className="w-fit -ml-2"><Link to="/devices"><ArrowLeft className="h-4 w-4" /> {t('devices')}</Link></Button>
+      <Button variant="ghost" size="sm" className="w-fit -ml-2" onClick={handleBack}><ArrowLeft className="h-4 w-4" /> {!isMobile && t('devices')}</Button>
 
       <PageHeader title={`${v.name} · ${v.model}`} description={`${v.plate} · ${v.group}`}
         actions={<><StatusBadge status={v.status} />

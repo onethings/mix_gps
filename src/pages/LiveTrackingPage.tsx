@@ -10,7 +10,7 @@ import { getLiveTrackingPrefs, setLiveTrackingPrefs } from '@/lib/preferences';
 
 export default function LiveTrackingPage() {
   const { vehicles, loading } = useLiveData();
-  const { selectedVehicleId, setSelectedVehicleId, mapHandleRef } = useMapContext();
+  const { selectedVehicleId, setSelectedVehicleId, mapHandleRef, setPopupDismissed } = useMapContext();
   const { t } = useT();
   const [showBottomPanel, setShowBottomPanel] = useState(true);
   const [showVehicleList, setShowVehicleList] = useState(() => window.innerWidth >= 768);
@@ -101,7 +101,7 @@ export default function LiveTrackingPage() {
             <VehicleList
               vehicles={vehicles}
               selectedId={selectedVehicleId}
-              onSelect={(v) => setSelectedVehicleId(v.id)}
+              onSelect={(v) => { setPopupDismissed(false); setSelectedVehicleId(v.id); }}
               showList={showVehicleList}
               onToggleList={() => setShowVehicleList((v) => !v)}
             />
@@ -163,6 +163,7 @@ export default function LiveTrackingPage() {
                         key={v.id}
                         type="button"
                         onClick={() => {
+                          setPopupDismissed(false);
                           setSelectedVehicleId(v.id);
                           setMobileDrawerOpen(false);
                           // Fly to the selected vehicle on the map
@@ -223,7 +224,7 @@ export default function LiveTrackingPage() {
           <LiveTrackingBottomPanel
             vehicles={vehicles}
             selectedId={selectedVehicleId}
-            onSelect={(v) => setSelectedVehicleId(v.id)}
+            onSelect={(v) => { setPopupDismissed(false); setSelectedVehicleId(v.id); }}
           />
         </div>
       )}

@@ -235,18 +235,23 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     `;
 
     /* ── Compact inline data rows ── */
-    const dataRows: string[] = [];
-    const addData = (key: string, label: string, valueHtml: string) => {
+    // 三欄等寬 cell（flex:1 平均分配）
+    const cell = (key: string, label: string, valueHtml: string, extraStyle = '') => {
       const hidden = settings[key] === false ? ' style="display:none"' : '';
-      dataRows.push(`<span data-key="${key}"${hidden} style="background:#f8fafc;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle"><span style="color:#64748b">${label}</span> <b style="color:#1e293b">${valueHtml}</b></span>`);
+      // 手機版省略 icon，省出空間讓數據完整顯示
+      const labelHtml = isMobile ? '' : `<span style="color:#64748b">${label}</span> `;
+      return `<span data-key="${key}"${hidden} style="flex:1;min-width:0;text-align:center;background:#f8fafc;border-radius:4px;padding:${isMobile ? '1px 4px' : '2px 6px'};white-space:nowrap;font-size:10px;line-height:1.6;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle;font-family:Arial,sans-serif${extraStyle}">${labelHtml}<span style="color:#1e293b">${valueHtml}</span></span>`;
     };
-    addData('speed', '⚡', `${escapeHtml(vehicle.speed)} ${t('unitKmh')}`);
-    addData('ignition', '🔑', vehicle.ignition ? `<span style="color:#22c55e">${escapeHtml(t('on'))}</span>` : `<span style="color:#6b7280">${escapeHtml(t('off'))}</span>`);
-    addData('updated', '🕐', dateStr);
-    if (!isMobile) {
-      addData('address', '📍', escapeHtml(vehicle.address || '—'));
-    }
-    addData('driver', '👤', escapeHtml(vehicle.driver || '—'));
+    // Row 1 — 速度 / 點火 / 時間（左、中、右三欄）
+    // 速度、點火為固定長度（icon + 數字+km/h、icon + ON/OFF）→ 壓縮欄寬與 padding；
+    // 時間較長 → 分配較大欄寬，避免時間被截斷
+    const row1Cells = [
+      cell('speed', '⚡', `${escapeHtml(Math.round(Number(vehicle.speed)))} ${t('unitKmh')}`, ';flex:0.8;padding:0 1px'),
+      cell('ignition', '🔑', vehicle.ignition ? `<span style="color:#22c55e">${escapeHtml(t('on'))}</span>` : `<span style="color:#6b7280">${escapeHtml(t('off'))}</span>`, ';flex:0.8'),
+      cell('updated', '🕐', dateStr, ';flex:1.6'),
+    ].join('');
+    // 地址路名 — 單獨一行（超過框寬會以 … 截斷）
+    const addressCell = cell('address', '📍', escapeHtml(vehicle.address || '—'), ';display:block');
 
     // Consolidated engine hours & odometer row (with inline gear edit)
     const rawHours = vehicle._raw?.position?.attributes?.hours;
@@ -257,54 +262,72 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       let n = Number(rawHours);
       if (Number.isFinite(n)) {
         n = n / 3600000;
-        hoursDisplay = n.toFixed(1);
+        hoursDisplay = Math.round(n).toString(); // 4捨5入取整數，不顯示小數
       }
     }
     // Use odometer (already in km, from vehicle) as primary distance; fallback to totalDistance
     let distDisplay = '—';
     if (rawOdo != null && Number.isFinite(Number(rawOdo))) {
-      distDisplay = Number(rawOdo).toLocaleString();
+      distDisplay = Math.round(Number(rawOdo)).toLocaleString();
     } else if (rawDist != null) {
       const n = Number(rawDist);
       if (Number.isFinite(n)) distDisplay = Math.round(n / 1000).toLocaleString();
     }
     const accEditId = `acc-edit-${vehicle.id}-${Date.now()}`;
     const hiddenAttr = settings.accumulators === false ? ' style="display:none"' : '';
-    const accHtml = `
-      <span data-key="accumulators"${hiddenAttr} style="background:#f8fafc;border-radius:4px;padding:2px 7px;white-space:nowrap;font-size:10px;line-height:1.6">
-        <span style="color:#64748b">⏱</span> <b style="color:#1e293b;margin-right:3px">${hoursDisplay}</b><span style="color:#64748b">h</span>
+    // 引擎時數 / 總里程 的共用 cell（無駕駛員時拆成左右兩格做平衡）
+    const accCell = (inner: string, flexRatio: number, align: string) =>
+      `<span data-key="accumulators"${hiddenAttr} style="flex:${flexRatio};min-width:0;text-align:${align};background:#f8fafc;border-radius:4px;padding:2px 4px;white-space:nowrap;font-size:10px;line-height:1.6;font-family:Arial,sans-serif">${inner}</span>`;
+    const hoursIcon = isMobile ? '' : '<span style="color:#64748b">⏱</span> ';
+    const distIcon = isMobile ? '' : '<span style="color:#64748b">📏</span> ';
+    const hoursInner = `${hoursIcon}<span style="color:#1e293b;margin-right:3px">${hoursDisplay}</span><span style="color:#64748b">h</span>`;
+    const distInner = `${distIcon}<span style="color:#1e293b;margin-right:3px">${distDisplay}</span><span style="color:#64748b">km</span><span id="${accEditId}" style="cursor:pointer;margin-left:1px;color:#94a3b8" onclick="window.__openAccumulatorEditor(${vehicle.id})">⚙</span>`;
+    // 有駕駛員時：時數 + 分隔線 + 里程 合成一格、置中
+    const accHtml = accCell(
+      `${hoursInner}
         <span style="color:#cbd5e1;margin:0 2px">|</span>
-        <span style="color:#64748b">📏</span> <b style="color:#1e293b;margin-right:3px">${distDisplay}</b><span style="color:#64748b">km</span>
-        <span id="${accEditId}" style="cursor:pointer;margin-left:1px;color:#94a3b8" onclick="window.__openAccumulatorEditor(${vehicle.id})">⚙</span>
-      </span>`;
-    dataRows.push(accHtml);
+        ${distInner}`,
+      1.7,
+      'center',
+    );
 
-    const todayMileageRender = `<span data-key="todayMileage"${settings.todayMileage !== false ? '' : ' style="display:none"'} style="background:#f8fafc;border-radius:4px;padding:2px 6px;white-space:nowrap;font-size:10px;line-height:1.6"><span style="color:#64748b">📅</span> <b style="color:#1e293b"><span id="${todayMileageId}">—</span> ${t('unitKm')}</b></span>`;
+    const todayMileageIcon = isMobile ? '' : '<span style="color:#64748b">📅</span> ';
+    const todayMileageRender = `<span data-key="todayMileage"${settings.todayMileage !== false ? '' : ' style="display:none"'} style="flex:0.8;min-width:0;text-align:left;background:#f8fafc;border-radius:4px;padding:2px 4px;white-space:nowrap;font-size:10px;line-height:1.6;font-family:Arial,sans-serif">${todayMileageIcon}<span style="color:#1e293b"><span id="${todayMileageId}">—</span> ${t('unitKm')}</span></span>`;
+
+    // Row 2 — 有駕駛員：駕駛 / 引擎時數+里程 / 本日里程；
+    //          無駕駛員：引擎時數(左) / 本日里程(中) / 總里程(右) 一左一右平衡
+    const hasDriver = Boolean(vehicle.driver);
+    const row2Cells = hasDriver
+      ? [cell('driver', '👤', escapeHtml(vehicle.driver || '—'), ';text-align:left'), accHtml, todayMileageRender].join('')
+      : [accCell(hoursInner, 1.3, 'left'), todayMileageRender, accCell(distInner, 1.3, 'right')].join('');
 
     const html = `
-      <div style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.4;min-width:180px;max-width:${isMobile ? '200px' : '280px'};padding:10px 12px">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid #f1f5f9">
+      <div style="font-family:system-ui,-apple-system,sans-serif;font-size:12px;line-height:1.4;min-width:180px;max-width:${isMobile ? '220px' : '280px'};padding:${isMobile ? '6px 8px' : '10px 12px'}">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:${isMobile ? '4px' : '6px'};padding-bottom:${isMobile ? '4px' : '6px'};border-bottom:1px solid #f1f5f9">
           <span style="width:7px;height:7px;border-radius:50%;background:${sc};flex-shrink:0"></span>
           <span style="font-weight:600;font-size:13px;color:#1e293b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(vehicle.name)}</span>
           ${settingsHtml}
-          <span style="font-size:9px;padding:1px 6px;border-radius:4px;background:${sc}18;color:${sc};font-weight:600">${escapeHtml(t(vehicle.status))}</span>
+          <span style="font-size:9px;padding:1px 6px;border-radius:4px;background:${sc}18;color:${sc};font-weight:600;margin-right:15px">${escapeHtml(t(vehicle.status))}</span>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">
-          ${dataRows.join('')}
-          ${todayMileageRender}
+        <div style="display:flex;gap:${isMobile ? '3px' : '4px'};margin-bottom:${isMobile ? '3px' : '4px'}">
+          ${row1Cells}
         </div>
-        <div data-key="replayLink"${settings.replayLink !== false ? '' : ' style="display:none"'} style="display:flex;gap:8px;border-top:1px solid #f1f5f9;padding:4px 0 0">
-          <a href="#" onclick="window.__openDeviceProfile(${vehicle.id});return false" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">🔍 ${t('details')}</a>
-          <a href="#" onclick="window.__openReplayTab('${vehicle.id}');return false" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">▶ ${t('replayToday')}</a>
+        ${addressCell ? `<div style="margin-bottom:${isMobile ? '3px' : '4px'}">${addressCell}</div>` : ''}
+        <div style="display:flex;gap:${isMobile ? '3px' : '4px'};margin-bottom:${isMobile ? '3px' : '4px'}">
+          ${row2Cells}
+        </div>
+        <div data-key="replayLink"${settings.replayLink !== false ? '' : ' style="display:none"'} style="display:flex;gap:8px;border-top:1px solid #f1f5f9;padding:${isMobile ? '3px 0 0' : '4px 0 0'}>
+          <a href="#" onclick="window.__openDeviceProfile(${vehicle.id});return false" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">${isMobile ? '' : '🔍 '}${t('details')}</a>
+          <a href="#" onclick="window.__openReplayTab('${vehicle.id}');return false" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;color:#2563eb;text-decoration:none;font-weight:500;cursor:pointer">${isMobile ? '' : '▶ '}${t('replayToday')}</a>
         </div>
       </div>
     `;
 
     const popup = new maplibregl.Popup({
-      offset: [0, -10],
+      offset: [0, -18],
       closeButton: true,
       closeOnClick: false,
-      maxWidth: isMobile ? '200px' : '300px',
+      maxWidth: isMobile ? '220px' : '300px',
     })
       .setLngLat([vehicle.lng!, vehicle.lat!])
       .setHTML(html)

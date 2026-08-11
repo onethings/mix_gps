@@ -29,7 +29,7 @@ interface GlobalMapLayerProps {
 
 export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerProps) {
   const { vehicles } = useLiveData();
-  const { selectedVehicleId, setSelectedVehicleId, mapHandleRef } = useMapContext();
+  const { selectedVehicleId, setSelectedVehicleId, mapHandleRef, popupDismissed, setPopupDismissed } = useMapContext();
   const i18nCtx = useContext(I18nContext);
   const t = i18nCtx?.t ?? ((key: string) => key);
   const [basemap, setBasemap] = useState('road');
@@ -42,7 +42,6 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
   const [routePrefLoaded, setRoutePrefLoaded] = useState(false);
   const [savedZoom, setSavedZoom] = useState<number | undefined>(undefined);
   const [zoomPrefResolved, setZoomPrefResolved] = useState(false);
-  const [popupDismissed, setPopupDismissed] = useState<boolean | undefined>(undefined);
   const zoomPrefLoadedRef = useRef(false);
 
   // Load saved zoom + popupDismissed from IndexedDB on mount
