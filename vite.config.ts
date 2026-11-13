@@ -1,63 +1,66 @@
-import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
-import { sentryVitePlugin } from '@sentry/vite-plugin';
-import { visualizer } from 'rollup-plugin-visualizer';
-import path from 'path';
+import { defineConfig, loadEnv } from "vite";
+import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { visualizer } from "rollup-plugin-visualizer";
+import path from "path";
 
- const DEFAULT_TRACCAR_URL = 'https://demo3.traccar.org';
-
+const DEFAULT_TRACCAR_URL = "https://demo3.traccar.org"; //demo3.traccar.org
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+  const env = loadEnv(mode, process.cwd(), "");
   const target = env.VITE_TRACCAR_URL || DEFAULT_TRACCAR_URL;
-  const wsTarget = target.replace(/^http/, 'ws');
+  const wsTarget = target.replace(/^http/, "ws");
   const baseRaw = env.VITE_BASE_PATH && String(env.VITE_BASE_PATH).trim();
-  const base = baseRaw ? `${baseRaw.replace(/\/$/, '')}/` : '/';
+  const base = baseRaw ? `${baseRaw.replace(/\/$/, "")}/` : "/";
 
   const plugins = [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: [
-        'favicon.svg',
-        'icons/*.svg',
-        'custom/*.{webp,png}',
-      ],
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.svg", "icons/*.svg", "custom/*.{webp,png}"],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,webp}'],
-        globIgnores: ['**/sprite.svg'], // sprite is runtime-cached separately
+        globPatterns: ["**/*.{js,css,html,png,webp}"],
+        globIgnores: ["**/sprite.svg"], // sprite is runtime-cached separately
         runtimeCaching: [
           {
             urlPattern: /^\/api\//,
-            handler: 'NetworkFirst',
+            handler: "NetworkFirst",
             options: {
-              cacheName: 'kevin-gps-api',
+              cacheName: "kevin-gps-api",
               expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
             },
           },
           {
             urlPattern: /^\/markers\//,
-            handler: 'CacheFirst',
+            handler: "CacheFirst",
             options: {
-              cacheName: 'kevin-gps-markers',
+              cacheName: "kevin-gps-markers",
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
         ],
       },
       manifest: {
-        filename: 'manifest.json',
-        name: 'Kevin GPS',
-        short_name: 'Kevin GPS',
-        description: 'GPS Fleet Tracking Platform',
+        filename: "manifest.json",
+        name: "Kevin GPS",
+        short_name: "Kevin GPS",
+        description: "GPS Fleet Tracking Platform",
         start_url: base,
-        display: 'standalone',
-        background_color: '#ffffff',
-        theme_color: '#2563eb',
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#2563eb",
         icons: [
-          { src: '/icons/icon-192.svg', sizes: '192x192', type: 'image/svg+xml' },
-          { src: '/icons/icon-512.svg', sizes: '512x512', type: 'image/svg+xml' },
+          {
+            src: "/icons/icon-192.svg",
+            sizes: "192x192",
+            type: "image/svg+xml",
+          },
+          {
+            src: "/icons/icon-512.svg",
+            sizes: "512x512",
+            type: "image/svg+xml",
+          },
         ],
       },
     }),
@@ -70,7 +73,7 @@ export default defineConfig(({ mode }) => {
         open: false,
         gzipSize: true,
         brotliSize: true,
-        filename: 'dist/stats.html',
+        filename: "dist/stats.html",
       }),
     );
   }
@@ -91,9 +94,9 @@ export default defineConfig(({ mode }) => {
     base,
     plugins,
     resolve: {
-      deduplicate: ['react', 'react-dom'],
+      deduplicate: ["react", "react-dom"],
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        "@": path.resolve(__dirname, "./src"),
       },
     },
     build: {
@@ -101,15 +104,15 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-maplibre': ['maplibre-gl'],
-            'vendor-ui': [
-              '@radix-ui/react-dialog',
-              '@radix-ui/react-tabs',
-              '@radix-ui/react-separator',
-              '@radix-ui/react-slot',
-              'lucide-react',
-              'class-variance-authority',
+            "vendor-react": ["react", "react-dom", "react-router-dom"],
+            "vendor-maplibre": ["maplibre-gl"],
+            "vendor-ui": [
+              "@radix-ui/react-dialog",
+              "@radix-ui/react-tabs",
+              "@radix-ui/react-separator",
+              "@radix-ui/react-slot",
+              "lucide-react",
+              "class-variance-authority",
             ],
           },
         },
@@ -117,42 +120,42 @@ export default defineConfig(({ mode }) => {
     },
     optimizeDeps: {
       include: [
-        '@radix-ui/react-dialog',
-        '@radix-ui/react-tabs',
-        '@radix-ui/react-separator',
-        '@radix-ui/react-slot',
-        '@tanstack/react-virtual',
+        "@radix-ui/react-dialog",
+        "@radix-ui/react-tabs",
+        "@radix-ui/react-separator",
+        "@radix-ui/react-slot",
+        "@tanstack/react-virtual",
       ],
       // Only scan our own entry, not traccar-web-master/
-      entries: ['index.html'],
+      entries: ["index.html"],
     },
     server: {
       port: 3001,
       hmr: {
-        protocol: 'ws',
-        host: 'localhost',
+        protocol: "ws",
+        host: "localhost",
         port: 3001,
       },
       proxy: {
-        '/api/socket': {
+        "/api/socket": {
           target: wsTarget,
           ws: true,
           changeOrigin: true,
           secure: true,
         },
-        '/api': {
+        "/api": {
           target,
           changeOrigin: true,
           secure: true,
-          cookieDomainRewrite: 'localhost',
+          cookieDomainRewrite: "localhost",
         },
-        '/geocode': {
-          target: 'https://nominatim.openstreetmap.org',
+        "/geocode": {
+          target: "https://nominatim.openstreetmap.org",
           changeOrigin: true,
           secure: true,
-          rewrite: (path: string) => path.replace(/^\/geocode/, ''),
+          rewrite: (path: string) => path.replace(/^\/geocode/, ""),
           headers: {
-            'User-Agent': 'KevinGPS/1.0',
+            "User-Agent": "KevinGPS/1.0",
           },
         },
       },
@@ -160,24 +163,24 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: 3001,
       proxy: {
-        '/api/socket': {
+        "/api/socket": {
           target: wsTarget,
           ws: true,
           changeOrigin: true,
           secure: true,
         },
-        '/api': {
+        "/api": {
           target,
           changeOrigin: true,
           secure: true,
         },
-        '/geocode': {
-          target: 'https://nominatim.openstreetmap.org',
+        "/geocode": {
+          target: "https://nominatim.openstreetmap.org",
           changeOrigin: true,
           secure: true,
-          rewrite: (path: string) => path.replace(/^\/geocode/, ''),
+          rewrite: (path: string) => path.replace(/^\/geocode/, ""),
           headers: {
-            'User-Agent': 'KevinGPS/1.0',
+            "User-Agent": "KevinGPS/1.0",
           },
         },
       },
