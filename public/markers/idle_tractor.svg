@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 180" width="120" height="180">
+  <defs>
+    <!-- 底部懸浮立體陰影濾鏡 (完全去背，背景透明) -->
+    <filter id="shadowFilter" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="5" />
+      <feColorMatrix type="matrix" values="0 0 0 0 0.12   0 0 0 0 0.10   0 0 0 0 0.02  0 0 0 0.35 0" />
+      <feOffset dx="0" dy="5" result="offsetblur" />
+      <feBlend in="SourceGraphic" in2="offsetblur" mode="normal" />
+    </filter>
+
+    <!-- 車身金屬黃橫向漸層 (bodyGrad)：亮金黃 (#FFD13B) 到深琥珀黃 (#B38600) -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#B38600" />
+      <stop offset="25%" stop-color="#E6AF12" />
+      <stop offset="50%" stop-color="#FFD13B" />
+      <stop offset="75%" stop-color="#E6AF12" />
+      <stop offset="100%" stop-color="#997000" />
+    </linearGradient>
+
+    <!-- 寬體輪拱金屬漸層 (fenderGrad) -->
+    <linearGradient id="fenderGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#805D00" />
+      <stop offset="50%" stop-color="#D9A300" />
+      <stop offset="100%" stop-color="#664A00" />
+    </linearGradient>
+
+    <!-- 車頂金屬垂直光影漸層 (roofGrad) -->
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF2A8" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#CC9900" stop-opacity="0.85" />
+    </linearGradient>
+
+    <!-- 車窗玻璃漸層 (glassGrad) -->
+    <linearGradient id="glassGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E262C" />
+      <stop offset="40%" stop-color="#37434D" />
+      <stop offset="75%" stop-color="#222B32" />
+      <stop offset="100%" stop-color="#11161A" />
+    </linearGradient>
+
+    <!-- 純黑輪胎立體漸層 (tireGrad) -->
+    <linearGradient id="tireGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#080808" />
+      <stop offset="50%" stop-color="#1C1C1C" />
+      <stop offset="100%" stop-color="#050505" />
+    </linearGradient>
+  </defs>
+
+  <!-- 套用底部立體陰影的整體圖形群組 -->
+  <g filter="url(#shadowFilter)">
+    
+    <!-- 1. 輪軸連接桿 (深灰金屬機械感) -->
+    <rect x="20" y="58" width="80" height="8" rx="2" fill="#1A211D" />
+    <rect x="18" y="124" width="84" height="12" rx="3" fill="#1A211D" />
+
+    <!-- 2. 純黑重型輪胎群 -->
+    <!-- 左後輪 -->
+    <g transform="translate(8, 102)">
+      <rect width="18" height="50" rx="6" fill="url(#tireGrad)" stroke="#000000" stroke-width="1.5" />
+      <path d="M 2 9 L 9 14 L 16 9 M 2 19 L 9 24 L 16 19 M 2 29 L 9 34 L 16 29 M 2 39 L 9 44 L 16 39" fill="none" stroke="#2B2B2B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+    <!-- 右後輪 -->
+    <g transform="translate(94, 102)">
+      <rect width="18" height="50" rx="6" fill="url(#tireGrad)" stroke="#000000" stroke-width="1.5" />
+      <path d="M 2 9 L 9 14 L 16 9 M 2 19 L 9 24 L 16 19 M 2 29 L 9 34 L 16 29 M 2 39 L 9 44 L 16 39" fill="none" stroke="#2B2B2B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+    <!-- 左前輪 -->
+    <g transform="translate(12, 43)">
+      <rect width="14" height="36" rx="5" fill="url(#tireGrad)" stroke="#000000" stroke-width="1.5" />
+      <path d="M 2 9 L 7 13 L 12 9 M 2 18 L 7 22 L 12 18 M 2 27 L 7 31 L 12 27" fill="none" stroke="#2B2B2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+    <!-- 右前輪 -->
+    <g transform="translate(94, 43)">
+      <rect width="14" height="36" rx="5" fill="url(#tireGrad)" stroke="#000000" stroke-width="1.5" />
+      <path d="M 2 9 L 7 13 L 12 9 M 2 18 L 7 22 L 12 18 M 2 27 L 7 31 L 12 27" fill="none" stroke="#2B2B2B" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+
+    <!-- 3. 獨立寬體後輪拱 (搭配深色外框線 #4D3800) -->
+    <path d="M 27 98 C 27 94, 30 92, 34 92 L 42 92 L 42 150 L 32 150 C 29 150, 27 147, 27 143 Z" fill="url(#fenderGrad)" stroke="#4D3800" stroke-width="1.8" />
+    <path d="M 93 98 C 93 94, 90 92, 86 92 L 78 92 L 78 150 L 88 150 C 91 150, 93 147, 93 143 Z" fill="url(#fenderGrad)" stroke="#4D3800" stroke-width="1.8" />
+
+    <!-- 4. 車身核心底盤 -->
+    <path d="M 38 86 L 82 86 L 85 148 C 85 152, 81 155, 76 155 L 44 155 C 39 155, 35 152, 35 148 Z" fill="url(#bodyGrad)" stroke="#4D3800" stroke-width="2" />
+
+    <!-- 5. 引擎蓋 (搭配引擎蓋左側明亮高光與深色輪廓) -->
+    <path d="M 41 34 L 79 34 C 84 34, 87 38, 86 44 L 83 90 L 37 90 L 34 44 C 33 38, 36 34, 41 34 Z" fill="url(#bodyGrad)" stroke="#4D3800" stroke-width="2" />
+
+    <!-- 引擎蓋左側高光反光條 -->
+    <path d="M 40 40 L 62 40 L 46 86 L 38 86 Z" fill="#FFF5C2" opacity="0.4" />
+    <line x1="60" y1="38" x2="60" y2="86" stroke="#FFFFFF" stroke-width="2.5" stroke-opacity="0.8" stroke-linecap="round" />
+
+    <!-- 引擎蓋兩側壓線與散熱百葉窗 -->
+    <line x1="42" y1="42" x2="40" y2="84" stroke="#664A00" stroke-width="1.5" stroke-opacity="0.7" />
+    <line x1="78" y1="42" x2="80" y2="84" stroke="#664A00" stroke-width="1.5" stroke-opacity="0.7" />
+
+    <g fill="#403000" opacity="0.85">
+      <rect x="37" y="54" width="3.5" height="2" rx="0.8" />
+      <rect x="37" y="59" width="3.5" height="2" rx="0.8" />
+      <rect x="37" y="64" width="3.5" height="2" rx="0.8" />
+      
+      <rect x="79.5" y="54" width="3.5" height="2" rx="0.8" />
+      <rect x="79.5" y="59" width="3.5" height="2" rx="0.8" />
+      <rect x="79.5" y="64" width="3.5" height="2" rx="0.8" />
+    </g>
+
+    <!-- 6. 車頭燈 (LED 晶鑽白光) -->
+    <path d="M 38 36 L 49 37 L 48 41 L 37 40 Z" fill="#E8FFDE" stroke="#4D3800" stroke-width="0.8" />
+    <path d="M 82 36 L 71 37 L 72 41 L 83 40 Z" fill="#E8FFDE" stroke="#4D3800" stroke-width="0.8" />
+
+    <!-- 7. 全景駕駛艙玻璃群 -->
+    <!-- 前擋風玻璃 -->
+    <path d="M 39 78 L 81 78 L 78 96 L 42 96 Z" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1.2" />
+    <polygon points="44,80 54,80 48,94 42,94" fill="#FFFFFF" fill-opacity="0.15" />
+    <polygon points="58,80 63,80 57,94 52,94" fill="#FFFFFF" fill-opacity="0.15" />
+
+    <!-- 後擋風玻璃 -->
+    <path d="M 41 122 L 79 122 L 82 132 L 38 132 Z" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1.2" />
+    <polygon points="46,123 55,123 51,131 43,131" fill="#FFFFFF" fill-opacity="0.15" />
+
+    <!-- 左側窗 -->
+    <path d="M 34 82 L 36 126 L 41 122 L 40 84 Z" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1.2" />
+    <!-- 右側窗 -->
+    <path d="M 86 82 L 84 126 L 79 122 L 80 84 Z" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1.2" />
+
+    <!-- 8. 流線梯形車頂頂蓋 (車頂左側加入純白斜向高光反光) -->
+    <path d="M 36 73 L 84 73 C 87 73, 89 76, 88 80 L 84 124 C 84 127, 81 129, 78 129 L 42 129 C 39 129, 36 127, 36 124 L 32 80 C 31 76, 33 73, 36 73 Z" fill="url(#roofGrad)" stroke="#4D3800" stroke-width="1.8" />
+    
+    <!-- 車頂左側斜向高光反光 -->
+    <path d="M 38 76 L 58 76 L 48 110 L 36 110 Z" fill="#FFF5C2" opacity="0.35" />
+    
+    <!-- 車頂中央高光反光條 -->
+    <line x1="60" y1="77" x2="60" y2="124" stroke="#FFFFFF" stroke-opacity="0.95" stroke-width="3.5" stroke-linecap="round" />
+
+    <!-- 9. 車尾警示燈與掛鉤座 -->
+    <rect x="33" y="146" width="11" height="3.5" rx="1.5" fill="#FF4D4D" stroke="#801313" stroke-width="0.6" />
+    <rect x="76" y="146" width="11" height="3.5" rx="1.5" fill="#FF4D4D" stroke="#801313" stroke-width="0.6" />
+    <rect x="55" y="151" width="10" height="5" rx="1.5" fill="#222B32" stroke="#11161A" stroke-width="1" />
+
+  </g>
+</svg>
