@@ -1,172 +1,154 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 180" width="120" height="180">
+  <defs>
+    <!-- 柔和的深冷灰底部懸浮陰影 (背景 100% 透明) -->
+    <filter id="silverDropShadow" x="-30%" y="-20%" width="160%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#1E2226" flood-opacity="0.38" />
+    </filter>
 
-<svg
-   width="96mm"
-   height="96mm"
-   viewBox="0 0 96 96"
-   version="1.1"
-   id="svg1"
-   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
-   sodipodi:docname="bicycle.svg"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#ffffff"
-     bordercolor="#000000"
-     borderopacity="0.25"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="0.0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     inkscape:document-units="mm"
-     inkscape:zoom="0.80444024"
-     inkscape:cx="397.17059"
-     inkscape:cy="262.91574"
-     inkscape:window-width="1920"
-     inkscape:window-height="1052"
-     inkscape:window-x="0"
-     inkscape:window-y="28"
-     inkscape:window-maximized="0"
-     inkscape:current-layer="layer1" />
-  <defs
-     id="defs1" />
-  <g
-     inkscape:label="Layer 1"
-     inkscape:groupmode="layer"
-     id="layer1">
-    <g
-       id="g18"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#d2d1d2"
-         d="m 195.5,126.5 c -0.633,18.569 0.034,36.902 2,55 -1,0 -2,0 -3,0 -0.33,-18.508 0.003,-36.841 1,-55 z"
-         id="path18" />
+    <!-- 車身主體金屬銀橫向漸層 (bodyGrad：亮銀白 #E4E8ED 至 冷鐵灰 #7D838B) -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7D838B" />
+      <stop offset="22%" stop-color="#B0B6BE" />
+      <stop offset="48%" stop-color="#E4E8ED" />
+      <stop offset="56%" stop-color="#F7F9FC" />
+      <stop offset="78%" stop-color="#B0B6BE" />
+      <stop offset="100%" stop-color="#6B7178" />
+    </linearGradient>
+
+    <!-- 車頂/後土除金屬銀光影漸層 (roofGrad) -->
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.92" />
+      <stop offset="45%" stop-color="#E4E8ED" stop-opacity="0.88" />
+      <stop offset="100%" stop-color="#7D838B" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- 金屬漆面左側斜向銀白高光反光漸層 -->
+    <linearGradient id="silverSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8" />
+      <stop offset="50%" stop-color="#E4E8ED" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- 深色反光玻璃/金屬質感漸層 (glassGrad) - 應用於座墊、輪胎與握把 -->
+    <linearGradient id="glassGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E262C" />
+      <stop offset="35%" stop-color="#37434D" />
+      <stop offset="70%" stop-color="#222B32" />
+      <stop offset="100%" stop-color="#11161A" />
+    </linearGradient>
+
+    <!-- 車頭燈 LED 光暈漸層 -->
+    <radialGradient id="headlightGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="50%" stop-color="#D6E4FF" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- 車尾燈紅光光暈漸層 -->
+    <radialGradient id="taillightGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FF4D4D" stop-opacity="0.85" />
+      <stop offset="55%" stop-color="#FF4D4D" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#FF4D4D" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- 整體圖示群組 (套用柔和的底部懸浮陰影與中心對齊) -->
+  <g filter="url(#silverDropShadow)">
+    
+    <!-- 1. 前後輪胎 (深色反光材質) -->
+    <rect x="56.5" y="10" width="7" height="32" rx="3.5" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1" />
+    <rect x="56.5" y="138" width="7" height="32" rx="3.5" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1" />
+
+    <!-- 2. 腳踏板與曲柄機構 -->
+    <!-- 左曲柄與踏板 -->
+    <path d="M56 96 L46 96 L46 102" fill="none" stroke="#222B32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="36" y="98" width="14" height="9" rx="2" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1" />
+    <line x1="38" y1="101" x2="48" y2="101" stroke="#37434D" stroke-width="1.2" />
+    <line x1="38" y1="104" x2="48" y2="104" stroke="#37434D" stroke-width="1.2" />
+
+    <!-- 右曲柄與踏板 -->
+    <path d="M64 88 L74 88 L74 82" fill="none" stroke="#222B32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+    <rect x="70" y="77" width="14" height="9" rx="2" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1" />
+    <line x1="72" y1="80" x2="82" y2="80" stroke="#37434D" stroke-width="1.2" />
+    <line x1="72" y1="83" x2="82" y2="83" stroke="#37434D" stroke-width="1.2" />
+
+    <!-- 傳動鏈條與齒盤護蓋 -->
+    <rect x="63.5" y="86" width="2.5" height="62" rx="1" fill="#1E262C" />
+
+    <!-- 3. 車架主體 (亮銀白至冷鐵灰橫向金屬漸層 + 深灰色外框線 #3E434A) -->
+    <!-- 前叉肩蓋 -->
+    <path d="M51 35 Q60 44 69 35" fill="none" stroke="url(#bodyGrad)" stroke-width="4.5" stroke-linecap="round" />
+    <path d="M51 35 Q60 44 69 35" fill="none" stroke="#3E434A" stroke-width="1.1" />
+
+    <!-- 主車架上管 / 下管融合體 -->
+    <path d="M55.5 34 L64.5 34 L63.5 96 L56.5 96 Z" fill="url(#bodyGrad)" stroke="#3E434A" stroke-width="1.3" stroke-linejoin="round" />
+    
+    <!-- 車架中央折線與左側斜向銀白高光反光 -->
+    <line x1="60" y1="36" x2="60" y2="84" stroke="#FFFFFF" stroke-width="1.5" stroke-opacity="0.85" stroke-linecap="round" />
+    <!-- 左側斜向高光帶 -->
+    <polygon points="56.5,40 61.5,36 61.5,46 56.5,50" fill="url(#silverSheen)" />
+    <polygon points="56.8,60 61.8,56 61.8,65 56.8,69" fill="url(#silverSheen)" />
+    <!-- 兩側細微壓線 -->
+    <line x1="57.2" y1="37" x2="57.8" y2="84" stroke="#4B5159" stroke-width="0.8" stroke-opacity="0.6" />
+    <line x1="62.8" y1="37" x2="62.2" y2="84" stroke="#4B5159" stroke-width="0.8" stroke-opacity="0.6" />
+
+    <!-- 後上叉與後下叉車架結構 -->
+    <path d="M56.5 96 L54 152 L56.5 152 L58.5 104 Z" fill="url(#bodyGrad)" stroke="#3E434A" stroke-width="1.1" />
+    <path d="M63.5 96 L66 152 L63.5 152 L61.5 104 Z" fill="url(#bodyGrad)" stroke="#3E434A" stroke-width="1.1" />
+
+    <!-- 後輪土除 (泥除) -->
+    <rect x="55" y="114" width="10" height="40" rx="4" fill="url(#bodyGrad)" stroke="#3E434A" stroke-width="1.3" />
+    <!-- 土除頂蓋高光漸層 (roofGrad) -->
+    <rect x="57" y="116" width="6" height="36" rx="2.5" fill="url(#roofGrad)" />
+    <!-- 土除左側斜向高光反光 -->
+    <polygon points="57,120 61,117 61,124 57,127" fill="url(#silverSheen)" />
+    <polygon points="57,136 61,133 61,140 57,143" fill="url(#silverSheen)" />
+    <line x1="60" y1="118" x2="60" y2="150" stroke="#FFFFFF" stroke-width="1.3" stroke-opacity="0.85" stroke-linecap="round" />
+
+    <!-- 4. 後貨架 (金屬深色網格結構) -->
+    <g stroke="#1E262C" stroke-width="2" fill="none" stroke-linejoin="round">
+      <rect x="50" y="116" width="20" height="36" rx="4" stroke="#11161A" stroke-width="2.2" />
+      <line x1="50" y1="125" x2="70" y2="125" />
+      <line x1="50" y1="134" x2="70" y2="134" />
+      <line x1="50" y1="143" x2="70" y2="143" />
+      <line x1="56.5" y1="116" x2="56.5" y2="152" />
+      <line x1="63.5" y1="116" x2="63.5" y2="152" />
     </g>
-    <g
-       id="g20"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#787878"
-         d="m 173.5,165.5 c 0.166,6.342 0,12.675 -0.5,19 -0.667,0.667 -1.333,1.333 -2,2 -0.169,-6.359 -0.669,-12.693 -1.5,-19 -0.607,0.124 -0.94,0.457 -1,1 -0.929,0.815 -1.929,1.648 -3,2.5 -5.667,0.667 -11.333,0.667 -17,0 -2.667,-3.667 -2.667,-7.333 0,-11 6,-0.667 12,-0.667 18,0 1.726,1.53 3.726,2.53 6,3 0.752,0.671 1.086,1.504 1,2.5 z"
-         id="path20" />
-    </g>
-    <g
-       id="g31"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#a3a3a3"
-         d="m 173.5,165.5 c 0.351,6.565 1.351,12.899 3,19 0.261,6.572 -0.406,12.906 -2,19 -0.147,-4.714 0.186,-9.381 1,-14 -2.266,0.359 -4.099,-0.308 -5.5,-2 -0.172,-6.513 -0.672,-12.847 -1.5,-19 0.06,-0.543 0.393,-0.876 1,-1 0.831,6.307 1.331,12.641 1.5,19 0.667,-0.667 1.333,-1.333 2,-2 0.5,-6.325 0.666,-12.658 0.5,-19 z"
-         id="path31" />
-    </g>
-    <g
-       id="g55"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#7b7a7a"
-         d="m 195.5,126.5 c -0.997,18.159 -1.33,36.492 -1,55 1,0 2,0 3,0 1.548,0.321 2.215,1.321 2,3 2.292,-0.256 4.459,0.077 6.5,1 0.169,6.691 0.669,13.358 1.5,20 0.882,-1.26 1.882,-2.426 3,-3.5 5.333,-0.667 10.667,-0.667 16,0 3.792,2.053 4.958,5.219 3.5,9.5 -0.833,0.833 -1.667,1.667 -2.5,2.5 -6,0.667 -12,0.667 -18,0 -1.377,-2.308 -3.377,-3.808 -6,-4.5 -0.831,-6.642 -1.331,-13.309 -1.5,-20 -0.724,14.063 -0.058,28.063 2,42 5.917,5.164 7.751,11.497 5.5,19 -1.359,2.192 -3.192,3.859 -5.5,5 -0.333,2.333 -0.667,4.667 -1,7 -1.011,0.837 -2.178,1.17 -3.5,1 0,-2.333 0,-4.667 0,-7 -1.333,0 -2.667,0 -4,0 0,14.667 0,29.333 0,44 -2.225,4.609 -5.891,6.109 -11,4.5 -1.549,-1.214 -2.715,-2.714 -3.5,-4.5 -0.5,-14.329 -0.667,-28.663 -0.5,-43 -1,0 -2,0 -3,0 0.162,2.027 -0.005,4.027 -0.5,6 -1.587,1.227 -2.921,0.894 -4,-1 0.484,-4.696 -1.183,-8.363 -5,-11 -2.939,-7.375 -1.439,-13.708 4.5,-19 1.589,-9.598 2.256,-19.265 2,-29 1.594,-6.094 2.261,-12.428 2,-19 0,-1 0,-2 0,-3 1.667,0 3.333,0 5,0 0.333,-18.345 0,-36.679 -1,-55 -3.032,-2.734 -5.032,-6.068 -6,-10 -3.35,0.165 -6.683,-0.002 -10,-0.5 -4.419,-3.127 -9.252,-5.293 -14.5,-6.5 -1.167,0.333 -2.333,0.667 -3.5,1 -5.77,7.94 -12.103,15.44 -19,22.5 -6.425,2.767 -10.092,0.6 -11,-6.5 0.077,-1.799 0.577,-3.466 1.5,-5 7.527,-8.86 15.694,-17.027 24.5,-24.5 9.992,-2.3323 18.659,0.001 26,7 1.634,0.494 3.301,0.66 5,0.5 -0.166,-5.6764 0.001,-11.3431 0.5,-17 1.333,-1.3333 2.667,-1.3333 4,0 0.17,5.6958 0.67,11.3624 1.5,17 0.833,-18.3243 1.333,-36.6576 1.5,-55 4.3,-4.9459 8.967,-5.2793 14,-1 0.5,18.6637 0.667,37.3304 0.5,56 1,0 2,0 3,0 0,-5.6667 0,-11.3333 0,-17 1.333,0 2.667,0 4,0 0,5.6667 0,11.3333 0,17 5.767,-0.926 10.767,-3.426 15,-7.5 7.655,-1.6295 14.655,-0.2962 21,4 7.133,5.799 13.633,12.299 19.5,19.5 3.8,4.815 3.3,8.982 -1.5,12.5 -3.134,0.79 -6.134,0.457 -9,-1 -5.167,-6.5 -10.333,-13 -15.5,-19.5 -2.995,-2.765 -6.495,-3.598 -10.5,-2.5 -5.561,4.3 -11.895,6.633 -19,7 -1.513,3.897 -3.846,7.063 -7,9.5 z"
-         id="path55" />
-    </g>
-    <g
-       id="g56"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#b1b1b0"
-         d="m 180.5,184.5 c 0.666,3.819 0.999,7.819 1,12 0.109,4.778 -0.391,9.444 -1.5,14 -0.802,-8.745 -0.636,-17.412 0.5,-26 z"
-         id="path56" />
-    </g>
-    <g
-       id="g57"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#70706f"
-         d="m 197.5,203.5 c 0,-1.667 0,-3.333 0,-5 -0.165,-3.682 0.001,-7.348 0.5,-11 0.414,0.457 0.914,0.791 1.5,1 1.165,8.647 1.332,17.314 0.5,26 -0.795,-3.812 -1.629,-7.479 -2.5,-11 z"
-         id="path57" />
-    </g>
-    <g
-       id="g58"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#b6b6b6"
-         d="m 197.5,198.5 c 0,1.667 0,3.333 0,5 0.164,2.687 -0.003,5.354 -0.5,8 -0.915,-0.828 -1.581,-1.828 -2,-3 -0.832,-8.021 -0.665,-16.021 0.5,-24 0.667,4.817 1.334,9.483 2,14 z"
-         id="path58" />
-    </g>
-    <g
-       id="g59"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#bab9b9"
-         d="m 185.5,117.5 c 1.667,0 3.333,0 5,0 0,29.333 0,58.667 0,88 -1.667,0 -3.333,0 -5,0 0,-29.333 0,-58.667 0,-88 z"
-         id="path59" />
-    </g>
-    <g
-       id="g60"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#b8b6b5"
-         d="m 133.5,109.5 c 3.5,-0.005 5,1.662 4.5,5 -4.048,4.927 -8.215,9.76 -12.5,14.5 -3.611,1.254 -5.111,0.088 -4.5,-3.5 4,-5.495 8.166,-10.829 12.5,-16 z"
-         id="path60" />
-    </g>
-    <g
-       id="g61"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#b8b7b5"
-         d="m 240.5,109.5 c 5.587,4.756 10.753,10.089 15.5,16 -0.057,3.465 -1.891,4.631 -5.5,3.5 -4.521,-5.02 -8.855,-10.187 -13,-15.5 1.024,-1.352 2.024,-2.685 3,-4 z"
-         id="path61" />
-    </g>
-    <g
-       id="g62"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#bcbbb9"
-         d="m 222.5,99.5 c 5.694,-0.0473 10.527,1.953 14.5,6 0.684,1.284 0.517,2.451 -0.5,3.5 -2.131,-0.398 -4.131,-1.398 -6,-3 -3.333,-0.667 -6.667,-0.667 -10,0 -4,2.333 -8,4.667 -12,7 -13.667,0.667 -27.333,0.667 -41,0 -4.259,-1.934 -8.259,-4.268 -12,-7 -3.333,-0.667 -6.667,-0.667 -10,0 -1.225,1.563 -2.725,2.73 -4.5,3.5 -1.5,-0.167 -2.333,-1 -2.5,-2.5 2.931,-4.799 7.264,-6.965 13,-6.5 2,0.167 4,0.333 6,0.5 3.057,2.723 6.39,5.056 10,7 13.667,0.667 27.333,0.667 41,0 4.332,-3.523 8.999,-6.356 14,-8.5 z"
-         id="path62" />
-    </g>
-    <g
-       id="g63"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#bcbbbb"
-         d="m 185.5,208.5 c 3.152,-0.541 5.652,0.459 7.5,3 0.549,5.862 1.882,11.529 4,17 3,4.667 6,9.333 9,14 1.106,5.915 -1.394,9.415 -7.5,10.5 -6.667,0.667 -13.333,0.667 -20,0 -6.864,-0.881 -9.364,-4.714 -7.5,-11.5 3.726,-4.728 7.059,-9.728 10,-15 1.03,-4.273 1.697,-8.606 2,-13 0.366,-1.952 1.199,-3.618 2.5,-5 z"
-         id="path63" />
-    </g>
-    <g
-       id="g81"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30251886,0,0,0.30251886,-9.2148116,-4.3079341)">
-      <path
-         style="opacity:1"
-         fill="#b1b1b1"
-         d="m 199.5,263.5 c -0.665,-1.869 -1.331,-3.869 -2,-6 -0.667,14.494 -1.333,28.828 -2,43 0,-14.667 0,-29.333 0,-44 1.333,0 2.667,0 4,0 0,2.333 0,4.667 0,7 z"
-         id="path81" />
-    </g>
+
+    <!-- 5. 幾何流線座墊 (採用 glassGrad 深色玻璃質感 + 白色斜向反光條) -->
+    <path d="M60 82 C63.5 82 65.5 92 69 101 C71.5 107.5 67.5 113 60 113 C52.5 113 48.5 107.5 51 101 C54.5 92 56.5 82 60 82 Z" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1.2" />
+    <path d="M60 109 L67 102 L68 104 L62 110 Z" fill="#FFFFFF" fill-opacity="0.2" />
+    <path d="M57 108 L65 100 L66 101 L58 109 Z" fill="#FFFFFF" fill-opacity="0.16" />
+
+    <!-- 6. 車把手、煞車線與握把 -->
+    <path d="M36 27 Q48 25 56 34" fill="none" stroke="#1E262C" stroke-width="1.2" />
+    <path d="M84 27 Q72 25 64 34" fill="none" stroke="#1E262C" stroke-width="1.2" />
+
+    <!-- 車把手橫管 (金屬銀橫向漸層 + 深灰色外框 #3E434A) -->
+    <path d="M34 32 C42 26 48 34 60 34 C72 34 78 26 86 32" fill="none" stroke="#3E434A" stroke-width="5.4" stroke-linecap="round" />
+    <path d="M34 32 C42 26 48 34 60 34 C72 34 78 26 86 32" fill="none" stroke="url(#bodyGrad)" stroke-width="3.4" stroke-linecap="round" />
+    <path d="M36 31.5 C42 26.5 48 33.5 60 33.5 C72 33.5 78 26.5 84 31.5" fill="none" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.85" stroke-linecap="round" />
+
+    <!-- 左右煞車拉桿 -->
+    <path d="M36 28 L25 23" stroke="#1E262C" stroke-width="2" stroke-linecap="round" />
+    <path d="M84 28 L95 23" stroke="#1E262C" stroke-width="2" stroke-linecap="round" />
+
+    <!-- 左右橡膠握把 (glassGrad) -->
+    <rect x="21" y="30" width="15" height="5" rx="2.5" transform="rotate(-12 28.5 32.5)" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1" />
+    <rect x="84" y="30" width="15" height="5" rx="2.5" transform="rotate(12 91.5 32.5)" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1" />
+
+    <!-- 龍頭立管蓋 -->
+    <circle cx="60" cy="34" r="3.5" fill="url(#glassGrad)" stroke="#3E434A" stroke-width="1.1" />
+
+    <!-- 7. 車頭燈 (LED 晶鑽白光) -->
+    <ellipse cx="60" cy="22" rx="14" ry="8" fill="url(#headlightGlow)" />
+    <rect x="56" y="23" width="8" height="6" rx="2" fill="url(#glassGrad)" stroke="#11161A" stroke-width="1" />
+    <path d="M56.5 23.5 Q60 21.5 63.5 23.5 Z" fill="#FFFFFF" />
+
+    <!-- 8. 車尾燈 (警示紅光 #FF4D4D) -->
+    <ellipse cx="60" cy="156" rx="13" ry="7" fill="url(#taillightGlow)" />
+    <rect x="54.5" y="152" width="11" height="3.2" rx="1.5" fill="#FF4D4D" stroke="#11161A" stroke-width="0.8" />
+    <line x1="56.5" y1="153.2" x2="63.5" y2="153.2" stroke="#FFB3B3" stroke-width="0.8" />
+
   </g>
 </svg>

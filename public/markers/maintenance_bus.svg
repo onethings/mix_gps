@@ -1,202 +1,203 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="180" viewBox="0 0 120 180">
+  <defs>
+    <!-- 柔和的深黑色底部懸浮陰影 -->
+    <filter id="blackDropShadow" x="-25%" y="-20%" width="150%" height="145%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000000" flood-opacity="0.55" />
+    </filter>
 
-<svg
-   width="96mm"
-   height="96mm"
-   viewBox="0 0 96 96"
-   version="1.1"
-   id="svg1"
-   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
-   sodipodi:docname="bus.svg"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#ffffff"
-     bordercolor="#000000"
-     borderopacity="0.25"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="0.0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     inkscape:document-units="mm"
-     inkscape:zoom="0.80444024"
-     inkscape:cx="397.17059"
-     inkscape:cy="362.36377"
-     inkscape:window-width="1920"
-     inkscape:window-height="1052"
-     inkscape:window-x="0"
-     inkscape:window-y="28"
-     inkscape:window-maximized="0"
-     inkscape:current-layer="layer1" />
-  <defs
-     id="defs1" />
-  <g
-     inkscape:label="Layer 1"
-     inkscape:groupmode="layer"
-     id="layer1">
-    <g
-       id="g2"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#e5e5e3"
-         d="m 1268.5,60.5 c 0.08,5.4638 -1.25,10.4638 -4,15 0.24,-1.291 -0.1,-2.291 -1,-3 0.53,-2.4237 1.36,-4.757 2.5,-7 0.67,-2 0.67,-4 0,-6 -8.52,-3.1708 -17.35,-5.0042 -26.5,-5.5 -18.02,-1.7224 -35.69,-0.2224 -53,4.5 0.17,-0.9916 -0.16,-1.6583 -1,-2 5.42,-3.3599 11.42,-5.1933 18,-5.5 20.63,-2.8866 40.96,-1.5532 61,4 2.43,1.0183 3.76,2.8517 4,5.5 z"
-         id="path2" />
+    <!-- 金屬烤漆主車身橫向漸層（深碳黑 #141415 至鋼琴黑 #0D0E10，中段反光 #2E3238） -->
+    <linearGradient id="bodyGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0A0A0C" />
+      <stop offset="18%" stop-color="#141415" />
+      <stop offset="38%" stop-color="#242629" />
+      <stop offset="50%" stop-color="#2E3238" />
+      <stop offset="65%" stop-color="#202225" />
+      <stop offset="85%" stop-color="#141415" />
+      <stop offset="100%" stop-color="#08080A" />
+    </linearGradient>
+
+    <!-- 車頂金屬黑垂直漸層 -->
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#32363D" stop-opacity="0.94" />
+      <stop offset="45%" stop-color="#1C1E22" stop-opacity="0.90" />
+      <stop offset="100%" stop-color="#0D0E10" stop-opacity="0.92" />
+    </linearGradient>
+
+    <!-- 冷白藍光漆面斜向高光反光帶漸層 -->
+    <linearGradient id="coolWhiteSheen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.75" />
+      <stop offset="55%" stop-color="#D6E4FF" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- 車窗玻璃漸層 -->
+    <linearGradient id="glassGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E262C" />
+      <stop offset="35%" stop-color="#37434D" />
+      <stop offset="70%" stop-color="#222B32" />
+      <stop offset="100%" stop-color="#11161A" />
+    </linearGradient>
+
+    <!-- 引擎蓋高光漸層 -->
+    <linearGradient id="hoodHighlight" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E8F0FE" stop-opacity="0.75" />
+      <stop offset="100%" stop-color="#2E3238" stop-opacity="0.06" />
+    </linearGradient>
+
+    <!-- 前擋風玻璃裁切遮罩 -->
+    <clipPath id="frontGlassClip">
+      <path d="M 32 45 Q 60 41 88 45 L 91 58 Q 60 55 29 58 Z" />
+    </clipPath>
+
+    <!-- 後擋風玻璃裁切遮罩 -->
+    <clipPath id="rearGlassClip">
+      <path d="M 34 157 Q 60 159 86 157 L 84 163 Q 60 165 36 163 Z" />
+    </clipPath>
+
+    <!-- 車頂左側高光裁切遮罩 -->
+    <clipPath id="roofClip">
+      <rect x="34" y="62" width="52" height="91" rx="6" />
+    </clipPath>
+  </defs>
+
+  <!-- 主車輛群組（含深黑色底部懸浮陰影） -->
+  <g filter="url(#blackDropShadow)">
+
+    <!-- 左右後視鏡 -->
+    <g stroke="#3A3E45" stroke-width="1.2" fill="#141415">
+      <!-- 左後視鏡 -->
+      <path d="M 29 49 L 20 47 L 20 53 L 29 52 Z" />
+      <rect x="18" y="45" width="4" height="9" rx="1.5" fill="#2E3238" />
+      <!-- 右後視鏡 -->
+      <path d="M 91 49 L 100 47 L 100 53 L 91 52 Z" />
+      <rect x="98" y="45" width="4" height="9" rx="1.5" fill="#1C1E22" />
     </g>
-    <g
-       id="g3"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#f7f7f7"
-         d="m 1185.5,56.5 c 0.84,0.3417 1.17,1.0084 1,2 -1.73,5.3626 -0.73,10.1959 3,14.5 11.07,-1.4443 22.24,-2.2776 33.5,-2.5 11.73,0.175 23.4,1.175 35,3 1.92,-0.0811 3.76,-0.4144 5.5,-1 0.9,0.709 1.24,1.709 1,3 -0.26,2.5163 -1.09,4.8496 -2.5,7 -0.33,70.333 -0.67,140.667 -1,211 -0.75,0.626 -1.58,1.126 -2.5,1.5 -21.67,0.667 -43.33,0.667 -65,0 -1.17,-0.5 -2,-1.333 -2.5,-2.5 -0.33,-69.667 -0.67,-139.333 -1,-209 -2.55,-5.7566 -5.05,-11.4232 -7.5,-17 -0.16,-2.3568 0,-4.6902 0.5,-7 0.38,-1.4423 1.21,-2.4423 2.5,-3 z"
-         id="path3" />
+
+    <!-- 前輪輪拱微凸提示 -->
+    <rect x="28" y="21" width="4" height="14" rx="2" fill="#0A0A0C" />
+    <rect x="88" y="21" width="4" height="14" rx="2" fill="#0A0A0C" />
+
+    <!-- 車身外殼主體（車頭朝上，採用高對比銀灰外框線 #4A505A 確保黑色車體輪廓清晰） -->
+    <path d="
+      M 37 13
+      Q 60 9 83 13
+      Q 88 14 89 20
+      L 90 38
+      Q 93 41 93 47
+      L 93 159
+      Q 93 166 85 167
+      Q 60 169 35 167
+      Q 27 166 27 159
+      L 27 47
+      Q 27 41 30 38
+      L 31 20
+      Q 32 14 37 13
+      Z" fill="url(#bodyGrad)" stroke="#4A505A" stroke-width="1.6" stroke-linejoin="round" />
+
+    <!-- 前保險桿深色飾條 -->
+    <path d="M 38 13.5 Q 60 10.5 82 13.5" fill="none" stroke="#2E3238" stroke-width="2" stroke-linecap="round" />
+
+    <!-- 車頭燈（LED 晶鑽白光） -->
+    <path d="M 33 15.5 Q 37 13.5 42 14 L 41 16.5 Q 36 16.5 33 15.5 Z" fill="#FFFFFF" stroke="#4A505A" stroke-width="0.35" />
+    <path d="M 87 15.5 Q 83 13.5 78 14 L 79 16.5 Q 84 16.5 87 15.5 Z" fill="#FFFFFF" stroke="#4A505A" stroke-width="0.35" />
+
+    <!-- 校車引擎蓋中央隆起高光 -->
+    <path d="M 43 16 Q 60 14 77 16 L 80 41 Q 60 39 40 41 Z" fill="url(#hoodHighlight)" />
+
+    <!-- 引擎蓋左側冷白藍光斜向高光反光 -->
+    <polygon points="41,16 53,15 47,40 39,41" fill="url(#coolWhiteSheen)" />
+    <polygon points="56,15 61,15 57,40 52,40" fill="#E8F0FE" fill-opacity="0.28" />
+
+    <!-- 引擎蓋兩側細微壓線 -->
+    <path d="M 42 16 L 39 41" stroke="#4A505A" stroke-opacity="0.6" stroke-width="1.2" fill="none" />
+    <path d="M 78 16 L 81 41" stroke="#4A505A" stroke-opacity="0.6" stroke-width="1.2" fill="none" />
+    <line x1="60" y1="15" x2="60" y2="40" stroke="#4A505A" stroke-opacity="0.4" stroke-width="1" />
+
+    <!-- 前擋風玻璃（雙片式設計） -->
+    <g clip-path="url(#frontGlassClip)">
+      <rect x="28" y="40" width="64" height="20" fill="url(#glassGrad)" />
+      <!-- 玻璃斜向反光條 -->
+      <polygon points="36,40 46,40 38,60 28,60" fill="#FFFFFF" fill-opacity="0.16" />
+      <polygon points="50,40 55,40 47,60 42,60" fill="#FFFFFF" fill-opacity="0.16" />
+      <polygon points="68,40 78,40 70,60 60,60" fill="#FFFFFF" fill-opacity="0.16" />
+      <!-- 前擋中央分隔柱 -->
+      <line x1="60" y1="41" x2="60" y2="58" stroke="#1E262C" stroke-width="1.8" />
     </g>
-    <g
-       id="g4"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#232321"
-         d="m 1263.5,72.5 c -1.74,0.5856 -3.58,0.9189 -5.5,1 -11.6,-1.825 -23.27,-2.825 -35,-3 -11.26,0.2224 -22.43,1.0557 -33.5,2.5 -3.73,-4.3041 -4.73,-9.1374 -3,-14.5 17.31,-4.7224 34.98,-6.2224 53,-4.5 9.15,0.4958 17.98,2.3292 26.5,5.5 0.67,2 0.67,4 0,6 -1.14,2.243 -1.97,4.5763 -2.5,7 z"
-         id="path4" />
+    <path d="M 32 45 Q 60 41 88 45 L 91 58 Q 60 55 29 58 Z" fill="none" stroke="#11161A" stroke-width="1.2" />
+
+    <!-- 車頂頂蓋區域 -->
+    <rect x="34" y="62" width="52" height="91" rx="6" fill="url(#roofGrad)" stroke="#4A505A" stroke-opacity="0.6" stroke-width="1" />
+
+    <!-- 車頂左側冷白藍光斜向高光反光帶 -->
+    <g clip-path="url(#roofClip)">
+      <polygon points="34,62 52,62 42,153 34,153" fill="url(#coolWhiteSheen)" />
+      <polygon points="55,62 61,62 52,153 46,153" fill="#D6E4FF" fill-opacity="0.25" />
     </g>
-    <g
-       id="g13"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#1f1f1c"
-         d="m 1178.5,292.5 c 0,-72.667 0,-145.333 0,-218 1.22,-2.1359 2.05,-4.4693 2.5,-7 0.5,74.999 0.67,149.999 0.5,225 -1,0 -2,0 -3,0 z"
-         id="path13" />
+
+    <!-- 車頂加強肋條紋理 -->
+    <g stroke="#4A505A" stroke-opacity="0.45" stroke-width="1">
+      <line x1="43" y1="65" x2="43" y2="150" />
+      <line x1="51.5" y1="65" x2="51.5" y2="150" />
+      <line x1="60" y1="65" x2="60" y2="150" />
+      <line x1="68.5" y1="65" x2="68.5" y2="150" />
+      <line x1="77" y1="65" x2="77" y2="150" />
     </g>
-    <g
-       id="g41"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#21201f"
-         d="m 1273.5,63.5 c 8.88,0.6779 12.54,5.1779 11,13.5 -2.82,0.4279 -5.49,-0.0721 -8,-1.5 0,-0.6667 -0.33,-1 -1,-1 -0.71,-0.904 -1.71,-1.2373 -3,-1 0,74.333 0,148.667 0,223 -0.06,1.109 -0.39,2.109 -1,3 -1.15,-0.813 -1.15,-1.813 0,-3 -0.7,-0.287 -1.37,-0.62 -2,-1 0,-76.667 0,-153.333 0,-230 1.33,-0.6667 2.67,-1.3333 4,-2 z"
-         id="path41" />
+
+    <!-- 車頂逃生天窗 1（前側） -->
+    <rect x="52" y="78" width="16" height="16" rx="2.5" fill="#2E3238" stroke="#4A505A" stroke-width="1" />
+    <rect x="55" y="81" width="10" height="10" rx="1.5" fill="#525A66" fill-opacity="0.9" />
+    <polygon points="55,81 61,81 57,91 55,91" fill="#FFFFFF" fill-opacity="0.45" />
+
+    <!-- 車頂逃生天窗 2（後側） -->
+    <rect x="52" y="116" width="16" height="16" rx="2.5" fill="#2E3238" stroke="#4A505A" stroke-width="1" />
+    <rect x="55" y="119" width="10" height="10" rx="1.5" fill="#525A66" fill-opacity="0.9" />
+    <polygon points="55,119 61,119 57,129 55,129" fill="#FFFFFF" fill-opacity="0.45" />
+
+    <!-- 左側車窗列 -->
+    <g fill="url(#glassGrad)" stroke="#11161A" stroke-width="0.8">
+      <rect x="28.5" y="64" width="3.5" height="14" rx="1" />
+      <rect x="28.5" y="81" width="3.5" height="14" rx="1" />
+      <rect x="28.5" y="98" width="3.5" height="14" rx="1" />
+      <rect x="28.5" y="115" width="3.5" height="14" rx="1" />
+      <rect x="28.5" y="132" width="3.5" height="14" rx="1" />
     </g>
-    <g
-       id="g42"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#83827f"
-         d="m 1273.5,67.5 c 3.23,0.2799 5.89,1.6132 8,4 -0.33,0.3333 -0.67,0.6667 -1,1 -1.89,-1.1094 -3.89,-1.9427 -6,-2.5 -0.75,-0.6708 -1.09,-1.5041 -1,-2.5 z"
-         id="path42" />
+    <!-- 左側車窗反光條 -->
+    <g fill="#FFFFFF" fill-opacity="0.18">
+      <polygon points="28.5,67 32,65 32,69 28.5,71" />
+      <polygon points="28.5,84 32,82 32,86 28.5,88" />
+      <polygon points="28.5,101 32,99 32,103 28.5,105" />
+      <polygon points="28.5,118 32,116 32,120 28.5,122" />
+      <polygon points="28.5,135 32,133 32,137 28.5,139" />
     </g>
-    <g
-       id="g59"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#dadada"
-         d="m 1275.5,74.5 c 0.67,0 1,0.3333 1,1 -1.67,72.828 -2.67,145.828 -3,219 -0.66,-73.674 0,-147.008 2,-220 z"
-         id="path59" />
+
+    <!-- 右側車窗列 -->
+    <g fill="url(#glassGrad)" stroke="#11161A" stroke-width="0.8">
+      <rect x="88" y="64" width="3.5" height="14" rx="1" />
+      <rect x="88" y="81" width="3.5" height="14" rx="1" />
+      <rect x="88" y="98" width="3.5" height="14" rx="1" />
+      <rect x="88" y="115" width="3.5" height="14" rx="1" />
+      <rect x="88" y="132" width="3.5" height="14" rx="1" />
     </g>
-    <g
-       id="g63"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#353534"
-         d="m 1275.5,74.5 c -2,72.992 -2.66,146.326 -2,220 0.17,0.992 -0.16,1.658 -1,2 0,-74.333 0,-148.667 0,-223 1.29,-0.2373 2.29,0.096 3,1 z"
-         id="path63" />
+    <!-- 右側車窗反光條 -->
+    <g fill="#FFFFFF" fill-opacity="0.18">
+      <polygon points="88,67 91.5,65 91.5,69 88,71" />
+      <polygon points="88,84 91.5,82 91.5,86 88,88" />
+      <polygon points="88,101 91.5,99 91.5,103 88,105" />
+      <polygon points="88,118 91.5,116 91.5,120 88,122" />
+      <polygon points="88,135 91.5,133 91.5,137 88,139" />
     </g>
-    <g
-       id="g64"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#282827"
-         d="m 1273.5,63.5 c -1.33,0.6667 -2.67,1.3333 -4,2 0.28,-1.9147 -0.05,-3.5813 -1,-5 -0.24,-2.6483 -1.57,-4.4817 -4,-5.5 -20.04,-5.5532 -40.37,-6.8866 -61,-4 -6.58,0.3067 -12.58,2.1401 -18,5.5 -1.29,0.5577 -2.12,1.5577 -2.5,3 -0.5,2.3098 -0.66,4.6432 -0.5,7 -0.49,77.391 0.01,154.724 1.5,232 0.83,0.833 1.67,1.667 2.5,2.5 26,0.667 52,0.667 78,0 1.9,-1.73 3.57,-3.563 5,-5.5 0.63,0.38 1.3,0.713 2,1 -1.15,1.187 -1.15,2.187 0,3 -1.32,2.506 -3.32,4.339 -6,5.5 -26.67,0.667 -53.33,0.667 -80,0 -4.79,-2.736 -7.12,-6.903 -7,-12.5 1,0 2,0 3,0 0.17,-75.001 0,-150.001 -0.5,-225 -0.45,2.5307 -1.28,4.8641 -2.5,7 -3.49,0.4089 -6.82,1.4089 -10,3 -2.39,-0.2119 -3.39,-1.5452 -3,-4 0.06,-2.6113 1.06,-4.778 3,-6.5 3.06,-2.0347 6.39,-3.2014 10,-3.5 -0.12,-6.5915 2.88,-11.0915 9,-13.5 26.08,-6.1239 52.08,-5.7906 78,1 5.07,2.6346 7.73,6.8012 8,12.5 z"
-         id="path64" />
+
+    <!-- 後擋風玻璃 -->
+    <g clip-path="url(#rearGlassClip)">
+      <rect x="33" y="156" width="54" height="9" fill="url(#glassGrad)" />
+      <polygon points="42,156 49,156 44,165 37,165" fill="#FFFFFF" fill-opacity="0.15" />
+      <polygon points="66,156 73,156 68,165 61,165" fill="#FFFFFF" fill-opacity="0.15" />
     </g>
-    <g
-       id="g65"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#8b8b89"
-         d="m 1174.5,67.5 c 1.48,-0.262 2.81,0.0713 4,1 -2.88,1.7848 -5.88,2.9514 -9,3.5 1.56,-1.736 3.23,-3.236 5,-4.5 z"
-         id="path65" />
-    </g>
-    <g
-       id="g74"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#979796"
-         d="m 1268.5,60.5 c 0.95,1.4187 1.28,3.0853 1,5 0,76.667 0,153.333 0,230 -1.43,1.937 -3.1,3.77 -5,5.5 -26,0.667 -52,0.667 -78,0 -0.83,-0.833 -1.67,-1.667 -2.5,-2.5 -1.49,-77.276 -1.99,-154.609 -1.5,-232 2.45,5.5768 4.95,11.2434 7.5,17 0.33,69.667 0.67,139.333 1,209 0.5,1.167 1.33,2 2.5,2.5 21.67,0.667 43.33,0.667 65,0 0.92,-0.374 1.75,-0.874 2.5,-1.5 0.33,-70.333 0.67,-140.667 1,-211 1.41,-2.1504 2.24,-4.4837 2.5,-7 2.75,-4.5362 4.08,-9.5362 4,-15 z"
-         id="path74" />
-    </g>
-    <g
-       id="g75"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#282828"
-         d="m 1215.5,214.5 c 6.67,-0.166 13.34,0 20,0.5 1.79,0.785 3.29,1.951 4.5,3.5 0.67,12.333 0.67,24.667 0,37 -1.21,1.549 -2.71,2.715 -4.5,3.5 -6.67,0.667 -13.33,0.667 -20,0 -1.17,-1.167 -2.33,-2.333 -3.5,-3.5 -0.67,-12.333 -0.67,-24.667 0,-37 1.1,-1.449 2.27,-2.782 3.5,-4 z"
-         id="path75" />
-    </g>
-    <g
-       id="g76"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#979796"
-         d="m 1216.5,217.5 c 6.34,-0.166 12.68,0 19,0.5 0.5,0.5 1,1 1.5,1.5 0.67,11.667 0.67,23.333 0,35 -0.5,0.5 -1,1 -1.5,1.5 -6.33,0.667 -12.67,0.667 -19,0 -0.83,-0.833 -1.67,-1.667 -2.5,-2.5 -0.67,-11 -0.67,-22 0,-33 1.04,-0.873 1.88,-1.873 2.5,-3 z"
-         id="path76" />
-    </g>
-    <g
-       id="g77"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#424242"
-         d="m 1237.5,109.5 c 0.67,11.667 1.33,23.333 2,35 -0.33,1 -1,1.667 -2,2 -7,-0.667 -14,-1.333 -21,-2 6.92,0.312 13.76,-0.021 20.5,-1 0.5,-11.328 0.67,-22.662 0.5,-34 z"
-         id="path77" />
-    </g>
-    <g
-       id="g78"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#222222"
-         d="m 1239.5,144.5 c -0.67,-11.667 -1.33,-23.333 -2,-35 -0.45,-0.958 -1.12,-1.792 -2,-2.5 -6.91,-0.811 -13.75,-0.645 -20.5,0.5 -1.62,11.57 -1.96,23.236 -1,35 0.71,0.881 1.54,1.547 2.5,2 7,0.667 14,1.333 21,2 -7.59,1.131 -15.25,1.298 -23,0.5 -0.83,-0.833 -1.67,-1.667 -2.5,-2.5 -0.96,-13.095 -0.63,-26.095 1,-39 0.75,-0.626 1.58,-1.126 2.5,-1.5 7,-0.667 14,-0.667 21,0 1.17,1.167 2.33,2.333 3.5,3.5 0.81,12.409 0.65,24.742 -0.5,37 z"
-         id="path78" />
-    </g>
-    <g
-       id="g79"
-       style="clip-rule:evenodd;fill-rule:evenodd;image-rendering:optimizeQuality;shape-rendering:geometricPrecision;text-rendering:geometricPrecision"
-       transform="matrix(0.30761763,0,0,0.30761763,-329.63707,-5.4074203)">
-      <path
-         style="opacity:1"
-         fill="#969696"
-         d="m 1237.5,109.5 c 0.17,11.338 0,22.672 -0.5,34 -6.74,0.979 -13.58,1.312 -20.5,1 -0.96,-0.453 -1.79,-1.119 -2.5,-2 -0.96,-11.764 -0.62,-23.43 1,-35 6.75,-1.145 13.59,-1.311 20.5,-0.5 0.88,0.708 1.55,1.542 2,2.5 z"
-         id="path79" />
-    </g>
+    <path d="M 34 157 Q 60 159 86 157 L 84 163 Q 60 165 36 163 Z" fill="none" stroke="#11161A" stroke-width="1" />
+
+    <!-- 車尾燈（警示紅光，與黑色車身形成強烈對比） -->
+    <rect x="32" y="165" width="9" height="2.2" rx="1" fill="#FF3B3B" />
+    <rect x="79" y="165" width="9" height="2.2" rx="1" fill="#FF3B3B" />
+
   </g>
 </svg>

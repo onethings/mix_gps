@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <!-- 金屬烤漆光澤：亮香檳金黃 (#FFE55C) 至 深古銅琥珀黃 (#B57B00) 橫向多段金屬漸層 -->
+    <linearGradient id="metallicYellowBody" x1="0%" y1="35%" x2="100%" y2="65%">
+      <stop offset="0%" stop-color="#FFE55C" />
+      <stop offset="28%" stop-color="#F5B800" />
+      <stop offset="55%" stop-color="#FFD438" />
+      <stop offset="82%" stop-color="#D49400" />
+      <stop offset="100%" stop-color="#B57B00" />
+    </linearGradient>
+
+    <!-- 深古銅金棕外框線漸層 (確保黃色系在淺灰或白色地圖上依然具備清晰高對比輪廓) -->
+    <linearGradient id="metallicYellowRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C98A00" />
+      <stop offset="50%" stop-color="#8F5E00" />
+      <stop offset="100%" stop-color="#5C3B00" />
+    </linearGradient>
+
+    <!-- 左側暖象牙白高光反光漸層 -->
+    <linearGradient id="leftIvoryGoldSheen" x1="0%" y1="10%" x2="85%" y2="80%">
+      <stop offset="0%" stop-color="#FFFDF0" stop-opacity="0.88" />
+      <stop offset="35%" stop-color="#FFF0A8" stop-opacity="0.45" />
+      <stop offset="65%" stop-color="#FFF8D6" stop-opacity="0.0" />
+    </linearGradient>
+
+    <!-- 柔和的深琥珀金底部懸浮陰影 (背景 100% 透明) -->
+    <filter id="yellowDropShadow" x="-45%" y="-45%" width="190%" height="190%">
+      <feDropShadow dx="0" dy="3.2" stdDeviation="5.2" flood-color="#613E00" flood-opacity="0.58" />
+      <feDropShadow dx="0" dy="1.2" stdDeviation="2.0" flood-color="#A87000" flood-opacity="0.72" />
+    </filter>
+
+    <!-- 左鞋前掌與鞋跟裁切路徑 -->
+    <clipPath id="leftSoleClip">
+      <path d="M 38 30 C 47 30, 52 40, 50 53 C 49 60, 46 64, 46 68 L 31 68 C 31 64, 28 59, 27 51 C 25 39, 30 30, 38 30 Z" />
+    </clipPath>
+    <clipPath id="leftHeelClip">
+      <path d="M 31 73 L 46 73 L 46 84 C 46 90, 43 94, 38.5 94 C 34 94, 31 90, 31 84 Z" />
+    </clipPath>
+
+    <!-- 右鞋前掌與鞋跟裁切路徑 -->
+    <clipPath id="rightSoleClip">
+      <path d="M 82 18 C 90 18, 95 27, 93 39 C 92 47, 89 52, 89 56 L 74 56 C 74 52, 71 48, 70 41 C 68 28, 73 18, 82 18 Z" />
+    </clipPath>
+    <clipPath id="rightHeelClip">
+      <path d="M 74 61 L 89 61 L 89 72 C 89 78, 86 82, 81.5 82 C 77 82, 74 78, 74 72 Z" />
+    </clipPath>
+  </defs>
+
+  <!-- 雙鞋印主體 (完全保留上一版鞋印造型、比例與正上方朝向，背景 100% 透明) -->
+  <g filter="url(#yellowDropShadow)">
+    <!-- 左鞋前掌 -->
+    <path d="M 38 30 C 47 30, 52 40, 50 53 C 49 60, 46 64, 46 68 L 31 68 C 31 64, 28 59, 27 51 C 25 39, 30 30, 38 30 Z" fill="url(#metallicYellowBody)" stroke="url(#metallicYellowRim)" stroke-width="1.8" />
+    <!-- 左鞋跟 -->
+    <path d="M 31 73 L 46 73 L 46 84 C 46 90, 43 94, 38.5 94 C 34 94, 31 90, 31 84 Z" fill="url(#metallicYellowBody)" stroke="url(#metallicYellowRim)" stroke-width="1.8" />
+
+    <!-- 左鞋左側暖象牙白高光反光 -->
+    <g clip-path="url(#leftSoleClip)">
+      <polygon points="22,28 43,28 32,70 18,70" fill="url(#leftIvoryGoldSheen)" />
+      <path d="M 31 37 C 29 44, 29 51, 31 58" fill="none" stroke="#FFFDF2" stroke-width="1.6" stroke-linecap="round" stroke-opacity="0.85" />
+    </g>
+    <g clip-path="url(#leftHeelClip)">
+      <polygon points="26,72 40,72 34,96 24,96" fill="url(#leftIvoryGoldSheen)" />
+    </g>
+
+    <!-- 右鞋前掌 -->
+    <path d="M 82 18 C 90 18, 95 27, 93 39 C 92 47, 89 52, 89 56 L 74 56 C 74 52, 71 48, 70 41 C 68 28, 73 18, 82 18 Z" fill="url(#metallicYellowBody)" stroke="url(#metallicYellowRim)" stroke-width="1.8" />
+    <!-- 右鞋跟 -->
+    <path d="M 74 61 L 89 61 L 89 72 C 89 78, 86 82, 81.5 82 C 77 82, 74 78, 74 72 Z" fill="url(#metallicYellowBody)" stroke="url(#metallicYellowRim)" stroke-width="1.8" />
+
+    <!-- 右鞋左側暖象牙白高光反光 -->
+    <g clip-path="url(#rightSoleClip)">
+      <polygon points="65,16 86,16 75,58 61,58" fill="url(#leftIvoryGoldSheen)" />
+      <path d="M 74 25 C 72 32, 72 39, 74 46" fill="none" stroke="#FFFDF2" stroke-width="1.6" stroke-linecap="round" stroke-opacity="0.85" />
+    </g>
+    <g clip-path="url(#rightHeelClip)">
+      <polygon points="69,60 83,60 77,84 67,84" fill="url(#leftIvoryGoldSheen)" />
+    </g>
+  </g>
+</svg>
