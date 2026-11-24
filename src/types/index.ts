@@ -96,6 +96,7 @@ export interface TraccarPosition {
 export interface TraccarEvent {
   id: number;
   type: string;
+  eventTime?: string | number;
   serverTime?: string;
   deviceId?: number;
   positionId?: number;

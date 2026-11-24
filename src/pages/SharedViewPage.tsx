@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Share2, MapPin, Clock, Calendar, AlertCircle, Navigation, Crosshair, Gauge, Map as MapIcon, Satellite } from 'lucide-react';
+import { Share2, MapPin, Clock, Calendar, AlertCircle, Navigation, Crosshair, Gauge } from 'lucide-react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Button } from '@/components/ui/button';
@@ -8,29 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import StatusBadge from '@/components/common/StatusBadge';
-import { formatDate, cn } from '@/lib/utils';
+import MapStyleMenu from '@/components/map/MapStyleMenu';
+import { formatDate } from '@/lib/utils';
+import { resolveMapStyle, type MapStyleId } from '@/lib/mapStyles';
 import { useT } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import type { VehicleStatus } from '@/types';
-
-const STYLE_ROAD = '/custom/liberty.json';
-const STYLE_SATELLITE = {
-  version: 8 as const,
-  sources: {
-    satellite: {
-      type: 'raster' as const,
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-      tileSize: 256,
-      attribution: '<a href="https://www.esri.com/" target="_blank" rel="noreferrer">Esri</a>',
-      maxzoom: 22,
-    },
-  },
-  layers: [{ id: 'satellite', type: 'raster' as const, source: 'satellite', minzoom: 0, maxzoom: 22 }],
-};
-
-function styleForBasemap(b: string): string | maplibregl.StyleSpecification {
-  return b === 'satellite' ? (STYLE_SATELLITE as unknown as maplibregl.StyleSpecification) : STYLE_ROAD;
-}
 
 interface ShareVehicle {
   id: number;
@@ -83,13 +66,13 @@ function SharedMap({ vehicles }: { vehicles: ShareVehicle[] }) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const [basemap, setBasemap] = useState<'road' | 'satellite'>('road');
+  const [basemap, setBasemap] = useState<MapStyleId>('road');
 
   useEffect(() => {
     if (!mapContainer.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: styleForBasemap('road'),
+      style: resolveMapStyle('road'),
       center: [96.15, 16.84],
       zoom: 10,
       attributionControl: false,
@@ -107,9 +90,9 @@ function SharedMap({ vehicles }: { vehicles: ShareVehicle[] }) {
     const map = mapRef.current;
     if (!map) return;
     if (!map.loaded()) {
-      map.once('load', () => map.setStyle(styleForBasemap(basemap)));
+      map.once('load', () => map.setStyle(resolveMapStyle(basemap)));
     } else {
-      map.setStyle(styleForBasemap(basemap));
+      map.setStyle(resolveMapStyle(basemap));
     }
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
@@ -173,27 +156,8 @@ function SharedMap({ vehicles }: { vehicles: ShareVehicle[] }) {
     <div className="relative h-full w-full">
       <div ref={mapContainer} className="h-full w-full rounded-lg" />
 
-      <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-lg border border-border bg-card p-1 shadow-md">
-        <button
-          type="button"
-          onClick={() => setBasemap('road')}
-          className={cn(
-            'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-            basemap === 'road' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          <MapIcon className="h-3.5 w-3.5" /> Map
-        </button>
-        <button
-          type="button"
-          onClick={() => setBasemap('satellite')}
-          className={cn(
-            'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-            basemap === 'satellite' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          <Satellite className="h-3.5 w-3.5" /> Satellite
-        </button>
+      <div className="absolute right-3 top-3 z-10">
+        <MapStyleMenu value={basemap} onChange={setBasemap} />
       </div>
 
       {vehicles?.length === 1 && Number.isFinite(vehicles[0]?.lat) && Number.isFinite(vehicles[0]?.lng) && (

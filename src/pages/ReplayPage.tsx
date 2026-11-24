@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Download, Map as MapIcon, MapPin, Pause, Play, Ruler, Satellite, Shield, SkipBack, SkipForward, Table2, BarChart3, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Download, MapPin, Pause, Play, Ruler, Shield, SkipBack, SkipForward, Table2, BarChart3, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { cn, formatDate } from '@/lib/utils';
@@ -17,24 +17,9 @@ import { cacheGet, cacheSet } from '@/lib/db';
 import { getReplayPrefs, setReplayPrefs, getReplayGlobalPrefs, setReplayGlobalPrefs } from '@/lib/preferences';
 import ReplaySidebar from '@/components/tracking/ReplaySidebar';
 import ReplayBottomPanel from '@/components/tracking/ReplayBottomPanel';
+import MapStyleMenu from '@/components/map/MapStyleMenu';
+import { resolveMapStyle } from '@/lib/mapStyles';
 import type { TraccarGeofence, TraccarReportTrip } from '@/types';
-
-const STYLE_ROAD = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
-const STYLE_SATELLITE = {
-  version: 8 as const,
-  sources: {
-    satellite: {
-      type: 'raster' as const,
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-      tileSize: 256,
-      attribution: '<a href="https://www.esri.com/" target="_blank" rel="noreferrer">Esri</a>',
-      maxzoom: 22,
-    },
-  },
-  layers: [{ id: 'satellite', type: 'raster' as const, source: 'satellite', minzoom: 0, maxzoom: 22 }],
-};
-
-function styleForBasemap(b: string) { return b === 'satellite' ? STYLE_SATELLITE : STYLE_ROAD; }
 
 const SPEEDS = [0.5, 1, 2, 4, 8];
 const KM_CACHE_TTL = 60 * 24 * 60 * 60 * 1000;
@@ -501,6 +486,7 @@ export default function ReplayPage() {
         }
       } catch { /* ignore */ }
     }
+  // Restore once per device; re-running would restart playback from storage.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceId]);
 
@@ -775,19 +761,19 @@ export default function ReplayPage() {
     if (!container) return;
     const map = new maplibregl.Map({
       container,
-      style: styleForBasemap(basemap),
+      style: resolveMapStyle(basemap),
       center: [96, 21],
       zoom: 5,
       scrollZoom: true,
       doubleClickZoom: true,
     });
+    mapRef.current = map;
     map.setPadding(mapPadForWidth(map.getContainer()));
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     // Keep the safe-area padding in sync when the viewport crosses the mobile breakpoint
     const onWindowResize = () => { map.setPadding(mapPadForWidth(map.getContainer())); };
     window.addEventListener('resize', onWindowResize);
     map.on('load', () => {
-      mapRef.current = map;
       addArrowImage(map);
       setMapReady(true);
     });
@@ -994,7 +980,7 @@ export default function ReplayPage() {
       if (prevRoute.length > 0 || stops.length > 0) drawRoute(prevRoute);
     };
     map.once('style.load', redraw);
-    map.setStyle(styleForBasemap(basemap));
+    map.setStyle(resolveMapStyle(basemap));
     setTimeout(redraw, 500);
   }, [basemap, route, stops, geofences, showGeofences, mapReady]);
 
@@ -1236,16 +1222,7 @@ export default function ReplayPage() {
 
           {/* Map controls overlay (top-left) — top-2 on mobile when Topbar hidden, top-4 on desktop */}
           <div id="replay-map-controls" className="absolute left-2 top-2 z-20 flex items-center gap-0.5 rounded-lg border border-border bg-card/95 p-0.5 shadow-md backdrop-blur sm:left-4 sm:top-4">
-            <button type="button" onClick={() => setBasemap('road')}
-              className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-                basemap === 'road' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
-              <MapIcon className="h-3.5 w-3.5" /> {t('mapLayer')}
-            </button>
-            <button type="button" onClick={() => setBasemap('satellite')}
-              className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',
-                basemap === 'satellite' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-accent')}>
-              <Satellite className="h-3.5 w-3.5" /> {t('satellite')}
-            </button>
+            <MapStyleMenu value={basemap} onChange={setBasemap} />
             <div className="mx-0.5 h-5 w-px bg-border" />
             <button type="button" onClick={handleToggleGeofences}
               className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors',

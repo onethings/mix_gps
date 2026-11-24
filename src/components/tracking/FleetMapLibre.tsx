@@ -9,27 +9,9 @@ import { cacheGet, cacheSet } from '@/lib/db';
 import { loadPopupSettings, savePopupSetting, POPUP_FIELDS } from '@/lib/popupSettings';
 import { useT } from '@/lib/i18n';
 import { useSession } from '@/context/SessionContext';
-import { supportsDailySummary } from '@/lib/serverVersion';
+import { activityWindow } from '@/lib/activity';
 import type { Vehicle, TraccarGeofence } from '@/types';
-
-const STYLE_ROAD = '/custom/liberty.json';
-const STYLE_SATELLITE = {
-  version: 8 as const,
-  sources: {
-    satellite: {
-      type: 'raster' as const,
-      tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-      tileSize: 256,
-      attribution: '<a href="https://www.esri.com/" target="_blank" rel="noreferrer">Esri</a>',
-      maxzoom: 22,
-    },
-  },
-  layers: [{ id: 'satellite', type: 'raster' as const, source: 'satellite', minzoom: 0, maxzoom: 22 }],
-} as const;
-
-function styleForBasemap(basemap: string): string | maplibregl.StyleSpecification {
-  return basemap === 'satellite' ? (STYLE_SATELLITE as unknown as maplibregl.StyleSpecification) : STYLE_ROAD;
-}
+import { resolveMapStyle } from '@/lib/mapStyles';
 
 function validCoord(lat: number | null | undefined, lng: number | null | undefined): boolean {
   const la = Number(lat);
@@ -42,6 +24,16 @@ function validCoord(lat: number | null | undefined, lng: number | null | undefin
 function escapeHtml(s: string | number | null | undefined): string {
   if (s == null) return '';
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Traccar stores engine hours in milliseconds. Popup renders them compactly as "37h 48m". */
+function formatEngineHours(ms: number): string {
+  const totalMin = Math.round(ms / 60_000);
+  if (totalMin <= 0) return '0m';
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return `${m}m`;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
 function haversineKm(lng1: number, lat1: number, lng2: number, lat2: number): number {
@@ -149,7 +141,6 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   const navigate = useNavigate();
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
-  const serverVersionRef = useRef<string | undefined>(undefined);
   const [mapReady, setMapReady] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
   const [styleKey, setStyleKey] = useState(0); // increments when basemap changes to re-create style-based layers
@@ -262,10 +253,10 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     const rawOdo = vehicle.odometer;
     let hoursDisplay = '—';
     if (rawHours != null) {
-      let n = Number(rawHours);
-      if (Number.isFinite(n)) {
-        n = n / 3600000;
-        hoursDisplay = Math.round(n).toString(); // 4捨5入取整數，不顯示小數
+      const ms = Number(rawHours);
+      if (Number.isFinite(ms)) {
+        // Raw value is milliseconds; render as h + m so the minutes are not lost.
+        hoursDisplay = formatEngineHours(ms);
       }
     }
     // Use odometer (already in km, from vehicle) as primary distance; fallback to totalDistance
@@ -283,7 +274,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
       `<span data-key="accumulators"${hiddenAttr} style="flex:${flexRatio};min-width:0;text-align:${align};background:#f8fafc;border-radius:4px;padding:2px 4px;white-space:nowrap;font-size:10px;line-height:1.6;font-family:Arial,sans-serif">${inner}</span>`;
     const hoursIcon = isMobile ? '' : '<span style="color:#64748b">⏱</span> ';
     const distIcon = isMobile ? '' : '<span style="color:#64748b">📏</span> ';
-    const hoursInner = `${hoursIcon}<span style="color:#1e293b;margin-right:3px">${hoursDisplay}</span><span style="color:#64748b">h</span>`;
+    const hoursInner = `${hoursIcon}<span style="color:#1e293b;margin-right:3px">${hoursDisplay}</span>`;
     const distInner = `${distIcon}<span style="color:#1e293b;margin-right:3px">${distDisplay}</span><span style="color:#64748b">km</span><span id="${accEditId}" data-action="accumulators" style="cursor:pointer;margin-left:1px;color:#94a3b8">⚙</span>`;
     // 有駕駛員時：時數 + 分隔線 + 里程 合成一格、置中
     const accHtml = accCell(
@@ -365,61 +356,37 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     });
     popupRef.current = popup;
 
-    // Fetch today's mileage asynchronously — try replay cache first, then API
+    // Fetch today's mileage asynchronously. "Today" means the local day (local midnight
+    // → now), exactly like the Activity panel, so both surfaces show the same number.
+    // Traccar's `daily` summary rows bucket by server time (UTC on demo servers), which
+    // is why they cannot feed this cell.
     if (settings.todayMileage !== false) {
-      const today = new Date();
-      const y = today.getFullYear();
-      const m = today.getMonth();
-      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const monthStr = `${y}-${String(m + 1).padStart(2, '0')}`;
+      const win = activityWindow('today');
+      const dayStart = new Date(win.fromMs);
+      const dayMonth = String(dayStart.getMonth() + 1).padStart(2, '0');
+      const dateStr = `${dayStart.getFullYear()}-${dayMonth}-${String(dayStart.getDate()).padStart(2, '0')}`;
+      const monthStr = `${dayStart.getFullYear()}-${dayMonth}`;
       const kmKey = `replay-km-${vehicle.id}-${monthStr}`;
 
       (async () => {
-        // 1) Load existing cache from IndexedDB (may have data from ReplayPage)
-        const cached = await cacheGet<Record<string, number>>('mileage', kmKey);
-        const map: Record<string, number> = cached ? { ...cached } : {};
-        if (map[dateStr] !== undefined) {
-          const el = document.getElementById(todayMileageId);
-          if (el) el.textContent = String(map[dateStr]);
-          return;
-        }
-        // 2) Fetch missing data (only today for popup)
-        const from = new Date(y, m, 1).toISOString();
-        const to = new Date(y, m + 1, 0, 23, 59, 59).toISOString();
+        const el = () => document.getElementById(todayMileageId);
         try {
-          if (supportsDailySummary(serverVersionRef.current)) {
-            // v5+: use summary with daily=true (single API call for whole month)
-            const summaryParams: any = { from, to, deviceId: [vehicle.id] };
-            summaryParams.daily = true;
-            const rows = await api.reports.summary(summaryParams) as Array<Record<string, unknown>>;
-            (rows || []).forEach((r: any) => {
-              if (!r.startTime) return;
-              const d = String(r.startTime).slice(0, 10);
-              const km = Math.max(0, Math.round((Number(r.distance) || 0) / 1000));
-              map[d] = km;
-            });
-          } else {
-            // v4.4: fetch just today's summary (single day query)
-            const todayDay = today.getDate();
-            const todayFrom = new Date(Date.UTC(y, m, todayDay, 0, 0, 0)).toISOString();
-            const todayTo = new Date(Date.UTC(y, m, todayDay, 23, 59, 59)).toISOString();
-            const rows = await api.reports.summary({ from: todayFrom, to: todayTo, deviceId: [vehicle.id] }) as Array<any>;
-            if (rows && rows.length > 0) {
-              const km = Math.max(0, Math.round((Number(rows[0].distance) || 0) / 1000));
-              map[dateStr] = km;
-            }
-          }
-          // 3) Merge with existing cache & save
-          const isCurrentMonth = y === new Date().getFullYear() && m === new Date().getMonth();
-          const ttl = isCurrentMonth ? 5 * 60 * 1000 : 60 * 24 * 60 * 60 * 1000;
-          cacheSet('mileage', kmKey, map, ttl);
-          const el = document.getElementById(todayMileageId);
-          if (el) {
-            el.textContent = map[dateStr] !== undefined ? String(map[dateStr]) : '0';
-          }
+          const rows = await api.reports.summary({
+            from: new Date(win.fromMs).toISOString(),
+            to: new Date(win.toMs).toISOString(),
+            deviceId: [vehicle.id],
+          }) as Array<{ distance?: number }>;
+          const km = Math.max(0, Number(rows?.[0]?.distance) || 0) / 1000;
+          if (el()) el()!.textContent = km === 0 ? '0' : km.toFixed(1);
+          // Keep the replay calendar cache warm with today's value.
+          try {
+            const cached = await cacheGet<Record<string, number>>('mileage', kmKey);
+            const map = cached ? { ...cached } : {};
+            map[dateStr] = Math.round(km);
+            cacheSet('mileage', kmKey, map, 5 * 60 * 1000);
+          } catch { /* cache is best-effort */ }
         } catch {
-          const el = document.getElementById(todayMileageId);
-          if (el) el.textContent = '—';
+          if (el()) el()!.textContent = '—';
         }
       })();
     }
@@ -457,11 +424,12 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: styleForBasemap(basemap),
+      style: resolveMapStyle(basemap),
       center: [139.6917, 35.6895],
       zoom: 5,
       attributionControl: false as const,
     });
+    mapRef.current = map;
 
     if (showControls) {
       map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -475,7 +443,6 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     }
 
     map.on('load', () => {
-      mapRef.current = map;
       // Restore saved zoom after map loads
       if (initialZoom != null) {
         map.jumpTo({ zoom: initialZoom });
@@ -489,18 +456,6 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
         onZoomChange(map.getZoom());
       }
     });
-
-    // Fallback: if map loads very fast, load event may have already fired
-    if (map.loaded()) {
-      mapRef.current = map;
-      if (initialZoom != null) {
-        map.jumpTo({ zoom: initialZoom });
-      }
-      setMapReady(true);
-    } else {
-      // Store map ref early so it can be used in cleanup
-      mapRef.current = map;
-    }
 
     return () => {
       if (popupRef.current) popupRef.current.remove();
@@ -520,7 +475,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
     prevBasemapRef.current = basemap;
     const onStyleLoad = () => setStyleKey((k) => k + 1);
     map.on('style.load', onStyleLoad);
-    map.setStyle(styleForBasemap(basemap));
+    map.setStyle(resolveMapStyle(basemap));
     return () => { map.off('style.load', onStyleLoad); };
   }, [basemap, mapReady]);
 
@@ -849,8 +804,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(functi
   }, [mapReady, selectedId, showRoute, styleKey]);
 
   /* ── POI Layer (KML overlay from user settings) ── */
-  const { user, server } = useSession();
-  serverVersionRef.current = server?.version;
+  const { user } = useSession();
   const poiLayerUrl = (user?.attributes as Record<string, string> | undefined)?.poiLayer;
 
   useEffect(() => {
