@@ -1,4 +1,4 @@
-import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -201,6 +201,46 @@ function sensorItemsFor(point: RoutePoint, t: (k: string) => string): { key: str
   return out;
 }
 
+// Renders the whole route table once per route change. The active-row highlight is
+// applied imperatively by DataPanel, so a playback tick no longer reconciles every
+// row (a day of 10 s positions is ~8,600 rows).
+const RouteTableBody = memo(function RouteTableBody({
+  route,
+  onSeek,
+  bodyRef,
+}: {
+  route: RoutePoint[];
+  onSeek?: (index: number) => void;
+  bodyRef: RefObject<HTMLTableSectionElement | null>;
+}) {
+  return (
+    <tbody ref={bodyRef}>
+      {route.map((p, i) => {
+        const isStop = knotsToKmh(p.speed) === 0;
+        return (
+          <tr
+            key={i}
+            data-active="false"
+            onClick={() => onSeek?.(i)}
+            className={cn(
+              'replay-route-row border-b border-border/40 transition-colors cursor-pointer',
+              isStop ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'hover:bg-accent/40',
+            )}
+          >
+            <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">{i + 1}</td>
+            <td className="whitespace-nowrap px-2 py-1 font-mono text-[10px] text-foreground">{formatTime(p.fixTime || p.deviceTime)}</td>
+            <td className="px-2 py-1 font-mono text-[10px] tabular-nums text-foreground">{knotsToKmh(p.speed)}</td>
+            <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">{p.course != null ? `${Math.round(Number(p.course))}°` : '—'}</td>
+            <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">{Number(p.latitude).toFixed(4)}</td>
+            <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">{Number(p.longitude).toFixed(4)}</td>
+            <td className="max-w-[200px] truncate px-2 py-1 text-[10px] text-muted-foreground" title={p.address}>{p.address || '—'}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  );
+});
+
 const DataPanel = memo(function DataPanel({ route, stops, cursor, deviceName, selectedDate, onSeek }: {
   route: RoutePoint[]; stops: StopPoint[]; cursor: number; deviceName: string; selectedDate: string;
   onSeek?: (index: number) => void;
@@ -208,18 +248,23 @@ const DataPanel = memo(function DataPanel({ route, stops, cursor, deviceName, se
   const { t } = useT();
   const [tab, setTab] = useState<'route' | 'stops'>('route');
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
-  const activeRowRef = useRef<HTMLTableRowElement | null>(null);
   // The table renders one row per position (thousands). Deferring the cursor keeps
   // playback responsive: React may skip intermediate highlight updates instead of
   // rebuilding the whole body for every frame step.
   const deferredCursor = useDeferredValue(cursor);
 
-  // Auto-scroll to active row when cursor changes
+  // Highlight and scroll the active row imperatively: two node updates per tick
+  // instead of reconciling the whole table.
   useEffect(() => {
-    if (activeRowRef.current) {
-      activeRowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-  }, [deferredCursor]);
+    const body = tableBodyRef.current;
+    if (!body) return;
+    const prevActive = body.querySelector('[data-active="true"]');
+    if (prevActive) prevActive.setAttribute('data-active', 'false');
+    const row = body.children[deferredCursor] as HTMLElement | undefined;
+    if (!row) return;
+    row.setAttribute('data-active', 'true');
+    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [deferredCursor, route, tab]);
 
   const routeHeaders = ['#', 'Time', 'Speed (km/h)', 'Course (°)', 'Latitude', 'Longitude', 'Address'];
   const routeRows = useMemo(() =>
@@ -311,27 +356,7 @@ const DataPanel = memo(function DataPanel({ route, stops, cursor, deviceName, se
                 ))}
               </tr>
             </thead>
-            <tbody ref={tableBodyRef}>
-              {route.map((p, i) => {
-                const isStop = knotsToKmh(p.speed) === 0;
-                return (
-                  <tr key={i} ref={i === deferredCursor ? activeRowRef : undefined}
-                    onClick={() => onSeek?.(i)}
-                    className={cn(
-                      'border-b border-border/40 transition-colors cursor-pointer',
-                      i === deferredCursor ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : isStop ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'hover:bg-accent/40'
-                    )}>
-                    <td className={cn('px-2 py-1 font-mono text-[10px]', i === deferredCursor ? 'text-primary font-bold' : 'text-muted-foreground')}>{i + 1}</td>
-                    <td className="whitespace-nowrap px-2 py-1 font-mono text-[10px] text-foreground">{formatTime(p.fixTime || p.deviceTime)}</td>
-                    <td className="px-2 py-1 font-mono text-[10px] tabular-nums text-foreground">{knotsToKmh(p.speed)}</td>
-                    <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">{p.course != null ? `${Math.round(Number(p.course))}°` : '—'}</td>
-                    <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">{Number(p.latitude).toFixed(4)}</td>
-                    <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">{Number(p.longitude).toFixed(4)}</td>
-                    <td className="max-w-[200px] truncate px-2 py-1 text-[10px] text-muted-foreground" title={p.address}>{p.address || '—'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
+            <RouteTableBody route={route} onSeek={onSeek} bodyRef={tableBodyRef} />
           </table>
         )}
         {tab === 'stops' && (
