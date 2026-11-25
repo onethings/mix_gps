@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
@@ -14,10 +14,11 @@ export default defineConfig(({ mode }) => {
   const baseRaw = env.VITE_BASE_PATH && String(env.VITE_BASE_PATH).trim();
   const base = baseRaw ? `${baseRaw.replace(/\/$/, "")}/` : "/";
 
-  const plugins = [
+  const plugins: PluginOption[] = [
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      manifestFilename: "manifest.json",
       includeAssets: ["favicon.svg", "icons/*.svg", "custom/*.{webp,png}"],
       workbox: {
         globPatterns: ["**/*.{js,css,html,png,webp}"],
@@ -42,7 +43,6 @@ export default defineConfig(({ mode }) => {
         ],
       },
       manifest: {
-        filename: "manifest.json",
         name: "Kevin GPS",
         short_name: "Kevin GPS",
         description: "GPS Fleet Tracking Platform",
@@ -81,7 +81,7 @@ export default defineConfig(({ mode }) => {
   // Sentry plugin in production builds (requires VITE_SENTRY_AUTH_TOKEN)
   if (env.VITE_SENTRY_AUTH_TOKEN) {
     plugins.push(
-      sentryVitePlugin({
+      ...sentryVitePlugin({
         authToken: env.VITE_SENTRY_AUTH_TOKEN,
         org: env.VITE_SENTRY_ORG,
         project: env.VITE_SENTRY_PROJECT,
@@ -130,10 +130,10 @@ export default defineConfig(({ mode }) => {
       entries: ["index.html"],
     },
     server: {
+      host: true,
       port: 3001,
       hmr: {
         protocol: "ws",
-        host: "localhost",
         port: 3001,
       },
       proxy: {
@@ -147,7 +147,7 @@ export default defineConfig(({ mode }) => {
           target,
           changeOrigin: true,
           secure: true,
-          cookieDomainRewrite: "localhost",
+          cookieDomainRewrite: "",
         },
         "/geocode": {
           target: "https://nominatim.openstreetmap.org",
@@ -161,6 +161,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     preview: {
+      host: true,
       port: 3001,
       proxy: {
         "/api/socket": {

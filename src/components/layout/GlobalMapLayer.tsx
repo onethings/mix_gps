@@ -30,7 +30,7 @@ interface GlobalMapLayerProps {
 
 export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerProps) {
   const { vehicles } = useLiveData();
-  const { selectedVehicleId, setSelectedVehicleId, mapHandleRef, popupDismissed, setPopupDismissed } = useMapContext();
+  const { selectedVehicleId, setSelectedVehicleId, mapHandleRef, popupDismissed, setPopupDismissed, mapInset } = useMapContext();
   const i18nCtx = useContext(I18nContext);
   const t = i18nCtx?.t ?? ((key: string) => key);
   const [basemap, setBasemap] = useState('road');
@@ -139,6 +139,7 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
         showControls
         showGeolocate={false}
         fitPadding={56}
+        fitInset={mapInset}
         basemap={basemap}
         showGeofences={showGeofences}
         geofences={geofences}
