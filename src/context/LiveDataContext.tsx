@@ -38,7 +38,20 @@ interface LiveDataContextValue {
   refresh: () => Promise<void>;
 }
 
-const LiveDataContext = createContext<LiveDataContextValue | null>(null);
+// Split into four contexts so a position frame re-renders only the components
+// that read vehicles or positions, instead of all 31 live-data consumers.
+type DevicesValue = Pick<
+  LiveDataContextValue,
+  'devices' | 'devicesById' | 'connected' | 'socketError' | 'loading' | 'error' | 'refresh'
+>;
+type VehiclesValue = Pick<LiveDataContextValue, 'vehicles' | 'getVehicle'>;
+type PositionsValue = Pick<LiveDataContextValue, 'positions'>;
+type AlertsValue = Pick<LiveDataContextValue, 'events' | 'alerts'>;
+
+const DevicesContext = createContext<DevicesValue | null>(null);
+const VehiclesContext = createContext<VehiclesValue | null>(null);
+const PositionsContext = createContext<PositionsValue | null>(null);
+const AlertsContext = createContext<AlertsValue | null>(null);
 const MAX_EVENTS = 100;
 
 export function LiveDataProvider({ children }: { children: React.ReactNode }) {
@@ -274,17 +287,21 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
 
   const baseVehicles = useMemo(() => toVehicles(devices, positions), [devices, positions]);
 
-  const vehicles = useMemo(
-    () =>
-      baseVehicles.map((v) => {
-        if (v.address) return v;
-        const key = geocodeKey(v.lat, v.lng);
-        if (!key) return v;
-        const cached = geocoded[key] ?? lookupCached(v.lat, v.lng);
-        return cached ? { ...v, address: cached } : v;
-      }),
-    [baseVehicles, geocoded],
-  );
+  const vehicles = useMemo(() => {
+    const mapped = baseVehicles.map((v) => {
+      if (v.address) return v;
+      const key = geocodeKey(v.lat, v.lng);
+      if (!key) return v;
+      const cached = geocoded[key] ?? lookupCached(v.lat, v.lng);
+      return cached ? { ...v, address: cached } : v;
+    });
+    // Keep the previous array identity when no element changed.
+    let same = mapped.length === baseVehicles.length;
+    for (let i = 0; same && i < mapped.length; i++) {
+      if (mapped[i] !== baseVehicles[i]) same = false;
+    }
+    return same ? baseVehicles : mapped;
+  }, [baseVehicles, geocoded]);
 
   useEffect(() => {
     baseVehicles.forEach((v) => {
@@ -338,30 +355,38 @@ export function LiveDataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const devicesValue = useMemo<DevicesValue>(
+    () => ({ devices, devicesById, connected, socketError, loading, error, refresh }),
+    [devices, devicesById, connected, socketError, loading, error, refresh],
+  );
+  const vehiclesValue = useMemo<VehiclesValue>(
+    () => ({ vehicles, getVehicle }),
+    [vehicles, getVehicle],
+  );
+  const positionsValue = useMemo<PositionsValue>(() => ({ positions }), [positions]);
+  const alertsValue = useMemo<AlertsValue>(() => ({ events, alerts }), [events, alerts]);
+
   return (
-    <LiveDataContext.Provider
-      value={{
-        vehicles,
-        devices,
-        devicesById,
-        positions,
-        events,
-        alerts,
-        connected,
-        socketError,
-        loading,
-        error,
-        getVehicle,
-        refresh,
-      }}
-    >
-      {children}
-    </LiveDataContext.Provider>
+    <DevicesContext.Provider value={devicesValue}>
+      <VehiclesContext.Provider value={vehiclesValue}>
+        <PositionsContext.Provider value={positionsValue}>
+          <AlertsContext.Provider value={alertsValue}>{children}</AlertsContext.Provider>
+        </PositionsContext.Provider>
+      </VehiclesContext.Provider>
+    </DevicesContext.Provider>
   );
 }
 
-export const useLiveData = () => {
-  const ctx = useContext(LiveDataContext);
-  if (!ctx) throw new Error('useLiveData must be used inside LiveDataProvider');
-  return ctx;
+export const useLiveData = (): LiveDataContextValue => {
+  const devicesValue = useContext(DevicesContext);
+  const vehiclesValue = useContext(VehiclesContext);
+  const positionsValue = useContext(PositionsContext);
+  const alertsValue = useContext(AlertsContext);
+  if (!devicesValue || !vehiclesValue || !positionsValue || !alertsValue) {
+    throw new Error('useLiveData must be used inside LiveDataProvider');
+  }
+  return useMemo(
+    () => ({ ...devicesValue, ...vehiclesValue, ...positionsValue, ...alertsValue }),
+    [devicesValue, vehiclesValue, positionsValue, alertsValue],
+  );
 };

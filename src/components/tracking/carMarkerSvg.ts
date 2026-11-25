@@ -27,6 +27,11 @@ function resolveStatus(vehicle: Vehicle): string {
   return vehicle?.status && STATUS_COLORS[vehicle.status] ? vehicle.status : 'stopped';
 }
 
+/** Resolved status, exported so callers can diff state without touching the DOM. */
+export function markerStatusKey(vehicle: Vehicle): string {
+  return resolveStatus(vehicle);
+}
+
 const VALID_ICON_TYPES = ['car','truck','bus','van','taxi','motocycle','bicycle','scooter','plane','helicopter','ship','boat','train','tram','pickup','trailer','tractor','crane','camper','person','animal'];
 
 function resolveVehicleType(vehicle: Vehicle): string {
@@ -91,25 +96,34 @@ export function createCarMarkerElement(vehicle: Vehicle, isSelected: boolean): H
   return root;
 }
 
-export function updateCarMarkerElement(el: HTMLDivElement, vehicle: Vehicle, isSelected: boolean): void {
+export interface MarkerDiff {
+  courseChanged: boolean;
+  statusChanged: boolean;
+  selectedChanged: boolean;
+}
+
+export function updateCarMarkerElement(
+  el: HTMLDivElement,
+  vehicle: Vehicle,
+  isSelected: boolean,
+  diff?: MarkerDiff,
+): void {
   const inner = el.querySelector('.fleet-car-marker') as HTMLElement | null;
   if (!inner) return;
 
-  const prevCourse = el.getAttribute('data-course');
-  const prevStatus = el.getAttribute('data-status');
-  const prevSelected = el.getAttribute('data-selected');
   const status = resolveStatus(vehicle);
   const c = STATUS_COLORS[status] || STATUS_COLORS.stopped;
   const rot = Number.isFinite(Number(vehicle?.course)) ? Number(vehicle.course) : 0;
   const selStr = String(isSelected);
-  const courseChanged = prevCourse !== String(rot);
-  const statusChanged = prevStatus !== status;
-  const selectedChanged = prevSelected !== selStr;
+  // The live map already diffed against its own state cache and passes it in;
+  // callers that do not (replay) still diff from the data attributes.
+  const courseChanged = diff ? diff.courseChanged : el.getAttribute('data-course') !== String(rot);
+  const statusChanged = diff ? diff.statusChanged : el.getAttribute('data-status') !== status;
+  const selectedChanged = diff ? diff.selectedChanged : el.getAttribute('data-selected') !== selStr;
 
-  // Update data attributes
-  el.setAttribute('data-course', String(rot));
-  el.setAttribute('data-status', status);
-  el.setAttribute('data-selected', selStr);
+  if (!diff || courseChanged) el.setAttribute('data-course', String(rot));
+  if (!diff || statusChanged) el.setAttribute('data-status', status);
+  if (!diff || selectedChanged) el.setAttribute('data-selected', selStr);
 
   // Always update z-index for selection
   if (selectedChanged) el.style.zIndex = isSelected ? '10' : '1';

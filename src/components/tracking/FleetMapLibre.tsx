@@ -8,7 +8,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { createCarMarkerElement, updateCarMarkerElement } from "./carMarkerSvg";
+import { createCarMarkerElement, markerStatusKey, updateCarMarkerElement } from "./carMarkerSvg";
 import { wktToGeoJson, circleToGeoJson, kmlToGeoJson } from "@/lib/geo";
 import { api } from "@/lib/api";
 import { cacheGet, cacheSet } from "@/lib/db";
@@ -640,6 +640,12 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(
     >(new Map());
     const rafIdRef = useRef<number | null>(null);
 
+    // Per-marker previous state. This lived in DOM data-* attributes, which cost a
+    // numeric->string conversion plus a DOM read and write per marker per frame.
+    const markerStateRef = useRef<
+      Map<number, { lng: number; lat: number; course: number; status: string; selected: boolean }>
+    >(new Map());
+
     function flushPendingPositions() {
       const map = mapRef.current;
       if (!map) return;
@@ -647,9 +653,11 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(
         const marker = markersRef.current.get(id);
         if (!marker) return;
         marker.setLngLat([pos.lng, pos.lat]);
-        const el = marker.getElement();
-        el.setAttribute("data-lng", String(pos.lng));
-        el.setAttribute("data-lat", String(pos.lat));
+        const st = markerStateRef.current.get(id);
+        if (st) {
+          st.lng = pos.lng;
+          st.lat = pos.lat;
+        }
         if (popupRef.current && id === prevSelectedRef.current) {
           popupRef.current.setLngLat([pos.lng, pos.lat]);
         }
@@ -682,6 +690,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(
         if (!vehicleIds.has(id)) {
           markersRef.current.get(id)?.remove();
           markersRef.current.delete(id);
+          markerStateRef.current.delete(id);
         }
       });
 
@@ -694,37 +703,44 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(
 
         if (marker) {
           const el = marker.getElement();
-          const prevLng = el.getAttribute("data-lng");
-          const prevLat = el.getAttribute("data-lat");
-          const lng = String(v.lng);
-          const lat = String(v.lat);
-          const posChanged = prevLng !== lng || prevLat !== lat;
-          const prevCourse = el.getAttribute("data-course");
-          const prevStatus = el.getAttribute("data-status");
-          const courseChanged =
-            prevCourse !==
-            String(Number.isFinite(Number(v.course)) ? Number(v.course) : 0);
-          const statusChanged = prevStatus !== v.status;
+          const course = Number.isFinite(Number(v.course)) ? Number(v.course) : 0;
+          const status = markerStatusKey(v);
+          const st = markerStateRef.current.get(v.id);
+          const courseChanged = !st || st.course !== course;
+          const statusChanged = !st || st.status !== status;
+          const selectedChanged = !st || st.selected !== isSelected;
 
-          if (posChanged) {
+          if (!st || st.lng !== v.lng || st.lat !== v.lat) {
             // Schedule position update via RAF to batch with other changes
             schedulePositionUpdate(v.id, v.lng!, v.lat!);
           }
-          // Only call full updateCarMarkerElement when appearance (course/status/selection) actually changed
-          if (
-            courseChanged ||
-            statusChanged ||
-            isSelected !== (prevSelectedRef.current === v.id)
-          ) {
-            updateCarMarkerElement(el as HTMLDivElement, v, isSelected);
+          // Only call full updateCarMarkerElement when appearance actually changed
+          if (courseChanged || statusChanged || selectedChanged) {
+            updateCarMarkerElement(el as HTMLDivElement, v, isSelected, {
+              courseChanged,
+              statusChanged,
+              selectedChanged,
+            });
           }
+          markerStateRef.current.set(v.id, {
+            lng: v.lng!,
+            lat: v.lat!,
+            course,
+            status,
+            selected: isSelected,
+          });
         } else {
           const el = createCarMarkerElement(v, isSelected);
-          el.setAttribute("data-lng", String(v.lng));
-          el.setAttribute("data-lat", String(v.lat));
           marker = new maplibregl.Marker({ element: el })
             .setLngLat([v.lng!, v.lat!])
             .addTo(map);
+          markerStateRef.current.set(v.id, {
+            lng: v.lng!,
+            lat: v.lat!,
+            course: Number.isFinite(Number(v.course)) ? Number(v.course) : 0,
+            status: markerStatusKey(v),
+            selected: isSelected,
+          });
 
           el.addEventListener("click", () => {
             popupDismissedRef.current = false;

@@ -87,9 +87,11 @@ export function toVehicle(device, position) {
 const MAX_VEHICLE_CACHE = 500;
 const _vehicleCache = new Map();
 
+let _lastVehicleList: any[] = [];
+
 export function toVehicles(devices = [], positionsByDevice = {}) {
   if (!Array.isArray(devices)) return [];
-  return devices.map((d) => {
+  const next = devices.map((d) => {
     const pos = positionForDevice(d, positionsByDevice);
     const fresh = toVehicle(d, pos);
     const cached = _vehicleCache.get(fresh.id);
@@ -104,6 +106,17 @@ export function toVehicles(devices = [], positionsByDevice = {}) {
     }
     return fresh;
   });
+  // Reuse the previous array when every element is reference-identical, so a frame
+  // that changed nothing does not invalidate the downstream memo and contexts.
+  if (next.length === _lastVehicleList.length) {
+    let same = true;
+    for (let i = 0; i < next.length; i++) {
+      if (next[i] !== _lastVehicleList[i]) { same = false; break; }
+    }
+    if (same) return _lastVehicleList;
+  }
+  _lastVehicleList = next;
+  return _lastVehicleList;
 }
 
 function shallowEqualVehicle(a, b) {
