@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useWindowedTable } from "@/hooks/useWindowedTable";
 import {
   Calendar,
   Check,
@@ -388,6 +389,15 @@ export default function CombinedReportPage() {
         (r.address || "").toLowerCase().includes(needle),
     );
   }, [rows, q]);
+
+  // A month of events across a fleet is six figures of rows; window them against
+  // the app scroller instead of rendering and reconciling every one.
+  const tableTopRef = useRef<HTMLDivElement>(null);
+  const windowed = useWindowedTable({
+    count: filtered.length,
+    topRef: tableTopRef,
+    estimateRowHeight: 41,
+  });
 
   const handleShow = useCallback(() => {
     setShowTriggered((n) => n + 1);
@@ -913,6 +923,8 @@ export default function CombinedReportPage() {
               <EmptyState title={t("noEventsInRange")} />
             </div>
           ) : (
+            <>
+            <div ref={tableTopRef} className="h-0" />
             <Table>
               <TableHeader>
                 <TableRow>
@@ -922,7 +934,12 @@ export default function CombinedReportPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((row) => (
+                {windowed.topPad > 0 && (
+                  <tr aria-hidden="true" style={{ height: windowed.topPad }}>
+                    <td colSpan={3} />
+                  </tr>
+                )}
+                {filtered.slice(windowed.startIndex, windowed.endIndex).map((row) => (
                   <TableRow
                     key={row.id}
                     onClick={() => setSelectedEvent(row)}
@@ -950,8 +967,14 @@ export default function CombinedReportPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {windowed.bottomPad > 0 && (
+                  <tr aria-hidden="true" style={{ height: windowed.bottomPad }}>
+                    <td colSpan={3} />
+                  </tr>
+                )}
               </TableBody>
             </Table>
+            </>
           )}
         </CardContent>
       </Card>

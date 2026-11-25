@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useWindowedTable } from '@/hooks/useWindowedTable';
 import { Link } from 'react-router-dom';
 import {
   Download, Link2, Pencil, Plus, Search, Settings, Share2, Trash2, Upload,
@@ -105,6 +106,15 @@ export default function DevicesPage() {
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
+
+  // The desktop table is windowed against the app scroller; the mobile card list
+  // below is left whole because it holds one variant's rows only.
+  const tableTopRef = useRef<HTMLDivElement>(null);
+  const windowed = useWindowedTable({
+    count: isDesktop ? filtered.length : 0,
+    topRef: tableTopRef,
+    estimateRowHeight: 57,
+  });
 
   /* ── Fleet stats ── */
   const stats = useMemo(() => {
@@ -310,7 +320,12 @@ export default function DevicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {(isDesktop ? filtered : []).map((v) => {
+                {windowed.topPad > 0 && (
+                  <tr aria-hidden="true" style={{ height: windowed.topPad }}>
+                    <td colSpan={10} />
+                  </tr>
+                )}
+                {(isDesktop ? filtered.slice(windowed.startIndex, windowed.endIndex) : []).map((v) => {
                   const d = deviceMap[v.id];
                   const batt = d ? batteryLevel(d) : null;
                   const signal = d ? signalStrength(d) : null;
@@ -453,6 +468,11 @@ export default function DevicesPage() {
                     </tr>
                   );
                 })}
+                {windowed.bottomPad > 0 && (
+                  <tr aria-hidden="true" style={{ height: windowed.bottomPad }}>
+                    <td colSpan={10} />
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
