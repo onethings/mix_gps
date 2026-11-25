@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -13,6 +13,7 @@ import { supportsDailySummary } from '@/lib/serverVersion';
 import { createCarMarkerElement, updateCarMarkerElement } from '@/components/tracking/carMarkerSvg';
 import { reverseGeocode, lookupCached, subscribeGeocode, geocodeKey } from '@/lib/geocoder';
 import { wktToGeoJson } from '@/lib/geo';
+import { routeFitKey } from '@/lib/replayFit';
 import { cacheGet, cacheSet } from '@/lib/db';
 import { getReplayPrefs, setReplayPrefs, getReplayGlobalPrefs, setReplayGlobalPrefs } from '@/lib/preferences';
 import ReplaySidebar from '@/components/tracking/ReplaySidebar';
@@ -200,13 +201,17 @@ function DataPanel({ route, stops, cursor, deviceName, selectedDate, onSeek }: {
   const [tab, setTab] = useState<'route' | 'stops'>('route');
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const activeRowRef = useRef<HTMLTableRowElement | null>(null);
+  // The table renders one row per position (thousands). Deferring the cursor keeps
+  // playback responsive: React may skip intermediate highlight updates instead of
+  // rebuilding the whole body for every frame step.
+  const deferredCursor = useDeferredValue(cursor);
 
   // Auto-scroll to active row when cursor changes
   useEffect(() => {
     if (activeRowRef.current) {
       activeRowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [cursor]);
+  }, [deferredCursor]);
 
   const routeHeaders = ['#', 'Time', 'Speed (km/h)', 'Course (°)', 'Latitude', 'Longitude', 'Address'];
   const routeRows = useMemo(() =>
@@ -302,13 +307,13 @@ function DataPanel({ route, stops, cursor, deviceName, selectedDate, onSeek }: {
               {route.map((p, i) => {
                 const isStop = knotsToKmh(p.speed) === 0;
                 return (
-                  <tr key={i} ref={i === cursor ? activeRowRef : undefined}
+                  <tr key={i} ref={i === deferredCursor ? activeRowRef : undefined}
                     onClick={() => onSeek?.(i)}
                     className={cn(
                       'border-b border-border/40 transition-colors cursor-pointer',
-                      i === cursor ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : isStop ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'hover:bg-accent/40'
+                      i === deferredCursor ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : isStop ? 'bg-amber-50/60 dark:bg-amber-950/20' : 'hover:bg-accent/40'
                     )}>
-                    <td className={cn('px-2 py-1 font-mono text-[10px]', i === cursor ? 'text-primary font-bold' : 'text-muted-foreground')}>{i + 1}</td>
+                    <td className={cn('px-2 py-1 font-mono text-[10px]', i === deferredCursor ? 'text-primary font-bold' : 'text-muted-foreground')}>{i + 1}</td>
                     <td className="whitespace-nowrap px-2 py-1 font-mono text-[10px] text-foreground">{formatTime(p.fixTime || p.deviceTime)}</td>
                     <td className="px-2 py-1 font-mono text-[10px] tabular-nums text-foreground">{knotsToKmh(p.speed)}</td>
                     <td className="px-2 py-1 font-mono text-[10px] text-muted-foreground">{p.course != null ? `${Math.round(Number(p.course))}°` : '—'}</td>
@@ -423,6 +428,15 @@ export default function ReplayPage() {
   // Becomes true only after the initial fitBounds-to-whole-route animation settles (moveend).
   // Until then the marker-follow camera is suppressed so it can't cancel the fit.
   const fitSettledRef = useRef(false);
+  const fitKeyRef = useRef('');
+  // What is currently painted on the map, so address-label patches don't trigger a redraw.
+  const lastDrawRef = useRef<{ map: maplibregl.Map | null; key: string }>({ map: null, key: '' });
+  // The replay camera belongs to the user the moment they zoom or pan it. A route that
+  // arrives late (slow report, or a fresh geometry replacing the cached one) must not yank
+  // their zoom back to the whole-day view — see doFit(). Reset when the scope changes.
+  const fitScopeRef = useRef<string | null>(null);
+  const cameraOwnedByUserRef = useRef(false);
+  const autoFittingRef = useRef(false);
 
   const dateFromUrl = searchParams.get('date') || '';
 
@@ -654,18 +668,23 @@ export default function ReplayPage() {
         // Cache both route and stops in IndexedDB
         cacheSet('tracks', cacheKey, { route: finalRoute, stops: finalStops }, ROUTE_CACHE_TTL);
 
-        // Resolve missing addresses via geocoder (cached + Nominatim)
-        const allPts = [...routeArr, ...((stopRows as StopPoint[]) || [])];
+        // Resolve missing addresses via geocoder (cached + Nominatim).
+        // Only a handful of labels are actually shown (route start/end, stops, and the
+        // point under the paused cursor — see the reverse-geocode effect below). Asking
+        // Nominatim for every single position queued thousands of rate-limited lookups
+        // and every reply replaced the route array, which stuttered playback for minutes.
         let routeUpdated = false;
         let stopsUpdated = false;
-        const routeWithAddr = routeArr.map((p) => {
+        const routeWithAddr = routeArr.map((p, i) => {
           if (p.address) return p;
+          const isEndpoint = i === 0 || i === routeArr.length - 1;
           const lat = Number(p.latitude);
           const lng = Number(p.longitude);
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return p;
           const cached = lookupCached(lat, lng);
           if (cached) { routeUpdated = true; return { ...p, address: cached }; }
-          reverseGeocode(lat, lng).then((addr) => {
+          if (!isEndpoint) return p;
+          reverseGeocode(lat, lng, 2).then((addr) => {
             if (addr) {
               setRoute((prev) => prev.map((r) =>
                 Number(r.latitude) === lat && Number(r.longitude) === lng && !r.address
@@ -707,19 +726,33 @@ export default function ReplayPage() {
 
   const deviceName = useMemo(() => vehicles.find((v) => String(v.id) === String(deviceId))?.name || 'Device', [vehicles, deviceId]);
 
-  // Subscribe to geocode resolutions (real-time address updates)
+  // Subscribe to geocode resolutions (real-time address updates).
+  // Only replace state when a label actually matched, so an unrelated resolution can't
+  // hand the map/chart a fresh route array (and a redraw) for nothing.
   useEffect(() => {
     const unsub = subscribeGeocode((hash, address) => {
-      setRoute((prev) => prev.map((p) => {
-        if (p.address) return p;
-        const h = geocodeKey(Number(p.latitude), Number(p.longitude));
-        return h === hash ? { ...p, address } : p;
-      }));
-      setStops((prev) => prev.map((s) => {
-        if (s.address) return s;
-        const h = geocodeKey(Number(s.latitude), Number(s.longitude));
-        return h === hash ? { ...s, address } : s;
-      }));
+      setRoute((prev) => {
+        let changed = false;
+        const next = prev.map((p) => {
+          if (p.address) return p;
+          const h = geocodeKey(Number(p.latitude), Number(p.longitude));
+          if (h !== hash) return p;
+          changed = true;
+          return { ...p, address };
+        });
+        return changed ? next : prev;
+      });
+      setStops((prev) => {
+        let changed = false;
+        const next = prev.map((s) => {
+          if (s.address) return s;
+          const h = geocodeKey(Number(s.latitude), Number(s.longitude));
+          if (h !== hash) return s;
+          changed = true;
+          return { ...s, address };
+        });
+        return changed ? next : prev;
+      });
     });
     return unsub;
   }, []);
@@ -768,6 +801,15 @@ export default function ReplayPage() {
       doubleClickZoom: true,
     });
     mapRef.current = map;
+    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__replayMap = map;
+    // Any camera move that we did not perform ourselves (wheel, pinch, drag, the zoom
+    // buttons, keyboard) hands the camera to the user: no auto-fit may override it.
+    // Our own fitBounds is flagged because it fires zoomstart too.
+    const onUserCameraMove = () => {
+      if (!autoFittingRef.current) cameraOwnedByUserRef.current = true;
+    };
+    map.on('zoomstart', onUserCameraMove);
+    map.on('dragstart', onUserCameraMove);
     map.setPadding(mapPadForWidth(map.getContainer()));
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
     // Keep the safe-area padding in sync when the viewport crosses the mobile breakpoint
@@ -782,6 +824,8 @@ export default function ReplayPage() {
     return () => {
       window.removeEventListener('resize', onWindowResize);
       ro.disconnect();
+      map.off('zoomstart', onUserCameraMove);
+      map.off('dragstart', onUserCameraMove);
       stopMarkersRef.current.forEach((m) => m.remove());
       stopMarkersRef.current = [];
       startEndMarkersRef.current.forEach((m) => m.remove());
@@ -792,7 +836,7 @@ export default function ReplayPage() {
     };
   }, []);
 
-  function drawRoute(coordsArray: RoutePoint[]) {
+  function drawRoute(coordsArray: RoutePoint[], force = false) {
     const map = mapRef.current;
     if (!map) return;
     // Sanitise coordinates so the route line and the fitBounds bounding box are
@@ -800,6 +844,23 @@ export default function ReplayPage() {
     const coords: [number, number][] = coordsArray
       .map((p) => [Number(p.longitude), Number(p.latitude)] as [number, number])
       .filter(([lng, lat]) => Number.isFinite(lng) && Number.isFinite(lat) && !(lng === 0 && lat === 0));
+    // Rebuilding the source, both layers and every marker is the most expensive thing this
+    // page does with the map. Address labels stream in continuously and replace the route
+    // array without changing the geometry, so only redraw when the geometry (or the map
+    // instance, or the stop set) actually changed. `force` covers style reloads, where the
+    // layers are gone regardless of the key.
+    const drawKey = coords.length === 0
+      ? ''
+      : [
+          coords.length,
+          coords[0]![0], coords[0]![1],
+          coords[coords.length - 1]![0], coords[coords.length - 1]![1],
+          stops.length,
+          stops.length ? `${stops[0]!.latitude},${stops[0]!.longitude}` : '',
+          stops.length ? `${stops[stops.length - 1]!.latitude},${stops[stops.length - 1]!.longitude}` : '',
+        ].join('|');
+    if (!force && lastDrawRef.current.map === map && lastDrawRef.current.key === drawKey) return;
+    lastDrawRef.current = { map, key: drawKey };
     if (map.getLayer('route-line')) map.removeLayer('route-line');
     if (map.getLayer('route-arrows')) map.removeLayer('route-arrows');
     if (map.getSource('route')) map.removeSource('route');
@@ -925,7 +986,6 @@ export default function ReplayPage() {
     }
 
     const bounds = coords.reduce((b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0]!, coords[0]!));
-    const isMobile = window.innerWidth < 768;
     // Fit only once the map canvas actually has a size. When drawRoute runs right after
     // data load, the container may not be laid out yet (0×0 canvas) — fitBounds then fails
     // with "Map cannot fit within canvas" and the camera stays at the initial position.
@@ -953,19 +1013,44 @@ export default function ReplayPage() {
       };
       const prevPad = map.getPadding();
       map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
+      autoFittingRef.current = true;
       try {
         map.fitBounds(bounds, { padding: safe, duration: 0 });
       } finally {
+        autoFittingRef.current = false;
         map.setPadding(prevPad);
       }
       fitSettledRef.current = true;
-      // "Replay Today": playback starts only after the fit.
-      if (autoDateRef.current && !autoPlayRef.current) {
-        autoPlayRef.current = true;
-        setPlaying(true);
-      }
     };
-    doFit();
+    // "Replay Today": playback starts once the route is on the map, fitted or not.
+    if (autoDateRef.current && !autoPlayRef.current) {
+      autoPlayRef.current = true;
+      setPlaying(true);
+    }
+    // Address labels stream in after the points load, and every patch replaces the route
+    // array (see the reverseGeocode callbacks below), so this function runs again seconds
+    // after the route appeared. A slow report can also swap the cached geometry for the
+    // fetched one while the user is already looking around. Fit only for a new
+    // device+day geometry, and never over a camera the user has taken over.
+    const scope = `${deviceId}|${selectedDate}`;
+    // Only a real device/day switch takes the camera back from the user. The first geometry
+    // of a scope loads after mount, so it must not clear an ownership flag the user earned
+    // while the report was still in flight.
+    if (fitScopeRef.current !== null && scope !== fitScopeRef.current) {
+      cameraOwnedByUserRef.current = false;
+    }
+    fitScopeRef.current = scope;
+    const fitKey = routeFitKey(scope, coords);
+    if (fitKey !== fitKeyRef.current) {
+      fitKeyRef.current = fitKey;
+      if (cameraOwnedByUserRef.current) {
+        // User's camera wins. Still mark it settled, otherwise the marker-follow camera
+        // would stay suppressed for the rest of the day.
+        fitSettledRef.current = true;
+      } else {
+        doFit();
+      }
+    }
   }
 
   // Switch basemap
@@ -977,7 +1062,8 @@ export default function ReplayPage() {
     const prevRoute = route;
     const redraw = () => {
       addArrowImage(map);
-      if (prevRoute.length > 0 || stops.length > 0) drawRoute(prevRoute);
+      // setStyle drops every custom layer, so the draw key can't be trusted here.
+      if (prevRoute.length > 0 || stops.length > 0) drawRoute(prevRoute, true);
     };
     map.once('style.load', redraw);
     map.setStyle(resolveMapStyle(basemap));
@@ -1096,19 +1182,26 @@ export default function ReplayPage() {
     }
   }, [cursor, route]);
 
-  // Playback animation
+  // Playback animation.
+  // Each committed step re-renders the page, so commits are capped at ~30fps: at 8× the old
+  // 15ms step asked React for 66 renders/s, which is what made fast replay feel stuck. The
+  // step size follows the elapsed time instead of a fixed count, so the multiplier stays
+  // honest even when a frame comes in late.
   useEffect(() => {
     if (!playing) { cancelAnimationFrame(rafRef.current); return; }
     lastTsRef.current = 0;
+    const pointMs = 120 / speed;
+    const commitMs = Math.max(pointMs, 33);
     const tick = (ts: number) => {
       if (!lastTsRef.current) lastTsRef.current = ts;
-      const dt = ts - lastTsRef.current;
-      const stepMs = 120 / speed;
-      if (dt >= stepMs) {
+      const elapsed = ts - lastTsRef.current;
+      if (elapsed >= commitMs) {
         lastTsRef.current = ts;
+        const advance = Math.max(1, Math.round(elapsed / pointMs));
         setCursor((c) => {
-          if (c + 1 >= route.length) { setPlaying(false); return route.length - 1; }
-          return c + 1;
+          const next = c + advance;
+          if (next >= route.length - 1) { setPlaying(false); return route.length - 1; }
+          return next;
         });
       }
       rafRef.current = requestAnimationFrame(tick);
@@ -1116,7 +1209,6 @@ export default function ReplayPage() {
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [playing, speed, route.length]);
-
   const current = route[cursor] || null;
   const total = route.length;
   const sensorItems = useMemo(() => (current ? sensorItemsFor(current, t) : []), [current, t]);
@@ -1144,16 +1236,22 @@ export default function ReplayPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, cursor, current?.latitude, current?.longitude]);
 
-  const goPrevMonth = () => {
-    if (calMonth === 0) { setCalYear((y) => y - 1); setCalMonth(11); }
-    else setCalMonth((m) => m - 1);
+  // Stable identities: the sidebar is memoized, and a new callback per playback tick would
+  // re-render it (and its calendar) on every frame step.
+  const goPrevMonth = useCallback(() => {
+    setCalMonth((m) => {
+      if (m === 0) { setCalYear((y) => y - 1); return 11; }
+      return m - 1;
+    });
     setSelectedDate(null);
-  };
-  const goNextMonth = () => {
-    if (calMonth === 11) { setCalYear((y) => y + 1); setCalMonth(0); }
-    else setCalMonth((m) => m + 1);
+  }, []);
+  const goNextMonth = useCallback(() => {
+    setCalMonth((m) => {
+      if (m === 11) { setCalYear((y) => y + 1); return 0; }
+      return m + 1;
+    });
     setSelectedDate(null);
-  };
+  }, []);
 
   const handleDayClick = useCallback((day: number) => {
     const d = dayKey(calYear, calMonth, day);
@@ -1310,11 +1408,21 @@ export default function ReplayPage() {
             </Button>
           </div>
 
-          {/* Range slider */}
-          <input type="range" min={0} max={Math.max(0, total - 1)} value={cursor}
+          {/* Progress scrubber. The fill is driven by --replay-progress (see .replay-scrubber
+              in index.css): the UA track alone rendered as a 4px near-white hairline, i.e.
+              no visible progress bar. */}
+          <input
+            type="range"
+            min={0}
+            max={Math.max(0, total - 1)}
+            value={cursor}
             onChange={(e) => { setPlaying(false); setCursor(Number(e.target.value)); }}
             disabled={!total}
-            className="mt-2 h-2 w-full accent-primary md:mt-1 md:h-1 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-primary md:[&::-webkit-slider-thumb]:h-3 md:[&::-webkit-slider-thumb]:w-3 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-primary md:[&::-moz-range-thumb]:h-3 md:[&::-moz-range-thumb]:w-3" />
+            aria-label={t('replayProgress', 'Playback progress')}
+            aria-valuetext={total ? `${cursor + 1} / ${total}` : undefined}
+            className="replay-scrubber my-1 block w-full md:my-0.5"
+            style={{ '--replay-progress': `${total > 1 ? (cursor / (total - 1)) * 100 : 0}%` } as CSSProperties}
+          />
 
           {/* Mobile current point info — time / speed / sensors + street name (packed, no wrap/clip) */}
           {current && (

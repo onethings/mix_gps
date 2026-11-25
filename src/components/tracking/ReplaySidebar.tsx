@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { cn, formatDate, formatDistance, formatDuration } from '@/lib/utils';
 import { useT } from '@/lib/i18n';
@@ -31,7 +31,7 @@ interface ReplaySidebarProps {
   onSearchChange?: (q: string) => void;
 }
 
-export default function ReplaySidebar({
+function ReplaySidebar({
   vehicles,
   deviceId,
   onDeviceChange,
@@ -250,3 +250,6 @@ export default function ReplaySidebar({
     </div>
   );
 }
+
+// The replay page re-renders on every playback tick; the sidebar only depends on its own props.
+export default memo(ReplaySidebar);

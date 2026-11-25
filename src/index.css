@@ -98,6 +98,78 @@
   }
 }
 
+/* ── Replay scrubber ──
+   The native range track rendered as a ~4px near-white hairline on the card background,
+   so the progress bar looked missing. Draw an explicit track with a filled progress
+   portion: `--replay-progress` is set inline from the cursor position. */
+.replay-scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px; /* tall enough that the thumb is never clipped */
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.replay-scrubber:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.replay-scrubber::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background:
+    linear-gradient(
+      to right,
+      hsl(var(--primary)) 0,
+      hsl(var(--primary)) var(--replay-progress, 0%),
+      hsl(var(--muted)) var(--replay-progress, 0%),
+      hsl(var(--muted)) 100%
+    );
+}
+.replay-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px; /* centre the 18px thumb on the 8px track */
+  border-radius: 999px;
+  border: 3px solid hsl(var(--card));
+  background: hsl(var(--primary));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  transition: transform 120ms ease;
+}
+.replay-scrubber:hover::-webkit-slider-thumb,
+.replay-scrubber:active::-webkit-slider-thumb {
+  transform: scale(1.1);
+}
+/* Firefox paints the fill itself, so it only needs matching geometry. */
+.replay-scrubber::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted));
+}
+.replay-scrubber::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+}
+.replay-scrubber::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: 3px solid hsl(var(--card));
+  background: hsl(var(--primary));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+.replay-scrubber:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
 /* ── MapLibre Popup overrides ── */
 /*
 .maplibregl-popup-content {

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useT } from '@/lib/i18n';
 
 interface RoutePoint {
@@ -19,6 +19,12 @@ interface ReplayBottomPanelProps {
   cursor: number;
 }
 
+// Plot geometry shared by the static chart and the cursor overlay, in CSS pixels.
+const PAD = { top: 16, right: 12, bottom: 20, left: 36 };
+// Upper bound on plotted points: a day of 1 Hz positions is far wider than the canvas,
+// so buckets of min/max keep the shape and the peaks while the path stays cheap to draw.
+const MAX_PLOT_POINTS = 900;
+
 function knotsToKmh(k: unknown) { return Math.round((Number(k) || 0) * 1.852); }
 
 function formatTime(isoStr: string | undefined | null) {
@@ -37,218 +43,351 @@ function formatDurationSec(seconds: number) {
   return `${mins}m`;
 }
 
-export default function ReplayBottomPanel({ route, deviceName, selectedDate, cursor }: ReplayBottomPanelProps) {
-  const { t } = useT();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+// Route geometry identity. Address labels stream in from the geocoder and replace the
+// route array every time, so keying the expensive series/chart work on the array identity
+// redraws the whole chart for a label change.
+function geometryKey(route: RoutePoint[]): string {
+  if (route.length === 0) return '';
+  const first = route[0]!;
+  const last = route[route.length - 1]!;
+  return [route.length, first.fixTime || first.deviceTime || '', last.fixTime || last.deviceTime || ''].join('|');
+}
 
-  // Compute stats
-  const stats = useMemo(() => {
-    if (route.length === 0) return null;
-    const speeds = route.map((p) => Number(p.speed) || 0);
-    const maxSpeed = knotsToKmh(Math.max(...speeds));
-    const avgSpeed = knotsToKmh(speeds.reduce((a, b) => a + b, 0) / speeds.length);
-    const firstTime = route[0]?.fixTime || route[0]?.deviceTime;
-    const lastTime = route[route.length - 1]?.fixTime || route[route.length - 1]?.deviceTime;
-    const durationSec = firstTime && lastTime
-      ? (new Date(lastTime).getTime() - new Date(firstTime).getTime()) / 1000
-      : 0;
-    const idleTime = speeds.filter((s) => s === 0).length * (durationSec / speeds.length);
-    const drivingTime = durationSec - idleTime;
-    const firstAddr = route[0]?.address;
-    const lastAddr = route[route.length - 1]?.address;
-    const totalDist = route.length > 1
-      ? route.reduce((sum, p, i) => {
-          if (i === 0) return 0;
-          const prev = route[i - 1]!;
-          const R = 6371;
-          const dLat = ((Number(p.latitude) - Number(prev.latitude)) * Math.PI) / 180;
-          const dLon = ((Number(p.longitude) - Number(prev.longitude)) * Math.PI) / 180;
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos((Number(prev.latitude) * Math.PI) / 180) *
-              Math.cos((Number(p.latitude) * Math.PI) / 180) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          return sum + R * c;
-        }, 0)
-      : 0;
+interface Series {
+  speeds: number[];
+  altitudes: number[];
+  maxVal: number;
+  distanceKm: number;
+  durationSec: number;
+  idleSec: number;
+  maxSpeedKmh: number;
+  avgSpeedKmh: number;
+  hasAltitude: boolean;
+  /** Downsampled plot points: index into the original route + value, per series. */
+  speedPlot: Array<[number, number]>;
+  altPlot: Array<[number, number]>;
+  times: string[];
+}
 
-    return { maxSpeed, avgSpeed, durationSec, drivingTime, idleTime, totalDist, firstAddr, lastAddr };
-  }, [route]);
+function buildSeries(route: RoutePoint[]): Series | null {
+  const n = route.length;
+  if (n === 0) return null;
 
-  // Draw speed chart on canvas
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || route.length === 0) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const speeds = new Array<number>(n);
+  const altitudes = new Array<number>(n);
+  const times = new Array<string>(n);
+  let maxSpeed = 0;
+  let sumSpeed = 0;
+  let zeroSpeedCount = 0;
+  let maxAlt = 0;
+  let hasAltitude = false;
+  let distanceKm = 0;
 
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-    const w = rect.width;
-    const h = rect.height;
-
-    // Clear
-    ctx.clearRect(0, 0, w, h);
-
-    const padding = { top: 16, right: 12, bottom: 20, left: 36 };
-    const plotW = w - padding.left - padding.right;
-    const plotH = h - padding.top - padding.bottom;
-
-    const speeds = route.map((p) => knotsToKmh(p.speed));
-    const altitudes = route.map((p) => Number(p.altitude) || 0);
-    const maxVal = Math.max(Math.max(...speeds), Math.max(...altitudes), 10);
-
-    // Grid lines
-    ctx.strokeStyle = 'rgba(156,163,175,0.2)';
-    ctx.lineWidth = 1;
-    const gridLines = 4;
-    for (let i = 0; i <= gridLines; i++) {
-      const y = padding.top + (plotH / gridLines) * i;
-      ctx.beginPath();
-      ctx.moveTo(padding.left, y);
-      ctx.lineTo(w - padding.right, y);
-      ctx.stroke();
-      // Y label
-      ctx.fillStyle = 'rgba(156,163,175,0.6)';
-      ctx.font = '9px monospace';
-      ctx.textAlign = 'right';
-      ctx.fillText(String(Math.round(maxVal - (maxVal / gridLines) * i)), padding.left - 4, y + 3);
+  for (let i = 0; i < n; i++) {
+    const p = route[i]!;
+    const s = knotsToKmh(p.speed);
+    speeds[i] = s;
+    if (s > maxSpeed) maxSpeed = s;
+    sumSpeed += s;
+    if (s === 0) zeroSpeedCount++;
+    const alt = Number(p.altitude) || 0;
+    altitudes[i] = alt;
+    if (alt > 0) hasAltitude = true;
+    if (alt > maxAlt) maxAlt = alt;
+    times[i] = p.fixTime || p.deviceTime || '';
+    if (i > 0) {
+      const prev = route[i - 1]!;
+      const R = 6371;
+      const dLat = ((Number(p.latitude) - Number(prev.latitude)) * Math.PI) / 180;
+      const dLon = ((Number(p.longitude) - Number(prev.longitude)) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((Number(prev.latitude) * Math.PI) / 180) *
+          Math.cos((Number(p.latitude) * Math.PI) / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      distanceKm += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
+  }
 
-    // Speed line (blue)
-    ctx.strokeStyle = '#3b82f6';
-    ctx.lineWidth = 1.5;
+  const firstTime = times[0];
+  const lastTime = times[n - 1];
+  const durationSec = firstTime && lastTime
+    ? Math.max(0, (new Date(lastTime).getTime() - new Date(firstTime).getTime()) / 1000)
+    : 0;
+
+  const bucket = Math.max(1, Math.ceil(n / MAX_PLOT_POINTS));
+  const speedPlot: Array<[number, number]> = [];
+  const altPlot: Array<[number, number]> = [];
+  if (bucket === 1) {
+    for (let i = 0; i < n; i++) {
+      speedPlot.push([i, speeds[i]!]);
+      altPlot.push([i, altitudes[i]!]);
+    }
+  } else {
+    for (let start = 0; start < n; start += bucket) {
+      const end = Math.min(n, start + bucket);
+      let minS = Infinity, maxS = -Infinity, minI = start, maxI = start;
+      let minA = Infinity, maxA = -Infinity, minAI = start, maxAI = start;
+      for (let i = start; i < end; i++) {
+        const s = speeds[i]!;
+        if (s < minS) { minS = s; minI = i; }
+        if (s > maxS) { maxS = s; maxI = i; }
+        const a = altitudes[i]!;
+        if (a < minA) { minA = a; minAI = i; }
+        if (a > maxA) { maxA = a; maxAI = i; }
+      }
+      // Keep the extremes in time order so the line follows the real shape.
+      if (minI <= maxI) { speedPlot.push([minI, minS]); speedPlot.push([maxI, maxS]); }
+      else { speedPlot.push([maxI, maxS]); speedPlot.push([minI, minS]); }
+      if (minAI <= maxAI) { altPlot.push([minAI, minA]); altPlot.push([maxAI, maxA]); }
+      else { altPlot.push([maxAI, maxA]); altPlot.push([minAI, minA]); }
+    }
+  }
+
+  return {
+    speeds,
+    altitudes,
+    maxVal: Math.max(maxSpeed, maxAlt, 10),
+    distanceKm,
+    durationSec,
+    idleSec: n > 0 ? zeroSpeedCount * (durationSec / n) : 0,
+    maxSpeedKmh: maxSpeed,
+    avgSpeedKmh: Math.round(sumSpeed / n),
+    hasAltitude,
+    speedPlot,
+    altPlot,
+    times,
+  };
+}
+
+function sizeCanvas(canvas: HTMLCanvasElement, w: number, h: number): CanvasRenderingContext2D | null {
+  const dpr = window.devicePixelRatio || 1;
+  const bw = Math.round(w * dpr);
+  const bh = Math.round(h * dpr);
+  if (canvas.width !== bw) canvas.width = bw;
+  if (canvas.height !== bh) canvas.height = bh;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return ctx;
+}
+
+function drawStaticChart(canvas: HTMLCanvasElement, w: number, h: number, s: Series, t: (k: string, f?: string) => string) {
+  const ctx = sizeCanvas(canvas, w, h);
+  if (!ctx) return;
+  const plotW = w - PAD.left - PAD.right;
+  const plotH = h - PAD.top - PAD.bottom;
+  if (plotW <= 0 || plotH <= 0) return;
+  const n = s.speeds.length;
+  const xAt = (i: number) => PAD.left + (i / Math.max(n - 1, 1)) * plotW;
+  const yAt = (v: number) => PAD.top + plotH - (v / s.maxVal) * plotH;
+
+  // Grid + Y labels
+  ctx.strokeStyle = 'rgba(156,163,175,0.2)';
+  ctx.lineWidth = 1;
+  const gridLines = 4;
+  ctx.font = '9px monospace';
+  for (let i = 0; i <= gridLines; i++) {
+    const y = PAD.top + (plotH / gridLines) * i;
     ctx.beginPath();
-    speeds.forEach((s, i) => {
-      const x = padding.left + (i / Math.max(speeds.length - 1, 1)) * plotW;
-      const y = padding.top + plotH - (s / maxVal) * plotH;
-      if (i === 0) ctx.moveTo(x, y);
+    ctx.moveTo(PAD.left, y);
+    ctx.lineTo(w - PAD.right, y);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(156,163,175,0.6)';
+    ctx.textAlign = 'right';
+    ctx.fillText(String(Math.round(s.maxVal - (s.maxVal / gridLines) * i)), PAD.left - 4, y + 3);
+  }
+
+  // Speed line + fill
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  s.speedPlot.forEach(([i, v], k) => {
+    const x = xAt(i);
+    const y = yAt(v);
+    if (k === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  ctx.lineTo(PAD.left + plotW, PAD.top + plotH);
+  ctx.lineTo(PAD.left, PAD.top + plotH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(59,130,246,0.08)';
+  ctx.fill();
+
+  // Altitude line
+  if (s.hasAltitude) {
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    s.altPlot.forEach(([i, v], k) => {
+      const x = xAt(i);
+      const y = yAt(v);
+      if (k === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     });
     ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
-    // Fill under speed line
-    ctx.lineTo(padding.left + plotW, padding.top + plotH);
-    ctx.lineTo(padding.left, padding.top + plotH);
-    ctx.closePath();
-    ctx.fillStyle = 'rgba(59,130,246,0.08)';
-    ctx.fill();
+  // X axis time labels
+  ctx.fillStyle = 'rgba(156,163,175,0.6)';
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'center';
+  const labelCount = Math.min(6, n);
+  const step = Math.max(1, Math.floor(n / labelCount));
+  for (let i = 0; i < n; i += step) {
+    ctx.fillText(formatTime(s.times[i]), xAt(i), h - 4);
+  }
 
-    // Altitude line (green, dashed)
-    if (altitudes.some((a) => a > 0)) {
-      ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-      ctx.beginPath();
-      altitudes.forEach((a, i) => {
-        const x = padding.left + (i / Math.max(altitudes.length - 1, 1)) * plotW;
-        const y = padding.top + plotH - (a / maxVal) * plotH;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // Cursor line
-    if (cursor >= 0 && cursor < route.length) {
-      const cx = padding.left + (cursor / Math.max(route.length - 1, 1)) * plotW;
-      ctx.strokeStyle = 'rgba(239,68,68,0.5)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(cx, padding.top);
-      ctx.lineTo(cx, padding.top + plotH);
-      ctx.stroke();
-    }
-
-    // X-axis labels (time)
-    ctx.fillStyle = 'rgba(156,163,175,0.6)';
-    ctx.font = '8px monospace';
-    ctx.textAlign = 'center';
-    const labelCount = Math.min(6, route.length);
-    const step = Math.max(1, Math.floor(route.length / labelCount));
-    for (let i = 0; i < route.length; i += step) {
-      const x = padding.left + (i / Math.max(route.length - 1, 1)) * plotW;
-      const time = formatTime(route[i]?.fixTime || route[i]?.deviceTime);
-      ctx.fillText(time, x, h - 4);
-    }
-
-    // Legend
-    ctx.font = '9px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#3b82f6';
-    ctx.fillRect(padding.left, padding.top - 12, 8, 8);
+  // Legend
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillRect(PAD.left, PAD.top - 12, 8, 8);
+  ctx.fillStyle = 'rgba(156,163,175,0.8)';
+  ctx.fillText(t('replaySpeedKmh', 'Speed (km/h)'), PAD.left + 12, PAD.top - 4);
+  if (s.hasAltitude) {
+    ctx.fillStyle = '#10b981';
+    ctx.fillRect(PAD.left + 90, PAD.top - 12, 8, 8);
     ctx.fillStyle = 'rgba(156,163,175,0.8)';
-    ctx.fillText(t('replaySpeedKmh'), padding.left + 12, padding.top - 4);
-    if (altitudes.some((a) => a > 0)) {
-      ctx.fillStyle = '#10b981';
-      ctx.fillRect(padding.left + 90, padding.top - 12, 8, 8);
-      ctx.fillStyle = 'rgba(156,163,175,0.8)';
-      ctx.fillText(t('replayAltitudeM'), padding.left + 102, padding.top - 4);
-    }
-  }, [route, cursor, t]);
+    ctx.fillText(t('replayAltitudeM', 'Altitude (m)'), PAD.left + 102, PAD.top - 4);
+  }
+}
 
-  if (route.length === 0) return null;
+function drawCursor(canvas: HTMLCanvasElement, w: number, h: number, s: Series, cursor: number) {
+  const ctx = sizeCanvas(canvas, w, h);
+  if (!ctx) return;
+  const plotW = w - PAD.left - PAD.right;
+  const plotH = h - PAD.top - PAD.bottom;
+  if (plotW <= 0 || plotH <= 0) return;
+  const n = s.speeds.length;
+  if (cursor < 0 || cursor >= n) return;
+  const x = PAD.left + (cursor / Math.max(n - 1, 1)) * plotW;
+
+  ctx.strokeStyle = 'rgba(239,68,68,0.55)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, PAD.top);
+  ctx.lineTo(x, PAD.top + plotH);
+  ctx.stroke();
+
+  const v = s.speeds[cursor] ?? 0;
+  const y = PAD.top + plotH - (v / s.maxVal) * plotH;
+  ctx.beginPath();
+  ctx.arc(x, y, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#ef4444';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function ReplayBottomPanel({ route, deviceName, selectedDate, cursor }: ReplayBottomPanelProps) {
+  const { t } = useT();
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const staticRef = useRef<HTMLCanvasElement>(null);
+  const cursorRef = useRef<HTMLCanvasElement>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+
+  // Chart box size, observed instead of measured on every draw. Measured on the static
+  // canvas so both layers share one geometry (the overlay mirrors the same padding).
+  useEffect(() => {
+    const canvas = staticRef.current;
+    if (!canvas) return;
+    const measure = () => {
+      const r = canvas.getBoundingClientRect();
+      setSize((prev) => (Math.abs(prev.w - r.width) < 1 && Math.abs(prev.h - r.height) < 1 ? prev : { w: r.width, h: r.height }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, []);
+
+  // Keyed on geometry, not on the route array: address labels replace the array.
+  const key = geometryKey(route);
+  const series = useMemo(() => buildSeries(route), [key]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Static layer: grid, speed/altitude lines, labels. Redrawn only when the data or size changes.
+  useEffect(() => {
+    const canvas = staticRef.current;
+    if (!canvas || !series || !size.w || !size.h) return;
+    drawStaticChart(canvas, size.w, size.h, series, t);
+  }, [series, size, t]);
+
+  // Cursor layer: one line + one dot per playback tick, on its own canvas so a tick
+  // never repaints the series.
+  useEffect(() => {
+    const canvas = cursorRef.current;
+    if (!canvas || !series || !size.w || !size.h) return;
+    drawCursor(canvas, size.w, size.h, series, cursor);
+  }, [series, size, cursor]);
+
+  if (route.length === 0 || !series) return null;
+
+  const firstAddr = route[0]?.address;
+  const lastAddr = route[route.length - 1]?.address;
 
   return (
     <div className="flex h-full flex-col bg-card">
       {/* Chart header */}
       <div className="flex items-center justify-between border-b border-border bg-muted/20 px-4 py-1.5">
-        <span className="text-xs font-semibold text-foreground">{t('replayChartTitle')}</span>
+        <span className="text-xs font-semibold text-foreground">{t('replayChartTitle', 'Replay chart')}</span>
         <span className="text-[10px] text-muted-foreground">{deviceName} · {selectedDate}</span>
       </div>
 
-      {/* Chart canvas */}
-      <div className="flex-1 min-h-0 px-2 py-1">
-        <canvas ref={canvasRef} className="h-full w-full" style={{ display: 'block' }} />
+      {/* Chart canvases: static series + cursor overlay */}
+      <div ref={wrapRef} className="relative min-h-0 flex-1 px-2 py-1">
+        <canvas ref={staticRef} className="block h-full w-full" />
+        <canvas ref={cursorRef} className="pointer-events-none absolute inset-0 block h-full w-full px-2 py-1" />
       </div>
 
       {/* Stats row */}
-      {stats && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border bg-muted/15 px-4 py-2 text-[10px] text-muted-foreground">
-          <span className="text-xs font-semibold text-foreground">{deviceName}</span>
-          <span className="text-muted-foreground/30">|</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border bg-muted/15 px-4 py-2 text-[10px] text-muted-foreground">
+        <span className="text-xs font-semibold text-foreground">{deviceName}</span>
+        <span className="text-muted-foreground/30">|</span>
+        <span>
+          {t('maxSpeed', 'Max speed')}:{' '}
+          <span className="font-semibold text-foreground tabular-nums">{series.maxSpeedKmh} {t('kmh', 'km/h')}</span>
+        </span>
+        <span>
+          {t('avgSpeed', 'Avg speed')}:{' '}
+          <span className="font-semibold text-foreground tabular-nums">{series.avgSpeedKmh} {t('kmh', 'km/h')}</span>
+        </span>
+        <span>
+          {t('distance', 'Distance')}:{' '}
+          <span className="font-semibold text-foreground tabular-nums">{series.distanceKm.toFixed(1)} {t('unitKm', 'km')}</span>
+        </span>
+        <span className="text-muted-foreground/30">|</span>
+        <span>
+          {t('driving', 'Driving')}:{' '}
+          <span className="font-semibold text-foreground tabular-nums">{formatDurationSec(Math.max(0, series.durationSec - series.idleSec))}</span>
+        </span>
+        {series.idleSec > 0 && (
           <span>
-            {t('maxSpeed')}:{' '}
-            <span className="font-semibold text-foreground tabular-nums">{stats.maxSpeed} {t('kmh')}</span>
+            {t('idle', 'Idle')}:{' '}
+            <span className="font-semibold text-foreground tabular-nums">{formatDurationSec(series.idleSec)}</span>
           </span>
-          <span>
-            {t('avgSpeed')}:{' '}
-            <span className="font-semibold text-foreground tabular-nums">{stats.avgSpeed} {t('kmh')}</span>
-          </span>
-          <span>
-            {t('distance')}:{' '}
-            <span className="font-semibold text-foreground tabular-nums">{stats.totalDist.toFixed(1)} {t('unitKm')}</span>
-          </span>
-          <span className="text-muted-foreground/30">|</span>
-          <span>
-            {t('driving')}:{' '}
-            <span className="font-semibold text-foreground tabular-nums">{formatDurationSec(stats.drivingTime)}</span>
-          </span>
-          {stats.idleTime > 0 && (
-            <span>
-              {t('idle')}:{' '}
-              <span className="font-semibold text-foreground tabular-nums">{formatDurationSec(stats.idleTime)}</span>
-            </span>
-          )}
-          <span>
-            {t('total')}:{' '}
-            <span className="font-semibold text-foreground tabular-nums">{formatDurationSec(stats.durationSec)}</span>
-          </span>
-          <span className="text-muted-foreground/30">|</span>
-          <span className="truncate max-w-[200px]" title={stats.firstAddr}>
-            {t('from')}: <span className="text-foreground">{stats.firstAddr || '—'}</span>
-          </span>
-          <span>→</span>
-          <span className="truncate max-w-[200px]" title={stats.lastAddr}>
-            {t('to')}: <span className="text-foreground">{stats.lastAddr || '—'}</span>
-          </span>
-        </div>
-      )}
+        )}
+        <span>
+          {t('total', 'Total')}:{' '}
+          <span className="font-semibold text-foreground tabular-nums">{formatDurationSec(series.durationSec)}</span>
+        </span>
+        <span className="text-muted-foreground/30">|</span>
+        <span className="truncate max-w-[200px]" title={firstAddr}>
+          {t('from', 'From')}: <span className="text-foreground">{firstAddr || '—'}</span>
+        </span>
+        <span>→</span>
+        <span className="truncate max-w-[200px]" title={lastAddr}>
+          {t('to', 'To')}: <span className="text-foreground">{lastAddr || '—'}</span>
+        </span>
+      </div>
     </div>
   );
 }
+
+// The page re-renders on every playback tick; memo keeps that to the cursor-dependent work.
+export default memo(ReplayBottomPanel);
