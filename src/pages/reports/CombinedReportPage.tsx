@@ -256,13 +256,17 @@ interface CombinedRow {
 export default function CombinedReportPage() {
   const { t } = useT();
   const { devices } = useLiveData();
+  // Keyed on id:name pairs so a socket device frame that changes nothing else does
+  // not hand the fetch effect a new object identity (which refetched the report).
+  const devicesKey = devices.map((d) => `${d.id}:${d.name}`).join("|");
   const nameByDeviceId = useMemo(() => {
     const m: Record<number, string> = {};
     devices.forEach((d) => {
       m[d.id] = d.name;
     });
     return m;
-  }, [devices]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [devicesKey]);
 
   // Filters (shared via context)
   const {
@@ -297,16 +301,20 @@ export default function CombinedReportPage() {
   }, [period, customFrom, customTo]);
 
   // Fetch — only when showTriggered changes
+  // Snapshot of the default id list; read only when Show is triggered so a live
+  // device frame cannot invalidate an already-fetched report.
+  const defaultIdsRef = useRef<number[]>([]);
+  defaultIdsRef.current = devices.map((d) => d.id);
   const fetchKey = useMemo(() => {
     if (showTriggered === 0) return "";
     const ids =
       selectedDeviceIds.length === 0
-        ? devices.map((d) => d.id)
+        ? defaultIdsRef.current
         : selectedDeviceIds[0] === -1
           ? []
           : selectedDeviceIds;
     return `${dateRange.fromIso}|${dateRange.toIso}|${ids.join(",")}|${showTriggered}`;
-  }, [showTriggered, dateRange, selectedDeviceIds, devices]);
+  }, [showTriggered, dateRange, selectedDeviceIds]);
 
   useEffect(() => {
     if (!fetchKey) return;
@@ -442,12 +450,14 @@ export default function CombinedReportPage() {
           }
         }
 
-        // Event markers — try positionId match first, then use event lat/lon if available
+        // Event markers — try positionId match first, then use event lat/lon if available.
+        // Index the pool once instead of scanning it per event (was O(events x positions)).
+        const posById = new Map(posPool.map((p: any) => [p.id, p]));
         (group.events || []).forEach((ev: any) => {
           let lat = ev.latitude;
           let lon = ev.longitude;
           if (!isValidCoord(lon, lat)) {
-            const pos = posPool.find((p: any) => p.id === ev.positionId);
+            const pos = posById.get(ev.positionId);
             if (pos) {
               lat = pos.latitude;
               lon = pos.longitude;

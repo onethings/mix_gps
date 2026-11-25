@@ -4,6 +4,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { visualizer } from "rollup-plugin-visualizer";
 import path from "path";
+import { readdirSync } from "fs";
 
 const DEFAULT_TRACCAR_URL = "https://demo3.traccar.org"; //demo3.traccar.org
 
@@ -14,6 +15,12 @@ export default defineConfig(({ mode }) => {
   const baseRaw = env.VITE_BASE_PATH && String(env.VITE_BASE_PATH).trim();
   const base = baseRaw ? `${baseRaw.replace(/\/$/, "")}/` : "/";
 
+  // 106 language chunks (~1.4 MB) were all precached on first visit although a
+  // session only ever loads one. They are served CacheFirst by the /assets/ rule.
+  const languageGlobs = readdirSync(path.resolve(__dirname, "src/language"))
+    .filter((f) => f.endsWith(".js") && f !== "index.js")
+    .map((f) => `**/${f.replace(/\.js$/, "")}-*.js`);
+
   const plugins: PluginOption[] = [
     react(),
     VitePWA({
@@ -22,7 +29,15 @@ export default defineConfig(({ mode }) => {
       includeAssets: ["favicon.svg", "icons/*.svg", "custom/*.{webp,png}"],
       workbox: {
         globPatterns: ["**/*.{js,css,html,png,webp}"],
-        globIgnores: ["**/sprite.svg"], // sprite is runtime-cached separately
+        globIgnores: [
+          "**/sprite.svg", // sprite is runtime-cached separately
+          ...languageGlobs,
+          // Heavy optional features; cached on first use by the /assets/ rule.
+          "**/exceljs.min-*.js",
+          "**/jspdf*.js",
+          "**/html2canvas*.js",
+          "**/StreamPage-*.js",
+        ],
         runtimeCaching: [
           {
             urlPattern: /^\/api\//,
@@ -38,6 +53,15 @@ export default defineConfig(({ mode }) => {
             options: {
               cacheName: "kevin-gps-markers",
               expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            // Anything dropped from the precache above still works offline once used.
+            urlPattern: /\/assets\/.*\.js$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "kevin-gps-assets",
+              expiration: { maxEntries: 150, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },
         ],
@@ -104,7 +128,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            "vendor-react": ["react", "react-dom", "react-router-dom"],
+            "vendor-react": ["react", "react-dom", "react-dom/client", "react-router-dom"],
             "vendor-maplibre": ["maplibre-gl"],
             "vendor-ui": [
               "@radix-ui/react-dialog",

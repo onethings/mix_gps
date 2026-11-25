@@ -1,14 +1,18 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Crosshair, Shield, ShieldOff, Ruler, Route } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { I18nContext } from '@/lib/i18n';
 import { useLiveData } from '@/context/LiveDataContext';
 import { useMapContext } from '@/context/MapContext';
-import FleetMapLibre from '@/components/tracking/FleetMapLibre';
+// Lazy: maplibre-gl is ~1 MB and was a static dependency of the entry, so every
+// visitor (including the login screen) parsed it before first paint.
+const FleetMapLibre = lazy(() => import('@/components/tracking/FleetMapLibre'));
 import MapStyleMenu from '@/components/map/MapStyleMenu';
 import { getLiveTrackingPrefs, setLiveTrackingPrefs } from '@/lib/preferences';
-import type { TraccarGeofence } from '@/types';
+import type { TraccarGeofence, Vehicle } from '@/types';
+
+const EMPTY_VEHICLES: Vehicle[] = [];
 
 function validLatLng(lat: number | null | undefined, lng: number | null | undefined): boolean {
   if (lat == null || lng == null) return false;
@@ -128,12 +132,19 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
     });
   }, []);
 
+  // Stable ref callback: an inline arrow made React detach and reattach the
+  // imperative handle on every render.
+  const setMapHandle = useCallback((handle: any) => {
+    mapHandleRef.current = handle;
+  }, []);
+
   return (
     <div className="absolute inset-0">
+      <Suspense fallback={null}>
       <FleetMapLibre
-        ref={(handle) => { mapHandleRef.current = handle; }}
+        ref={setMapHandle}
         // Only render markers on tracking page to avoid clutter on replay/settings/etc.
-        vehicles={showControls ? vehicles : []}
+        vehicles={showControls ? vehicles : EMPTY_VEHICLES}
         selectedId={showControls ? selectedVehicleId : null}
         onSelectVehicle={handleSelect}
         showControls
@@ -153,6 +164,7 @@ export default function GlobalMapLayer({ showControls = false }: GlobalMapLayerP
         onPopupDismissedChange={handlePopupDismissedChange}
         className="absolute inset-0"
       />
+      </Suspense>
 
       {/* Map Controls (top-left) — grouped bar — only on tracking page */}
       {/* top-14 positions controls below the Topbar (h-14) on desktop; top-2 on mobile when Topbar is hidden */}

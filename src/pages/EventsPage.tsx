@@ -39,7 +39,7 @@ export default function EventsPage() {
   const { vehicles } = useLiveData();
   const [search, setSearch] = useState('');
 
-  const events = allEvents || [];
+  const events = useMemo(() => allEvents || [], [allEvents]);
 
   // Resolve device ID → vehicle name (plate)
   const vehicleLabel = useMemo(() => {
@@ -49,12 +49,13 @@ export default function EventsPage() {
     });
     return (deviceId) => map[deviceId] || null;
   }, [vehicles]);
-  const filtered = search
-    ? events.filter((e) => {
-        const q = search.toLowerCase();
-        return e.type?.toLowerCase().includes(q) || String(e.deviceId || '').includes(q);
-      })
-    : events;
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return events;
+    return events.filter(
+      (e) => e.type?.toLowerCase().includes(q) || String(e.deviceId || '').includes(q),
+    );
+  }, [events, search]);
 
   if (loading) return <LoadingScreen />;
 

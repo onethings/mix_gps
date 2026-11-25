@@ -168,6 +168,7 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(
     const markersRef = useRef<Map<number, maplibregl.Marker>>(new Map());
     const popupRef = useRef<maplibregl.Popup | null>(null);
     const popupDismissedRef = useRef(false);
+    const accuracySigRef = useRef("");
     const vehiclesRef = useRef(vehicles);
     vehiclesRef.current = vehicles;
     const selectedIdRef = useRef(selectedId);
@@ -876,16 +877,6 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(
         } as any);
       }
 
-      // Build circles for vehicles with accuracy > 0
-      const features = vehicles
-        .filter((v) => v.lat != null && v.lng != null && (v.accuracy ?? 0) > 0)
-        .map((v) => circleToGeoJson([v.lng!, v.lat!], v.accuracy! * 0.5, 24));
-
-      (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({
-        type: "FeatureCollection",
-        features,
-      });
-
       return () => {
         try {
           if (map.getLayer(id)) map.removeLayer(id);
@@ -894,6 +885,28 @@ const FleetMapLibre = forwardRef<FleetMapLibreHandle, FleetMapLibreProps>(
           /* ignore if map already destroyed */
         }
       };
+    }, [mapReady, styleKey]);
+
+    /* ── Accuracy circle data — swapped in place, never rebuilt per flush ── */
+    useEffect(() => {
+      const map = mapRef.current;
+      if (!map || !mapReady) return;
+      const srcId = "accuracy-src";
+      const active = vehicles.filter(
+        (v) => v.lat != null && v.lng != null && (v.accuracy ?? 0) > 0,
+      );
+      // Cheap signature first: skip the ring rebuild when accuracy is unchanged.
+      let sig = String(active.length);
+      for (const v of active) sig += `|${v.id}:${v.lat}:${v.lng}:${v.accuracy}`;
+      if (accuracySigRef.current === sig) return;
+      accuracySigRef.current = sig;
+      const features = active.map((v) =>
+        circleToGeoJson([v.lng!, v.lat!], v.accuracy! * 0.5, 24),
+      );
+      (map.getSource(srcId) as maplibregl.GeoJSONSource)?.setData({
+        type: "FeatureCollection",
+        features,
+      });
     }, [mapReady, vehicles, styleKey]);
 
     /* ── Live route trail for selected vehicle (cached in IndexedDB) ── */

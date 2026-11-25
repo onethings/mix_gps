@@ -27,10 +27,11 @@ function resolveStatus(vehicle: Vehicle): string {
   return vehicle?.status && STATUS_COLORS[vehicle.status] ? vehicle.status : 'stopped';
 }
 
+const VALID_ICON_TYPES = ['car','truck','bus','van','taxi','motocycle','bicycle','scooter','plane','helicopter','ship','boat','train','tram','pickup','trailer','tractor','crane','camper','person','animal'];
+
 function resolveVehicleType(vehicle: Vehicle): string {
   const t = (vehicle?.iconType || '').toLowerCase().trim();
-  const valid = ['car','truck','bus','van','taxi','motocycle','bicycle','scooter','plane','helicopter','ship','boat','train','tram','pickup','trailer','tractor','crane','camper','person','animal'];
-  if (t && valid.includes(t)) return t;
+  if (t && VALID_ICON_TYPES.includes(t)) return t;
   const model = (vehicle?.model || '').toLowerCase();
   for (const [p, type] of VEHICLE_TYPE_MAP) { if (p.test(model)) return type; }
   return 'car';
@@ -117,10 +118,10 @@ export function updateCarMarkerElement(el: HTMLDivElement, vehicle: Vehicle, isS
   if (courseChanged || statusChanged || selectedChanged) {
     const ring = inner.querySelector('.fleet-marker-ring') as HTMLElement | null;
 
-    if (courseChanged || selectedChanged) {
-      inner.style.transform = `rotate(${rot}deg)`;
-      inner.style.filter = `drop-shadow(${ringShadow(isSelected)})`;
-    }
+    // Split the writes: the shadow depends only on selection, so a course change
+    // no longer reassigns an identical CSS filter on every frame.
+    if (courseChanged) inner.style.transform = `rotate(${rot}deg)`;
+    if (selectedChanged) inner.style.filter = `drop-shadow(${ringShadow(isSelected)})`;
 
     if (ring && (statusChanged || selectedChanged)) {
       ring.style.background = `radial-gradient(circle, ${c.glow} 0%, transparent 70%)`;

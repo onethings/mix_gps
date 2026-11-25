@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Download, Link2, Pencil, Plus, Search, Settings, Share2, Trash2, Upload,
@@ -87,11 +87,12 @@ export default function DevicesPage() {
   }, [vehicles, deviceMap, q]);
 
   /* ── Online/offline status (calculated from lastUpdate) ── */
-  const isOnline = (v) => {
+  // Stable identity; an inline function here defeated the stats useMemo below.
+  const isOnline = useCallback((v) => {
     const d = deviceMap[v.id];
     if (!d?.lastUpdate) return false;
     return Date.now() - new Date(d.lastUpdate).getTime() < 5 * 60 * 1000;
-  };
+  }, [deviceMap]);
 
   /* ── Fleet stats ── */
   const stats = useMemo(() => {

@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -108,11 +108,19 @@ function formatStoppedDuration(startMs: number, endMs: number) {
   return `${h}h ${m}m`;
 }
 
+// One cached formatter. Building a fresh options object per table row made the
+// route table rebuild dominate each playback tick.
+const TIME_FMT = new Intl.DateTimeFormat('en-US', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+});
+
 function formatTime(isoStr: string | undefined | null) {
   if (!isoStr) return '—';
   try {
-    const d = new Date(isoStr);
-    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    return TIME_FMT.format(new Date(isoStr));
   } catch { return isoStr; }
 }
 
@@ -193,7 +201,7 @@ function sensorItemsFor(point: RoutePoint, t: (k: string) => string): { key: str
   return out;
 }
 
-function DataPanel({ route, stops, cursor, deviceName, selectedDate, onSeek }: {
+const DataPanel = memo(function DataPanel({ route, stops, cursor, deviceName, selectedDate, onSeek }: {
   route: RoutePoint[]; stops: StopPoint[]; cursor: number; deviceName: string; selectedDate: string;
   onSeek?: (index: number) => void;
 }) {
@@ -376,7 +384,7 @@ function DataPanel({ route, stops, cursor, deviceName, selectedDate, onSeek }: {
       </div>
     </div>
   );
-}
+});
 
 // ─── Main Page ────────────────────────────────────────────────────────
 export default function ReplayPage() {
@@ -1209,6 +1217,8 @@ export default function ReplayPage() {
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [playing, speed, route.length]);
+  // Stable so memo(DataPanel) can actually skip re-rendering between ticks.
+  const handleSeek = useCallback((i: number) => { setCursor(i); setPlaying(false); }, []);
   const current = route[cursor] || null;
   const total = route.length;
   const sensorItems = useMemo(() => (current ? sensorItemsFor(current, t) : []), [current, t]);
@@ -1479,7 +1489,7 @@ export default function ReplayPage() {
       {/* Data Panel (route/stops table) — hidden on mobile */}
       {selectedDate && total > 0 && showData && (
         <div className="hidden h-[300px] shrink-0 border-t border-border md:block">
-          <DataPanel route={route} stops={stops} cursor={cursor} deviceName={deviceName} selectedDate={selectedDate} onSeek={(i) => { setCursor(i); setPlaying(false); }} />
+          <DataPanel route={route} stops={stops} cursor={cursor} deviceName={deviceName} selectedDate={selectedDate} onSeek={handleSeek} />
         </div>
       )}
 

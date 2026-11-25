@@ -176,6 +176,17 @@ function enqueue(item: QueueItem): void {
   else queue.splice(idx, 0, item);
 }
 
+// Bounded negative cache for coordinates Nominatim could not resolve.
+const FAILED_LIMIT = 500;
+const failedHashes = new Set<string>();
+function rememberFailure(hash: string): void {
+  if (failedHashes.size >= FAILED_LIMIT) {
+    const oldest = failedHashes.values().next().value;
+    if (oldest !== undefined) failedHashes.delete(oldest);
+  }
+  failedHashes.add(hash);
+}
+
 async function runRequest(lat: number, lng: number): Promise<string | null> {
   const now = Date.now();
   const wait = Math.max(0, lastRequestAt + MIN_INTERVAL_MS - now);
@@ -184,9 +195,14 @@ async function runRequest(lat: number, lng: number): Promise<string | null> {
   const res = await fetch(url, {
     headers: { Accept: 'application/json', 'User-Agent': 'KevinGPS/1.0' },
   });
-  if (!res.ok) throw new Error(`Nominatim ${res.status} ${res.statusText}`);
-  lastRequestAt = Date.now();
-  return formatAddress(await res.json());
+  try {
+    if (!res.ok) throw new Error(`Nominatim ${res.status} ${res.statusText}`);
+    return formatAddress(await res.json());
+  } finally {
+    // Advance the throttle on failures too; otherwise a run of 429/503 responses
+    // retries with zero delay and floods the public endpoint.
+    lastRequestAt = Date.now();
+  }
 }
 
 /** Batch write multiple (rawHash, address) pairs to IndexedDB in a single transaction */
@@ -232,16 +248,26 @@ async function drain(): Promise<void> {
       inflight.delete(item.hash);
       continue;
     }
+    // The caller re-queues unresolvable vehicles on every data frame, so remember
+    // the failure instead of hitting Nominatim for the same point forever.
+    if (failedHashes.has(item.hash)) {
+      item.resolve(null);
+      inflight.delete(item.hash);
+      continue;
+    }
     try {
       const address = await runRequest(item.lat, item.lng);
       if (address) {
         hotSet(item.hash, address);
         notify(item.hash, address);
         pendingDbWrites.push({ rawHash: item.rawHash, address });
+      } else {
+        rememberFailure(item.hash);
       }
       item.resolve(address);
     } catch (e) {
       console.warn('[geocoder] Nominatim failed:', (e as Error)?.message || e);
+      rememberFailure(item.hash);
       item.resolve(null);
     }
     inflight.delete(item.hash);
