@@ -269,3 +269,10 @@
   color: hsl(var(--primary));
   font-weight: 700;
 }
+
+/* Long tables: skip layout and paint for rows that are far outside the viewport.
+   Markup and column widths are unchanged; unsupported engines just render normally. */
+.cv-row {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 28px;
+}

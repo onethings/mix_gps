@@ -143,7 +143,7 @@ const LiveTrackingBottomPanel = memo(function LiveTrackingBottomPanel({ vehicles
                     key={v.id}
                     onClick={() => onSelect(v)}
                     className={cn(
-                      'border-b border-border/40 transition-colors cursor-pointer',
+                      'cv-row border-b border-border/40 transition-colors cursor-pointer',
                       selectedId === v.id ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-accent/40',
                     )}
                   >

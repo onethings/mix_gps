@@ -926,7 +926,7 @@ export default function CombinedReportPage() {
                   <TableRow
                     key={row.id}
                     onClick={() => setSelectedEvent(row)}
-                    className={`cursor-pointer transition-colors ${selectedEvent?.id === row.id ? "bg-primary/5" : "hover:bg-muted/50"}`}
+                    className={`cv-row cursor-pointer transition-colors ${selectedEvent?.id === row.id ? "bg-primary/5" : "hover:bg-muted/50"}`}
                   >
                     <TableCell className="text-xs">
                       {row.isFirstInGroup ? (

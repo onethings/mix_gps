@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Download, Link2, Pencil, Plus, Search, Settings, Share2, Trash2, Upload,
@@ -93,6 +93,18 @@ export default function DevicesPage() {
     if (!d?.lastUpdate) return false;
     return Date.now() - new Date(d.lastUpdate).getTime() < 5 * 60 * 1000;
   }, [deviceMap]);
+
+  // The table and the mobile cards are both in the tree and CSS hides one of them,
+  // so every device was rendered twice. Render only the visible variant.
+  const [isDesktop, setIsDesktop] = useState(
+    () => (typeof window === 'undefined' ? true : window.matchMedia('(min-width: 768px)').matches),
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onChange = () => setIsDesktop(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
 
   /* ── Fleet stats ── */
   const stats = useMemo(() => {
@@ -298,7 +310,7 @@ export default function DevicesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filtered.map((v) => {
+                {(isDesktop ? filtered : []).map((v) => {
                   const d = deviceMap[v.id];
                   const batt = d ? batteryLevel(d) : null;
                   const signal = d ? signalStrength(d) : null;
@@ -461,7 +473,7 @@ export default function DevicesPage() {
 
       {/* ── Mobile cards ── */}
       <div className="space-y-3 md:hidden">
-        {filtered.map((v) => {
+        {(isDesktop ? [] : filtered).map((v) => {
           const d = deviceMap[v.id];
           const batt = d ? batteryLevel(d) : null;
           const signal = d ? signalStrength(d) : null;
