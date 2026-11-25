@@ -1,4 +1,5 @@
-import { useMemo, useState, memo } from 'react';
+import { useMemo, useRef, useState, memo } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import StatusBadge from '@/components/common/StatusBadge';
 import ActivityPanel from '@/components/tracking/ActivityPanel';
 import { cn, formatDate } from '@/lib/utils';
@@ -80,6 +81,22 @@ const LiveTrackingBottomPanel = memo(function LiveTrackingBottomPanel({ vehicles
     { key: 'activity', label: t('activity', 'Activity'), count: null },
   ];
 
+  // Virtualize the table. A fleet list is unbounded and every row is an 8-cell
+  // subtree, so rendering all of them per position frame is the page's main cost.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rowVirtualizer = useVirtualizer({
+    count: filtered.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 37,
+    overscan: 10,
+  });
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const lastItem = virtualItems.length ? virtualItems[virtualItems.length - 1] : null;
+  const topPad = virtualItems.length ? virtualItems[0].start : 0;
+  const bottomPad = lastItem
+    ? rowVirtualizer.getTotalSize() - (lastItem.start + lastItem.size)
+    : 0;
+
   return (
     <div className="flex h-full flex-col bg-card">
       {/* Tab bar */}
@@ -126,7 +143,7 @@ const LiveTrackingBottomPanel = memo(function LiveTrackingBottomPanel({ vehicles
       ) : (
         <>
           {/* Table */}
-          <div className="flex-1 overflow-auto" style={{ contain: 'layout' }}>
+          <div ref={scrollRef} className="flex-1 overflow-auto" style={{ contain: 'layout' }}>
             <table className="w-full border-collapse text-[11px]">
               <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
                 <tr className="border-b border-border">
@@ -138,31 +155,47 @@ const LiveTrackingBottomPanel = memo(function LiveTrackingBottomPanel({ vehicles
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((v, i) => (
-                  <tr
-                    key={v.id}
-                    onClick={() => onSelect(v)}
-                    className={cn(
-                      'cv-row border-b border-border/40 transition-colors cursor-pointer',
-                      selectedId === v.id ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-accent/40',
-                    )}
-                  >
-                    <td className="px-2.5 py-2 font-mono text-[10px] text-muted-foreground">{i + 1}</td>
-                    <td className="px-2.5 py-2">
-                      <StatusBadge status={v.status} />
-                    </td>
-                    <td className="px-2.5 py-2 font-medium text-foreground">{v.name}</td>
-                    <td className="whitespace-nowrap px-2.5 py-2 font-mono text-[10px] text-muted-foreground">
-                      {formatDate(v.lastUpdate)}
-                    </td>
-                    <td className="px-2.5 py-2 text-muted-foreground">{getLocatedStatus(v, t)}</td>
-                    <td className="px-2.5 py-2 text-muted-foreground">{getLocType(v, t)}</td>
-                    <td className="px-2.5 py-2 font-mono tabular-nums text-foreground">{v.speed}</td>
-                    <td className="max-w-[200px] truncate px-2.5 py-2 text-muted-foreground" title={v.address || ''}>
-                      {v.address || '—'}
-                    </td>
+                {topPad > 0 && (
+                  <tr aria-hidden="true" style={{ height: topPad }}>
+                    <td colSpan={8} />
                   </tr>
-                ))}
+                )}
+                {virtualItems.map((vi) => {
+                  const v = filtered[vi.index];
+                  if (!v) return null;
+                  return (
+                    <tr
+                      key={vi.key}
+                      data-index={vi.index}
+                      ref={rowVirtualizer.measureElement}
+                      onClick={() => onSelect(v)}
+                      className={cn(
+                        'border-b border-border/40 transition-colors cursor-pointer',
+                        selectedId === v.id ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-accent/40',
+                      )}
+                    >
+                      <td className="px-2.5 py-2 font-mono text-[10px] text-muted-foreground">{vi.index + 1}</td>
+                      <td className="px-2.5 py-2">
+                        <StatusBadge status={v.status} />
+                      </td>
+                      <td className="px-2.5 py-2 font-medium text-foreground">{v.name}</td>
+                      <td className="whitespace-nowrap px-2.5 py-2 font-mono text-[10px] text-muted-foreground">
+                        {formatDate(v.lastUpdate)}
+                      </td>
+                      <td className="px-2.5 py-2 text-muted-foreground">{getLocatedStatus(v, t)}</td>
+                      <td className="px-2.5 py-2 text-muted-foreground">{getLocType(v, t)}</td>
+                      <td className="px-2.5 py-2 font-mono tabular-nums text-foreground">{v.speed}</td>
+                      <td className="max-w-[200px] truncate px-2.5 py-2 text-muted-foreground" title={v.address || ''}>
+                        {v.address || '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {bottomPad > 0 && (
+                  <tr aria-hidden="true" style={{ height: bottomPad }}>
+                    <td colSpan={8} />
+                  </tr>
+                )}
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={9} className="px-2.5 py-8 text-center text-xs text-muted-foreground">
